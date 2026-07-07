@@ -1,0 +1,15 @@
+{
+  "_doc": "Growth Vocabulary Library — encodages compacts terme→loi+params. Les specs référencent ces clés au lieu de re-décrire les maths.",
+  "growth.horn_spiral": {"law": "log_spiral", "p": {"a": 0.05, "b": 0.28, "turns": 1.1, "rise": 0.3}, "use": "cornes, griffes, becs"},
+  "growth.limb_taper": {"law": "power_taper", "p": {"k": 1.3}, "use": "membres, cous"},
+  "growth.tail_taper": {"law": "power_taper", "p": {"k": 1.7}, "use": "queues effilées"},
+  "growth.membrane_sag": {"law": "catenary", "p": {"tension": 2.2}, "use": "membranes alaires, voiles"},
+  "growth.scale_pack": {"law": "phyllotaxis", "p": {}, "use": "placement écailles/pointes"},
+  "growth.spike_decay": {"law": "decay_series", "p": {"ratio": 0.85}, "use": "crêtes dorsales décroissantes"},
+  "growth.branching": {"law": "lsystem", "p": {"axiom": "F", "rules": {"F": "F[+F]F[-F]"}, "depth": 3}, "use": "bois, veines de membrane (futur)"},
+  "pattern.reptile_scales": {"shader": "voronoi_edge", "p": {"scale": 35, "bump": 0.5}, "use": "peau écailleuse: voronoi distance-to-edge → bump sillons + variation par cellule"},
+  "pattern.membrane_skin": {"shader": "membrane", "p": {"veins": 12}, "use": "peau fine translucide"},
+  "pattern.rock": {"shader": "noise_bump", "p": {"scale": 4}, "use": "sols rocheux"},
+  "math.phi": 1.618033988749895,
+  "math.golden_angle_deg": 137.507764
+}

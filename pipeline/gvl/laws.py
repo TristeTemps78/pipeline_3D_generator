@@ -1,0 +1,69 @@
+"""GVL — lois de croissance mathématiques. Fonctions pures, sans bpy.
+Chaque loi retourne des points 3D ou des profils scalaires normalisés."""
+import math
+
+PHI = (1 + 5 ** 0.5) / 2
+GOLDEN_ANGLE = math.radians(137.507764)
+
+
+def log_spiral(a=0.06, b=0.22, turns=1.6, n=24, rise=0.35, pitch=0.0):
+    """Spirale logarithmique r=a·e^(bθ) (cornes, griffes, coquilles).
+    Points dans le plan local Y-Z, montée le long de -Y (vers l'arrière), rise = élévation."""
+    pts = []
+    for i in range(n):
+        t = i / (n - 1)
+        th = t * turns * 2 * math.pi
+        r = a * math.exp(b * th)
+        y = -r * math.cos(th) + a
+        z = r * math.sin(th) + t * rise
+        pts.append((0.0, y, z + t * pitch))
+    return pts
+
+
+def power_taper(n, r0=1.0, k=1.4, rmin=0.02):
+    """Allométrie : r(t)=r0·(1-t)^k. Profil de rayons pour membres/queues."""
+    return [max(rmin, r0 * (1 - i / (n - 1)) ** k) for i in range(n)]
+
+
+def catenary(u, tension=2.2):
+    """Affaissement de membrane suspendue, normalisé : 0 aux extrémités, 1 au centre."""
+    c = math.cosh(tension)
+    return (c - math.cosh(tension * (2 * u - 1))) / (c - 1)
+
+
+def phyllotaxis(n, spread=1.0):
+    """Disposition en angle d'or (écailles, pointes, graines). Points 2D (x,y)."""
+    pts = []
+    for i in range(n):
+        r = spread * math.sqrt(i / n)
+        th = i * GOLDEN_ANGLE
+        pts.append((r * math.cos(th), r * math.sin(th)))
+    return pts
+
+
+def decay_series(n, base=1.0, ratio=0.82):
+    """Série géométrique décroissante (tailles de pointes dorsales, phalanges)."""
+    return [base * ratio ** i for i in range(n)]
+
+
+def lerp_path(pts, n):
+    """Ré-échantillonne une polyligne de contrôle en n points (interp. linéaire)."""
+    if n <= len(pts):
+        return list(pts)
+    out = []
+    seg = len(pts) - 1
+    for i in range(n):
+        t = i / (n - 1) * seg
+        j = min(int(t), seg - 1)
+        f = t - j
+        a, b = pts[j], pts[j + 1]
+        out.append(tuple(a[k] + (b[k] - a[k]) * f for k in range(3)))
+    return out
+
+
+def lsystem(axiom, rules, depth):
+    """L-système symbolique (ramifications : bois de cerf, veines). Retourne la chaîne."""
+    s = axiom
+    for _ in range(depth):
+        s = "".join(rules.get(c, c) for c in s)
+    return s
