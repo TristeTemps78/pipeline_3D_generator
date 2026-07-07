@@ -1,6 +1,6 @@
 {
  "name": "dragon_got",
- "ref": "Dragon ultra r\u00e9aliste style Game of Thrones (Drogon) : \u00e9cailles noires, reflets rouges, wyverne (ailes = membres avant), pose debout ailes d\u00e9ploy\u00e9es, t\u00eate lev\u00e9e.",
+ "ref": "Drogon (GoT S7) : cr\u00e2ne tr\u00e8s allong\u00e9 et anguleux, gueule ouverte rugissante avec dents coniques, couronne de 6-10 cornes balay\u00e9es vers l'arri\u00e8re + pointes sous m\u00e2choire, arcades marqu\u00e9es, cr\u00eate dorsale double dense, \u00e9cailles noires tr\u00e8s marqu\u00e9es \u00e0 reflets rouge cuivr\u00e9, ailes-membres avant, atmosph\u00e8re dor\u00e9e brumeuse de champ de bataille en feu.",
  "materials": {
   "scales": {
    "builder": "reptile_scales",

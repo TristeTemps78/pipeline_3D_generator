@@ -2,5 +2,10 @@
  "step": 6,
  "spec": "specs/dragon_got.json",
  "last_render": "renders/step_006.png",
- "feedback": []
+ "feedback": [
+  {
+   "step": 6,
+   "user": "Proportions+pose OK, tout le reste \u00e0 refaire beaucoup plus d\u00e9taill\u00e9. T\u00eate ignoble. Cible = photo Drogon S7 : cr\u00e2ne long anguleux, gueule ouverte rugissante, dents, couronne de cornes balay\u00e9es en arri\u00e8re, cr\u00eate dorsale dense, \u00e9cailles tr\u00e8s marqu\u00e9es noir/rouge cuivr\u00e9, atmosph\u00e8re dor\u00e9e feu/brume, champ de bataille."
+  }
+ ]
 }
