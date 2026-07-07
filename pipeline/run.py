@@ -2,6 +2,8 @@
   forge <spec.json> [--fast] [--clay] [--sheet]  build + rendu (ou planche-contact)
   validate <spec.json> [--pairs a:b,c:d]         sanity checks BVH, AUCUN rendu (C1)
   sheet <spec.json> [--fast]                     planche-contact clay 4 vues, 1 PNG (C2)
+  clayhero <spec.json> [--fast]                  clay + caméra hero (géométrie seule, cadrage macro)
+  compare <spec.json> <ref.png> [--fast]         réf | rendu rim-lit + deltas couleur/bords (I2)
 Construit la scène depuis la spec, met à jour l'état de session.
 Étapes fuse/detail (fusion voxel + displace + écailles) pilotées par la spec — cf.
 research/convergence.md (solutions convergentes des deux docs, testées dans research/tests/)."""
@@ -102,6 +104,25 @@ def do_compare(spec_path, ref_path, fast=False):
     print(json.dumps({'sheet': rep['sheet'], 'ref': rep['ref'], 'render': rep['render']}, indent=1))
 
 
+def do_clayhero(spec_path, fast=False):
+    """Clay + caméra hero : juge la GÉOMÉTRIE seule dans le cadrage macro de `compare`,
+    sans matériaux ni rim. C'est le rendu de validation entre deux éditions d'écailles/reliefs."""
+    spec = _load(spec_path)
+    st = load_state()
+    st['step'] += 1
+    organic.build(spec)
+    core.clay()
+    hero = spec.get('scene', {}).get('hero', {})
+    tgt = tuple(hero.get('target', spec.get('scene', {}).get('camera', {}).get('target', (0, 0, 2))))
+    core.camera(tuple(hero.get('cam', (5, -6, 3))), target=tgt, lens=hero.get('lens', 70))
+    out = _next_out(st)
+    res, samples = ((560, 560), 12) if fast else ((900, 900), 24)
+    core.render(out, res=res, samples=samples)
+    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
+    save_state(st)
+    print(f"OK clay hero -> {out}")
+
+
 def do_sheet(spec_path, fast=False):
     spec = _load(spec_path)
     st = load_state()
@@ -127,6 +148,8 @@ if __name__ == '__main__':
         do_validate(sys.argv[2])
     elif cmd == 'sheet':
         do_sheet(sys.argv[2], fast=fast)
+    elif cmd == 'clayhero':
+        do_clayhero(sys.argv[2], fast=fast)
     elif cmd == 'compare':
         do_compare(sys.argv[2], sys.argv[3], fast=fast)
     else:
