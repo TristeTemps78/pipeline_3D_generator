@@ -75,10 +75,11 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     bmp.inputs['Strength'].default_value = bump
     lk.new(hsum.outputs['Value'], bmp.inputs['Height'])
     lk.new(bmp.outputs['Normal'], bsdf.inputs['Normal'])
-    # --- facteur arête : distance faible = bord de plaque → 1 ---
+    # --- facteur arête : distance faible = bord de plaque → 1 (resserré : ne couvre
+    # que le sillon réel entre écailles, pas toute la plaque — tempère le cuivre I2) ---
     edge = n.new('ShaderNodeMapRange')
     edge.inputs['From Min'].default_value = 0.0
-    edge.inputs['From Max'].default_value = 0.06
+    edge.inputs['From Max'].default_value = 0.045
     edge.inputs['To Min'].default_value = 1.0
     edge.inputs['To Max'].default_value = 0.0
     lk.new(v1.outputs['Distance'], edge.inputs['Value'])
@@ -96,8 +97,8 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     mix1.inputs['B'].default_value = (tint[0] * 0.35, tint[1] * 0.35, tint[2] * 0.35, 1)
     lk.new(crange.outputs['Result'], mix1.inputs['Factor'])
     efac = n.new('ShaderNodeMath')
-    efac.operation = 'MULTIPLY'      # cuivre net mais borné sur les arêtes
-    efac.inputs[1].default_value = 0.85
+    efac.operation = 'MULTIPLY'      # cuivre net mais borné et resserré sur les arêtes
+    efac.inputs[1].default_value = 0.68
     lk.new(edge.outputs['Result'], efac.inputs[0])
     mix2 = n.new('ShaderNodeMix')
     mix2.data_type = 'RGBA'
@@ -105,18 +106,19 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     lk.new(mix1.outputs['Result'], mix2.inputs['A'])
     lk.new(efac.outputs['Value'], mix2.inputs['Factor'])
     lk.new(mix2.outputs['Result'], bsdf.inputs['Base Color'])
-    # --- roughness plus basse sur les arêtes (reflets cuivrés) ---
+    # --- roughness plus basse sur les arêtes/carènes : casse le mat pour révéler le
+    # relief GÉOMÉTRIQUE (plaques carénées) sous le rim, sans bruit shader ajouté ---
     rrange = n.new('ShaderNodeMapRange')
     rrange.inputs['From Min'].default_value = 0.0
     rrange.inputs['From Max'].default_value = 1.0
     rrange.inputs['To Min'].default_value = rough
-    rrange.inputs['To Max'].default_value = 0.22
+    rrange.inputs['To Max'].default_value = 0.1
     lk.new(edge.outputs['Result'], rrange.inputs['Value'])
     lk.new(rrange.outputs['Result'], bsdf.inputs['Roughness'])
     _set(bsdf, 'Roughness', rough)
-    _set(bsdf, 'Specular Tint', (0.85, 0.4, 0.22, 1.0))
-    _set(bsdf, 'Specular IOR Level', 0.35)
-    _set(bsdf, 'Anisotropic', 0.25)
+    _set(bsdf, 'Specular Tint', (0.6, 0.46, 0.36, 1.0))
+    _set(bsdf, 'Specular IOR Level', 0.55)
+    _set(bsdf, 'Anisotropic', 0.3)
     _set(bsdf, 'Sheen Weight', 0.08)
     if sss > 0:  # I4 : diffusion sous-cutanée → chair vivante, pas plastique
         _set(bsdf, 'Subsurface Weight', sss)
