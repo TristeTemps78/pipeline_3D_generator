@@ -179,9 +179,15 @@ def compare_sheet(out_path, ref_path, cam_loc, target, res=(640, 640), samples=2
     _save_png(out_path, np.dstack([pair, np.ones(pair.shape[:2], np.float32)]))
     if os.path.exists(out_path + '.tmp.png'):
         os.remove(out_path + '.tmp.png')
+    # Métriques sur images NORMALISÉES à une hauteur commune : edge_density est une
+    # fraction de pixels-bord, donc dépendante de la résolution d'analyse — sans ça,
+    # réf (native ~1500px) et rendu (560/900px) ne sont pas comparables, et le chiffre
+    # bouge entre --fast et HQ sans que l'image change.
+    ana_h = 512
+    ref_a, ren_a = _resize_h(refpx, ana_h), _resize_h(ren, ana_h)
     return {'sheet': out_path,
-            'ref': {'color': color_stats(refpx), 'edge_density': round(edge_density(refpx), 4)},
-            'render': {'color': color_stats(ren), 'edge_density': round(edge_density(ren), 4)}}
+            'ref': {'color': color_stats(ref_a), 'edge_density': round(edge_density(ref_a), 4)},
+            'render': {'color': color_stats(ren_a), 'edge_density': round(edge_density(ren_a), 4)}}
 
 
 def proportions(mask):

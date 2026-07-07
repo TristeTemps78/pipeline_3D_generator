@@ -1,7 +1,11 @@
 # Pipeline 3D — Claude + Blender (bpy headless)
 
 ## État actuel
-Cible fixée par l'utilisateur : `references/drogon_*.png` (Drogon qualité film, extrait du mp4). Écart couleur mesuré et **halvé** cette boucle (clay→cuivre-SSS-rim). Tête rendue côte-à-côte avec la réf : step_027. Prochains écarts mesurés : densité de bords 0.15 vs 0.24 réf (→ écailles GÉO sur cou/tête), reliefs crâniens osseux, cuivre à tempérer (part 0.79 vs 0.42).
+Boucle 4 close (rendu HQ **step_044**, réf|rendu). **EN ATTENTE DE FEEDBACK UTILISATEUR** — candidats de boucle 5 dans `NEXT.md`. Cible : `references/drogon_*.png`.
+- Fait cette boucle : écailles GÉO réelles cou+tête (`detail.armor` de la spec : mask région, dégradé de taille tête→museau, plaques carénées plates), arcades sourcilières + bosse nasale, charbon dominant + cuivre dans les creux (part 0.44, cible 0.42 ✓), double rim.
+- **Fix métrique important** : `edge_density`/`color_stats` sont maintenant calculées sur images normalisées (hauteur 512) — avant, réf native ~1500px vs rendu 560/900px rendait les chiffres incomparables (les agents des boucles précédentes ont couru après un chiffre faux). Nouvelles cibles honnêtes : bords 0.36 (rendu : 0.15), couleur moy (0.33,0.27,0.26) (rendu : 0.17,0.14,0.13 — trop sombre).
+- Bug corrigé : les Curves (spine) étaient silencieusement ignorées par Distribute Points on Faces → `core.realize_to_mesh` bake Curve→Mesh avant l'armure.
+- Conteneur neuf : `bash pipeline/bootstrap.sh` (pip bpy). Multi-branches : les 3 branches claude/* sont UNE lignée, protocole de convergence dans `pipeline/orchestrator.md`.
 
 ## Inversions testées (research/inversions.md — « fais le contraire »)
 Consigne utilisateur : inverser mes hypothèses, noter, tester. 4 inversions gagnantes câblées :
