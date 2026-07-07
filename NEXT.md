@@ -1,4 +1,13 @@
-# Boucle 5 — EN COURS (priorités utilisateur 2026-07-07 : points 1-3 ; 4-5 reportés)
+# Boucle 6 — candidats (boucle 5 close : points 1-3 faits, rendu step_057 ; EN ATTENTE DE FEEDBACK)
+
+Reste des candidats (les points 4-5 d'origine, reportés, + nouveaux constats step_057) :
+- **Luminosité/chaleur** : rendu 2× trop sombre vs réf, cuivre 0.36 (cible 0.42) ; monter
+  key/rim, réchauffer les creux, désaturer l'or de l'œil (trop bijou), éteindre le sol visible.
+- **Densité de bords 0.13 → 0.36** : rides/plis displace sur zones nues, petites écailles
+  joues/mâchoire, carènes plus saillantes en silhouette.
+- **Plans durs du crâne** : joues creuses, mâchoire anguleuse (sections superellipse plus carrées).
+
+Archive boucle 5 (fait) :
 
 Métriques honnêtes depuis le fix de normalisation (analyse à hauteur commune 512 px) :
 cibles réf = couleur moy (0.33, 0.27, 0.26) · part cuivre 0.42 · densité de bords 0.36.

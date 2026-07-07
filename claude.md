@@ -1,7 +1,10 @@
 # Pipeline 3D — Claude + Blender (bpy headless)
 
 ## État actuel
-Boucle 4 close (rendu HQ **step_044**, réf|rendu). **EN ATTENTE DE FEEDBACK UTILISATEUR** — candidats de boucle 5 dans `NEXT.md`. Cible : `references/drogon_*.png`.
+Boucle 5 close (rendu HQ **step_057**, réf|rendu). **EN ATTENTE DE FEEDBACK UTILISATEUR** — reste à faire dans `NEXT.md`. Cible : `references/drogon_*.png`.
+- Boucle 5 (priorités utilisateur 1-3) : œil ENCHÂSSÉ dans une orbite creusée au boolean (`ops.boolean_diff`) + paupières ; couronne de cornes 11 paires bi-modales + 7 paires de picots, continue avec la crête du cou ; cou épaissi (rayons spine 0.74→0.40) + fanon `dewlap` (quille de peau, PAS de blobs sphériques — ça rend en chapelet d'œufs) ; caméra hero reculée (cam 3.9,8.3,4.3 lens 70).
+- Écarts restants mesurés (step_057) : bords 0.13 vs 0.36, couleur (0.18,0.15,0.14) vs (0.33,0.27,0.26) — 2× trop sombre, cuivre 0.36 vs 0.42 (a baissé avec le nouveau cadrage), sol visible à éteindre, plans durs des joues, or de l'œil trop saturé.
+- Branches : `claude/project-orchestration-pipeline-p5ap88` = seule lignée active (suppression des 2 branches redondantes demandée, à faire sur GitHub UI — deletes bloqués en 403 côté session).
 - Fait cette boucle : écailles GÉO réelles cou+tête (`detail.armor` de la spec : mask région, dégradé de taille tête→museau, plaques carénées plates), arcades sourcilières + bosse nasale, charbon dominant + cuivre dans les creux (part 0.44, cible 0.42 ✓), double rim.
 - **Fix métrique important** : `edge_density`/`color_stats` sont maintenant calculées sur images normalisées (hauteur 512) — avant, réf native ~1500px vs rendu 560/900px rendait les chiffres incomparables (les agents des boucles précédentes ont couru après un chiffre faux). Nouvelles cibles honnêtes : bords 0.36 (rendu : 0.15), couleur moy (0.33,0.27,0.26) (rendu : 0.17,0.14,0.13 — trop sombre).
 - Bug corrigé : les Curves (spine) étaient silencieusement ignorées par Distribute Points on Faces → `core.realize_to_mesh` bake Curve→Mesh avant l'armure.
