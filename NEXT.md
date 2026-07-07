@@ -1,4 +1,4 @@
-# Prochaine boucle — candidats (boucle 4 close le 2026-07-07, EN ATTENTE DE FEEDBACK)
+# Boucle 5 — EN COURS (priorités utilisateur 2026-07-07 : points 1-3 ; 4-5 reportés)
 
 Métriques honnêtes depuis le fix de normalisation (analyse à hauteur commune 512 px) :
 cibles réf = couleur moy (0.33, 0.27, 0.26) · part cuivre 0.42 · densité de bords 0.36.
