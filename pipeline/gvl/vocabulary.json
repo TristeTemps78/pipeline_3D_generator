@@ -7,9 +7,9 @@
   "growth.scale_pack": {"law": "phyllotaxis", "p": {}, "use": "placement écailles/pointes"},
   "growth.spike_decay": {"law": "decay_series", "p": {"ratio": 0.85}, "use": "crêtes dorsales décroissantes"},
   "growth.branching": {"law": "lsystem", "p": {"axiom": "F", "rules": {"F": "F[+F]F[-F]"}, "depth": 3}, "use": "bois, veines de membrane (futur)"},
-  "pattern.reptile_scales": {"shader": "voronoi_edge", "p": {"scale": 35, "bump": 0.5}, "use": "peau écailleuse: voronoi distance-to-edge → bump sillons + variation par cellule"},
-  "pattern.membrane_skin": {"shader": "membrane", "p": {"veins": 12}, "use": "peau fine translucide"},
-  "pattern.rock": {"shader": "noise_bump", "p": {"scale": 4}, "use": "sols rocheux"},
+  "pattern.reptile_scales": {"shader": "voronoi_edge_x2", "p": {"scale": 5, "scale2": 16, "bump": 1.2, "warp": 0.3}, "use": "peau écailleuse v2: 2 voronoi distance-to-edge (plaques+micro) sur coords Object monde distordues par noise (échelle = cellules/unité), arêtes cuivrées à roughness basse"},
+  "pattern.membrane_skin": {"shader": "membrane", "p": {"veins": 12, "transmission": 0.3}, "use": "peau fine translucide, lueur à contre-jour"},
+  "pattern.rock": {"shader": "noise_bump_burnt", "p": {"scale": 3, "bump": 1.2}, "use": "sols cendrés: micro-relief fort + zones brûlées par noise large + pointe de braise"},
   "math.phi": 1.618033988749895,
   "math.golden_angle_deg": 137.507764
 }

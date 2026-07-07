@@ -76,12 +76,37 @@ def camera(loc, target=(0, 0, 2), lens=45):
     return ob
 
 
-def world(color=(0.03, 0.04, 0.06), strength=0.4):
+def world(color=(0.03, 0.04, 0.06), strength=0.4, color_top=None, volume=None):
+    """Fond monde. Rétro-compatible : color/strength seuls = fond uni.
+    color_top : dégradé horizon→zénith (horizon = `color`).
+    volume : {'density', 'anisotropy', 'color'} → brume par volume scatter mondial."""
     w = bpy.data.worlds.new('world')
     w.use_nodes = True
-    bg = w.node_tree.nodes['Background']
-    bg.inputs[0].default_value = (*color, 1)
+    nt = w.node_tree
+    bg = nt.nodes['Background']
     bg.inputs[1].default_value = strength
+    if color_top:
+        tc = nt.nodes.new('ShaderNodeTexCoord')
+        sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+        mr = nt.nodes.new('ShaderNodeMapRange')
+        mr.inputs['From Min'].default_value = -0.1
+        mr.inputs['From Max'].default_value = 0.6
+        mix = nt.nodes.new('ShaderNodeMix')
+        mix.data_type = 'RGBA'
+        mix.inputs['A'].default_value = (*color, 1)
+        mix.inputs['B'].default_value = (*color_top, 1)
+        nt.links.new(tc.outputs['Generated'], sep.inputs['Vector'])
+        nt.links.new(sep.outputs['Z'], mr.inputs['Value'])
+        nt.links.new(mr.outputs['Result'], mix.inputs['Factor'])
+        nt.links.new(mix.outputs['Result'], bg.inputs[0])
+    else:
+        bg.inputs[0].default_value = (*color, 1)
+    if volume:
+        vs = nt.nodes.new('ShaderNodeVolumeScatter')
+        vs.inputs['Density'].default_value = volume.get('density', 0.01)
+        vs.inputs['Anisotropy'].default_value = volume.get('anisotropy', 0.4)
+        vs.inputs['Color'].default_value = (*volume.get('color', (1.0, 0.8, 0.55)), 1)
+        nt.links.new(vs.outputs['Volume'], nt.nodes['World Output'].inputs['Volume'])
     bpy.context.scene.world = w
     return w
 
