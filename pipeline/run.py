@@ -81,6 +81,27 @@ def do_validate(spec_path):
           f"{len(clip)} objets mal posés, {len(hits)} paires en collision.")
 
 
+def do_compare(spec_path, ref_path, fast=False):
+    """Inversion I2 : rendu macro rim-lit d'une région côte à côte avec la réf + deltas.
+    Région via spec['scene']['hero'] = {'cam':[...], 'target':[...], 'lens':..}."""
+    spec = _load(spec_path)
+    st = load_state()
+    st['step'] += 1
+    organic.build(spec)
+    hero = spec.get('scene', {}).get('hero', {})
+    tgt = tuple(hero.get('target', spec.get('scene', {}).get('camera', {}).get('target', (0, 0, 2))))
+    core.rim_setup(target=tgt, **spec.get('scene', {}).get('rim', {}))
+    out = _next_out(st)
+    res = (560, 560) if fast else (900, 900)
+    rep = feedback.compare_sheet(out, ref_path, tuple(hero.get('cam', (5, -6, 3))), tgt,
+                                 res=res, samples=(20 if fast else 40),
+                                 lens=hero.get('lens', 70))
+    core.save_blend(os.path.join(ROOT, 'renders', 'scene.blend'))
+    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
+    save_state(st)
+    print(json.dumps({'sheet': rep['sheet'], 'ref': rep['ref'], 'render': rep['render']}, indent=1))
+
+
 def do_sheet(spec_path, fast=False):
     spec = _load(spec_path)
     st = load_state()
@@ -106,5 +127,7 @@ if __name__ == '__main__':
         do_validate(sys.argv[2])
     elif cmd == 'sheet':
         do_sheet(sys.argv[2], fast=fast)
+    elif cmd == 'compare':
+        do_compare(sys.argv[2], sys.argv[3], fast=fast)
     else:
         sys.exit(f"commande inconnue: {cmd}")

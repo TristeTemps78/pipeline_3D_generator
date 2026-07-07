@@ -1,0 +1,58 @@
+{
+ "test": "t9_ref_compare",
+ "bpy": "5.0.1",
+ "date": "2026-07-07 09:32:57",
+ "inversions": "I2 r\u00e9f c\u00f4te-\u00e0-c\u00f4te \u00b7 I4 SSS cuivr\u00e9 \u00b7 I7 rim light",
+ "ref_target": {
+  "color": {
+   "mean": [
+    0.293,
+    0.261,
+    0.267
+   ],
+   "copper_fraction": 0.458,
+   "copper_mean": [
+    0.212,
+    0.147,
+    0.129
+   ]
+  },
+  "edge_density": 0.2396
+ },
+ "clay": {
+  "color": {
+   "mean": [
+    0.578,
+    0.576,
+    0.573
+   ],
+   "copper_fraction": 0.0,
+   "copper_mean": null
+  },
+  "edge_density": 0.0067,
+  "color_gap_L2": 0.524
+ },
+ "copper_skin": {
+  "color": {
+   "mean": [
+    0.203,
+    0.128,
+    0.091
+   ],
+   "copper_fraction": 0.952,
+   "copper_mean": [
+    0.199,
+    0.122,
+    0.086
+   ]
+  },
+  "edge_density": 0.2027,
+  "color_gap_L2": 0.238
+ },
+ "copper_closes_gap": true,
+ "copper_fraction_up": true,
+ "sheets": [
+  "/home/user/pipeline_3D_generator/research/renders/t9_compare_clay.png",
+  "/home/user/pipeline_3D_generator/research/renders/t9_compare_skin.png"
+ ]
+}

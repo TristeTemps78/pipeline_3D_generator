@@ -1,0 +1,16 @@
+{
+ "test": "t8_geo_scales",
+ "bpy": "5.0.1",
+ "date": "2026-07-07 09:30:56",
+ "inversion": "I1 \u2014 les \u00e9cailles SONT de la g\u00e9om\u00e9trie, pas du bruit",
+ "displacement_noise": {
+  "render": "/home/user/pipeline_3D_generator/research/renders/t8_displacement_noise.png",
+  "edge_density": 0.0001
+ },
+ "geo_keeled_scales": {
+  "render": "/home/user/pipeline_3D_generator/research/renders/t8_geo_scales.png",
+  "edge_density": 0.0162
+ },
+ "edge_gain_x": 162.0,
+ "geo_reads_as_scales": true
+}

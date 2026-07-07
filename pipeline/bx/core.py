@@ -141,6 +141,21 @@ def clay():
     area_light((6, 10, 6), target=(0, 1, 2.5), energy=500, size=12)
 
 
+def rim_setup(key=(6, -8, 5), rim=(-7, 7, 4), target=(0, 0, 1.5),
+              key_energy=700, rim_energy=2600, rim_color=(1.0, 0.72, 0.42),
+              bg=(0.01, 0.011, 0.014)):
+    """Éclairage dramatique de contre-jour (inversion I7) : une key douce + un RIM
+    puissant chaud derrière le sujet → jantes lumineuses qui révèlent bords d'écailles
+    et translucidité de membrane sur fond sombre, comme la réf Drogon. Retire les lumières
+    existantes d'abord."""
+    for ob in list(bpy.context.scene.objects):
+        if ob.type == 'LIGHT':
+            bpy.data.objects.remove(ob)
+    world(color=bg, strength=0.25)
+    area_light(key, target=target, energy=key_energy, size=8, color=(1.0, 0.92, 0.82))
+    area_light(rim, target=target, energy=rim_energy, size=5, color=rim_color)
+
+
 def render(path, res=(1152, 864), samples=48):
     sc = bpy.context.scene
     sc.render.engine = 'CYCLES'

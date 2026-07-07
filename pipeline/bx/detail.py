@@ -85,6 +85,99 @@ def scales(ob, instance_ob, density=60.0, scale=(0.06, 0.14), seed=0,
     return ob
 
 
+def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
+                 caudal=(0, -1, 0), curvature=True, realize=True, name='armor'):
+    """Écailles-armure chevauchantes (inversion I1). Différence clé avec `scales` :
+    densité élevée pour que les plaques se TOUCHENT/chevauchent, et orientation COHÉRENTE
+    — Z aligné à la normale de surface puis Y aligné à la direction caudale `caudal`
+    (double Align Euler to Vector) : toutes les écailles pointent vers la queue comme
+    une vraie peau de reptile. Densité modulée par la courbure (dos dense, ventre clair)."""
+    ng = bpy.data.node_groups.new(name, 'GeometryNodeTree')
+    ng.interface.new_socket('Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
+    ng.interface.new_socket('Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+    n_in, n_out = ng.nodes.new('NodeGroupInput'), ng.nodes.new('NodeGroupOutput')
+    dist = ng.nodes.new('GeometryNodeDistributePointsOnFaces')
+    dist.distribute_method = 'POISSON'  # espacement régulier → tuilage propre
+    dist.inputs['Distance Min'].default_value = 0.0
+    dist.inputs['Density Max'].default_value = density
+    dist.inputs['Seed'].default_value = seed
+    inst = ng.nodes.new('GeometryNodeInstanceOnPoints')
+    info = ng.nodes.new('GeometryNodeObjectInfo')
+    info.inputs['Object'].default_value = instance_ob
+    info.transform_space = 'ORIGINAL'
+    rnd = ng.nodes.new('FunctionNodeRandomValue')
+    rnd.data_type = 'FLOAT'
+    rnd.inputs['Min'].default_value, rnd.inputs['Max'].default_value = scale
+    rnd.inputs['Seed'].default_value = seed + 7
+    # orientation cohérente : Z←normale, puis Y←caudal
+    alignZ = ng.nodes.new('FunctionNodeAlignEulerToVector')
+    alignZ.axis = 'Z'
+    alignY = ng.nodes.new('FunctionNodeAlignEulerToVector')
+    alignY.axis = 'Y'
+    alignY.pivot_axis = 'Z'
+    caud = ng.nodes.new('FunctionNodeInputVector')
+    caud.vector = caudal
+    join = ng.nodes.new('GeometryNodeJoinGeometry')
+    lk = ng.links.new
+    if curvature:
+        ang = ng.nodes.new('GeometryNodeInputMeshEdgeAngle')
+        mr = ng.nodes.new('ShaderNodeMapRange')
+        mr.inputs['From Min'].default_value = -0.6
+        mr.inputs['From Max'].default_value = 0.6
+        mr.inputs['To Min'].default_value = density * 0.35
+        mr.inputs['To Max'].default_value = density
+        lk(ang.outputs['Signed Angle'], mr.inputs['Value'])
+        lk(mr.outputs['Result'], dist.inputs['Density Factor'])
+    lk(n_in.outputs['Geometry'], dist.inputs['Mesh'])
+    lk(dist.outputs['Normal'], alignZ.inputs['Vector'])
+    lk(alignZ.outputs['Rotation'], alignY.inputs['Rotation'])
+    lk(caud.outputs['Vector'], alignY.inputs['Vector'])
+    lk(dist.outputs['Points'], inst.inputs['Points'])
+    lk(alignY.outputs['Rotation'], inst.inputs['Rotation'])
+    lk(info.outputs['Geometry'], inst.inputs['Instance'])
+    lk(rnd.outputs['Value'], inst.inputs['Scale'])
+    lk(n_in.outputs['Geometry'], join.inputs['Geometry'])
+    if realize:
+        real = ng.nodes.new('GeometryNodeRealizeInstances')
+        lk(inst.outputs['Instances'], real.inputs['Geometry'])
+        lk(real.outputs['Geometry'], join.inputs['Geometry'])
+    else:
+        lk(inst.outputs['Instances'], join.inputs['Geometry'])
+    lk(join.outputs['Geometry'], n_out.inputs['Geometry'])
+    mod = ob.modifiers.new(name, 'NODES')
+    mod.node_group = ng
+    instance_ob.hide_render = True
+    return ob
+
+
+def keeled_scale(name='keeled_scale', size=1.0, length=1.6, keel=0.5, lift=0.35):
+    """Écaille CARÉNÉE réaliste (inversion I1) : plaque allongée cranio-caudale, arête
+    centrale (keel) qui capte la lumière, bord caudal relevé (`lift`) pour chevaucher la
+    voisine. C'est la géométrie qui fait « lire » l'écaille en macro, pas le bruit.
+    Repère : +Y = caudal (vers la queue), Z = hauteur relief. length allonge vers l'arrière."""
+    import bmesh
+    me = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    w = size * 0.5
+    L = size * length
+    # 6 verts : pointe caudale relevée, épaules, base cranio (sous la voisine), sommet keel
+    tip = bm.verts.new((0, L * 0.5, size * lift))          # bord arrière relevé
+    shL = bm.verts.new((-w, 0, size * 0.05))
+    shR = bm.verts.new((w, 0, size * 0.05))
+    baseL = bm.verts.new((-w * 0.55, -L * 0.5, -size * 0.04))
+    baseR = bm.verts.new((w * 0.55, -L * 0.5, -size * 0.04))
+    crest = bm.verts.new((0, -L * 0.02, size * keel))      # sommet de l'arête
+    for tri in [(baseL, baseR, crest), (baseR, shR, crest), (shR, tip, crest),
+                (tip, shL, crest), (shL, baseL, crest)]:
+        bm.faces.new(tri)
+    bm.normal_update()
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new(name, me)
+    core.link(ob)
+    return core.shade_smooth(ob)
+
+
 def scale_plate(name='scale_plate', size=1.0):
     """Écaille canonique : plaque losange bombée low-poly, prête à instancier."""
     import bmesh

@@ -124,6 +124,66 @@ def iou(mask_a, mask_b, normalize=True):
     return float(np.logical_and(mask_a, mask_b).sum() / union)
 
 
+def edge_density(rgb, mask=None):
+    """Densité de bords (proxy de « quantité de détail lisible ») via gradient type Sobel.
+    Sur les pixels sujet seulement. Sert à comparer bruit-displace vs écailles-géo (I1)
+    et rendu vs référence (I2) : plus d'arêtes nettes = détail plus lu."""
+    g = rgb[..., :3].mean(-1)
+    gx = np.abs(np.diff(g, axis=1, prepend=g[:, :1]))
+    gy = np.abs(np.diff(g, axis=0, prepend=g[:1, :]))
+    mag = np.sqrt(gx ** 2 + gy ** 2)
+    if mask is None:
+        mask = g > 0.02
+    if mask.sum() == 0:
+        return 0.0
+    return float((mag[mask] > 0.06).mean())
+
+
+def color_stats(rgb, mask=None):
+    """Couleur linéaire moyenne du sujet + part de pixels cuivrés (r>1.25×g,b).
+    Comparable aux ancres mesurées sur la réf (research/inversions.md)."""
+    if mask is None:
+        mask = rgb[..., :3].mean(-1) > 0.02
+    subj = rgb[..., :3][mask]
+    if len(subj) == 0:
+        return {'mean': [0, 0, 0], 'copper_fraction': 0.0}
+    copper = subj[(subj[:, 0] > subj[:, 1] * 1.25) & (subj[:, 0] > subj[:, 2] * 1.25)]
+    return {'mean': [round(float(x), 3) for x in subj.mean(0)],
+            'copper_fraction': round(len(copper) / len(subj), 3),
+            'copper_mean': [round(float(x), 3) for x in copper.mean(0)] if len(copper) else None}
+
+
+def _resize_h(arr, target_h):
+    h, w = arr.shape[:2]
+    tw = int(w * target_h / h)
+    yi = (np.arange(target_h) * h / target_h).astype(int)
+    xi = (np.arange(tw) * w / tw).astype(int)
+    return arr[yi][:, xi]
+
+
+def compare_sheet(out_path, ref_path, cam_loc, target, res=(640, 640), samples=24,
+                  ortho_scale=None, lens=70):
+    """Inversion I2 : rend une région EN MACRO, la colle CÔTE À CÔTE avec la frame de réf,
+    et renvoie les deltas numériques (couleur, densité de bords). Aucun rendu orphelin.
+    La créature/scène doit déjà être construite ET éclairée (ou clay) par l'appelant."""
+    cam = _place_cam(cam_loc, target, ortho_scale=ortho_scale, lens=lens)
+    ren = _render_pixels(out_path + '.tmp.png', res, samples)[..., :3]
+    bpy.data.objects.remove(cam)
+    ref = bpy.data.images.load(ref_path)
+    rw, rh = ref.size
+    refpx = np.array(ref.pixels[:], dtype=np.float32).reshape(rh, rw, 4)[::-1, :, :3]
+    bpy.data.images.remove(ref)
+    h = min(ren.shape[0], refpx.shape[0])
+    pair = np.hstack([_resize_h(refpx, h), np.ones((h, 6, 3), np.float32) * 0.5,
+                      _resize_h(ren, h)])
+    _save_png(out_path, np.dstack([pair, np.ones(pair.shape[:2], np.float32)]))
+    if os.path.exists(out_path + '.tmp.png'):
+        os.remove(out_path + '.tmp.png')
+    return {'sheet': out_path,
+            'ref': {'color': color_stats(refpx), 'edge_density': round(edge_density(refpx), 4)},
+            'render': {'color': color_stats(ren), 'edge_density': round(edge_density(ren), 4)}}
+
+
 def proportions(mask):
     """Mesures numériques compactes d'une silhouette : ratio L/H et centroïde normalisé.
     Sert à calculer des deltas d'échelle par axe pour corriger la spec (doc 2)."""

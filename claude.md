@@ -1,7 +1,15 @@
 # Pipeline 3D — Claude + Blender (bpy headless)
 
 ## État actuel
-Boucle 3 (géométrie-d'abord, mode clay) rendue : step_023 (corps) + step_022 (tête gros plan). **EN ATTENTE DE FEEDBACK UTILISATEUR.** Budget tokens serré : plus de sous-agents, itérations inline courtes.
+Cible fixée par l'utilisateur : `references/drogon_*.png` (Drogon qualité film, extrait du mp4). Écart couleur mesuré et **halvé** cette boucle (clay→cuivre-SSS-rim). Tête rendue côte-à-côte avec la réf : step_027. Prochains écarts mesurés : densité de bords 0.15 vs 0.24 réf (→ écailles GÉO sur cou/tête), reliefs crâniens osseux, cuivre à tempérer (part 0.79 vs 0.42).
+
+## Inversions testées (research/inversions.md — « fais le contraire »)
+Consigne utilisateur : inverser mes hypothèses, noter, tester. 4 inversions gagnantes câblées :
+- **I1** écailles = GÉOMÉTRIE, pas bruit (`detail.keeled_scale`+`armor_scales`) : ×162 densité de bords vs voronoi (t8).
+- **I2** réf CÔTE À CÔTE à chaque rendu (`feedback.compare_sheet` + `edge_density`/`color_stats`) : plus de rendu orphelin. Cmd `run.py compare <spec> <ref>`.
+- **I4** matériau SSS cuivré (`materials.reptile_scales(sss=…)`) : écart couleur 0.524→0.238 (t9).
+- **I7** contre-jour rim (`core.rim_setup`) : révèle bords d'écailles/membrane sur fond noir.
+À venir : I3 macro par région, I5 optimiseur IoU, I6 masques de densité par groupe de vertex.
 
 ## Architecture (stable)
 - `pipeline/bx/` : core (dont `clay()` : validation géométrie, lumière uniforme, matériaux neutres), ops (tube, blob, spike, grid_surface, **ring_loft** = volumes par sections), organic (builders : ground, spine+crête, head lofté, wing, limb+orteils griffus), materials (ignorés en clay).

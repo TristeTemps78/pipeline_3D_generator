@@ -22,7 +22,8 @@ def assign(ob, mat):
 
 
 def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 0.02),
-                   scale=5, scale2=16, bump=1.2, rough=0.5, warp=0.3):
+                   scale=5, scale2=16, bump=1.2, rough=0.5, warp=0.3,
+                   sss=0.0, sss_radius=(0.32, 0.11, 0.06)):
     """pattern.reptile_scales v2 : 2 voronoi distance-to-edge superposés (plaques + micro-
     écailles) sur coordonnées Object distordues par noise (casse la grille ; Object car les
     curves n'ont pas de Generated fiable) ; arêtes cuivre rouge, roughness basse aux bords.
@@ -117,6 +118,10 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     _set(bsdf, 'Specular IOR Level', 0.35)
     _set(bsdf, 'Anisotropic', 0.25)
     _set(bsdf, 'Sheen Weight', 0.08)
+    if sss > 0:  # I4 : diffusion sous-cutanée → chair vivante, pas plastique
+        _set(bsdf, 'Subsurface Weight', sss)
+        _set(bsdf, 'Subsurface Radius', sss_radius)
+        _set(bsdf, 'Subsurface Scale', 0.05)
     return mat
 
 
