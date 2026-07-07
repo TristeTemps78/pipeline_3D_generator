@@ -159,6 +159,7 @@
   },
   {
    "type": "head",
+   "id": "head",
    "loc": [
     0,
     3.95,
@@ -178,7 +179,17 @@
     "scale": 1.2
    },
    "pitch": -8,
-   "gape": 26
+   "gape": 26,
+   "upper": [
+    [-0.05, 0.26, 0.21],
+    [0.20, 0.32, 0.285],
+    [0.33, 0.295, 0.245],
+    [0.45, 0.27, 0.19],
+    [0.70, 0.21, 0.13],
+    [0.95, 0.155, 0.09],
+    [1.06, 0.148, 0.108],
+    [1.18, 0.10, 0.055]
+   ]
   },
   {
    "type": "wing",
@@ -273,6 +284,34 @@
    }
   }
  ],
+ "detail": {
+  "armor": [
+   {
+    "target": "body",
+    "instance": {"size": 1.0, "length": 1.7, "keel": 0.35, "lift": 0.25, "smooth": false},
+    "density": 160.0,
+    "distance_min": 0.22,
+    "scale": [0.18, 0.24],
+    "caudal": [0, -1, 0],
+    "curvature": false,
+    "mask": {"axis": "y", "range": [1.1, 2.3], "to": [0.0, 1.0]}
+   },
+   {
+    "target": "head",
+    "instance": {"size": 1.0, "length": 1.5, "keel": 0.35, "lift": 0.25, "smooth": false},
+    "density": 350.0,
+    "distance_min": 0.06,
+    "scale": [0.06, 0.09],
+    "caudal": [0, -0.99, 0.14],
+    "curvature": false,
+    "scale_grad": {
+     "axis": "y", "range": [3.9, 5.15],
+     "scale_lo": [0.12, 0.18],
+     "scale_hi": [0.032, 0.05]
+    }
+   }
+  ]
+ },
  "scene": {
   "world": {
    "color": [

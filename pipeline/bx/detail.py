@@ -85,20 +85,48 @@ def scales(ob, instance_ob, density=60.0, scale=(0.06, 0.14), seed=0,
     return ob
 
 
+def _axis_factor(ng, axis, frm, to, clamp=True):
+    """Position (Object space, == monde ici car objets à l'origine) -> composante
+    d'axe choisie -> Map Range clampé [frm]->[to]. Retourne la sortie 'Result'.
+    Sert à moduler densité/taille d'écaille le long d'une région (cou vs museau)."""
+    pos = ng.nodes.new('GeometryNodeInputPosition')
+    sep = ng.nodes.new('ShaderNodeSeparateXYZ')
+    ng.links.new(pos.outputs['Position'], sep.inputs['Vector'])
+    mr = ng.nodes.new('ShaderNodeMapRange')
+    mr.clamp = clamp
+    mr.inputs['From Min'].default_value = frm[0]
+    mr.inputs['From Max'].default_value = frm[1]
+    mr.inputs['To Min'].default_value = to[0]
+    mr.inputs['To Max'].default_value = to[1]
+    idx = {'x': 0, 'y': 1, 'z': 2}[axis.lower()]
+    ng.links.new(sep.outputs[idx], mr.inputs['Value'])
+    return mr.outputs['Result']
+
+
 def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
-                 caudal=(0, -1, 0), curvature=True, realize=True, name='armor'):
+                 caudal=(0, -1, 0), curvature=True, realize=True, name='armor',
+                 mask=None, scale_grad=None, distance_min=0.0):
     """Écailles-armure chevauchantes (inversion I1). Différence clé avec `scales` :
     densité élevée pour que les plaques se TOUCHENT/chevauchent, et orientation COHÉRENTE
     — Z aligné à la normale de surface puis Y aligné à la direction caudale `caudal`
     (double Align Euler to Vector) : toutes les écailles pointent vers la queue comme
-    une vraie peau de reptile. Densité modulée par la courbure (dos dense, ventre clair)."""
+    une vraie peau de reptile. Densité modulée par la courbure (dos dense, ventre clair).
+
+    `mask` optionnel = {'axis','range','to'} : masque positionnel (0..1 clampé) qui
+    multiplie la densité — restreint les écailles à une région (ex: cou) sans toucher
+    au reste du maillage (évite de dupliquer la géométrie du corps).
+    `scale_grad` optionnel = {'axis','range','scale_lo','scale_hi'} : fait varier la
+    taille d'écaille en continu le long d'un axe (ex: grandes au cou, fines au museau).
+    `distance_min` : espacement Poisson minimal entre écailles — le vrai contrôle du
+    chevauchement ordonné (viser ~0.4-0.6x la longueur de plaque) ; `density` reste un
+    plafond haut, sans lui `Distance Min` seul suffit à éviter les paquets chaotiques."""
     ng = bpy.data.node_groups.new(name, 'GeometryNodeTree')
     ng.interface.new_socket('Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
     ng.interface.new_socket('Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
     n_in, n_out = ng.nodes.new('NodeGroupInput'), ng.nodes.new('NodeGroupOutput')
     dist = ng.nodes.new('GeometryNodeDistributePointsOnFaces')
     dist.distribute_method = 'POISSON'  # espacement régulier → tuilage propre
-    dist.inputs['Distance Min'].default_value = 0.0
+    dist.inputs['Distance Min'].default_value = distance_min
     dist.inputs['Density Max'].default_value = density
     dist.inputs['Seed'].default_value = seed
     inst = ng.nodes.new('GeometryNodeInstanceOnPoints')
@@ -109,6 +137,14 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
     rnd.data_type = 'FLOAT'
     rnd.inputs['Min'].default_value, rnd.inputs['Max'].default_value = scale
     rnd.inputs['Seed'].default_value = seed + 7
+    if scale_grad:
+        ax, rng = scale_grad['axis'], scale_grad['range']
+        lo, hi = scale_grad['scale_lo'], scale_grad['scale_hi']
+        out_min = _axis_factor(ng, ax, rng, (lo[0], hi[0]))
+        out_max = _axis_factor(ng, ax, rng, (lo[1], hi[1]))
+        lk = ng.links.new
+        lk(out_min, rnd.inputs['Min'])
+        lk(out_max, rnd.inputs['Max'])
     # orientation cohérente : Z←normale, puis Y←caudal
     alignZ = ng.nodes.new('FunctionNodeAlignEulerToVector')
     alignZ.axis = 'Z'
@@ -119,6 +155,7 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
     caud.vector = caudal
     join = ng.nodes.new('GeometryNodeJoinGeometry')
     lk = ng.links.new
+    dens_factor = None
     if curvature:
         ang = ng.nodes.new('GeometryNodeInputMeshEdgeAngle')
         mr = ng.nodes.new('ShaderNodeMapRange')
@@ -127,7 +164,19 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
         mr.inputs['To Min'].default_value = density * 0.35
         mr.inputs['To Max'].default_value = density
         lk(ang.outputs['Signed Angle'], mr.inputs['Value'])
-        lk(mr.outputs['Result'], dist.inputs['Density Factor'])
+        dens_factor = mr.outputs['Result']
+    if mask:
+        mfac = _axis_factor(ng, mask['axis'], mask['range'], mask.get('to', (0.0, 1.0)))
+        if dens_factor is not None:
+            mul = ng.nodes.new('ShaderNodeMath')
+            mul.operation = 'MULTIPLY'
+            lk(dens_factor, mul.inputs[0])
+            lk(mfac, mul.inputs[1])
+            dens_factor = mul.outputs['Value']
+        else:
+            dens_factor = mfac
+    if dens_factor is not None:
+        lk(dens_factor, dist.inputs['Density Factor'])
     lk(n_in.outputs['Geometry'], dist.inputs['Mesh'])
     lk(dist.outputs['Normal'], alignZ.inputs['Vector'])
     lk(alignZ.outputs['Rotation'], alignY.inputs['Rotation'])
@@ -150,11 +199,13 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
     return ob
 
 
-def keeled_scale(name='keeled_scale', size=1.0, length=1.6, keel=0.5, lift=0.35):
+def keeled_scale(name='keeled_scale', size=1.0, length=1.6, keel=0.5, lift=0.35, smooth=True):
     """Écaille CARÉNÉE réaliste (inversion I1) : plaque allongée cranio-caudale, arête
     centrale (keel) qui capte la lumière, bord caudal relevé (`lift`) pour chevaucher la
     voisine. C'est la géométrie qui fait « lire » l'écaille en macro, pas le bruit.
-    Repère : +Y = caudal (vers la queue), Z = hauteur relief. length allonge vers l'arrière."""
+    Repère : +Y = caudal (vers la queue), Z = hauteur relief. length allonge vers l'arrière.
+    `smooth=False` : ombrage plat — conserve les facettes dures de la carène/pointe pour
+    que le relief se lise à distance (même matériau que la peau, sans le bruit shader)."""
     import bmesh
     me = bpy.data.meshes.new(name)
     bm = bmesh.new()
@@ -175,7 +226,7 @@ def keeled_scale(name='keeled_scale', size=1.0, length=1.6, keel=0.5, lift=0.35)
     bm.free()
     ob = bpy.data.objects.new(name, me)
     core.link(ob)
-    return core.shade_smooth(ob)
+    return core.shade_smooth(ob) if smooth else ob
 
 
 def scale_plate(name='scale_plate', size=1.0):

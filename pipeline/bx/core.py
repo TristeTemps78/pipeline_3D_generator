@@ -40,6 +40,30 @@ def mirror_x(ob):
     return ob
 
 
+def realize_to_mesh(ob):
+    """Convertit un objet CURVE (tube bevelé, cornes/dents/spine) en un nouvel objet MESH
+    évalué — bake du profil bevel_depth/radius par point via le depsgraph (sans bpy.ops,
+    robuste en headless bpy-module, même pattern que fuse.join_to_mesh). Nécessaire avant
+    d'ajouter un modifier Geometry Nodes de distribution de surface (Distribute Points on
+    Faces exige une entrée Mesh ; une Curve brute donne 0 point, silencieusement).
+    Object.data ne peut pas changer de type (Curve->Mesh) sur le même objet : on crée un
+    nouvel objet MESH au même nom/transform/matériaux et on retire l'ancien."""
+    if ob.type != 'CURVE':
+        return ob
+    deps = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(deps), depsgraph=deps)
+    new = bpy.data.objects.new(ob.name, me)
+    link(new)
+    new.matrix_world = ob.matrix_world
+    for mat in ob.data.materials:
+        new.data.materials.append(mat)
+    old_data = ob.data
+    bpy.data.objects.remove(ob)
+    if old_data.users == 0:
+        bpy.data.curves.remove(old_data)
+    return shade_smooth(new)
+
+
 def sun(direction=(-0.4, 0.6, -1), energy=4.0, color=(1, 0.93, 0.82), angle_deg=2.0):
     li = bpy.data.lights.new('sun', 'SUN')
     li.energy, li.color, li.angle = energy, color, math.radians(angle_deg)

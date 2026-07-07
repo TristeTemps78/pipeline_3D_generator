@@ -299,6 +299,36 @@ def _apply_fuse_detail(spec, groups):
     return body
 
 
+def _apply_armor(spec, groups):
+    """Écailles GÉOMÉTRIQUES chevauchantes ciblées par groupe de parts (I1, sans passer
+    par fuse). `detail.armor` = liste d'entrées {target(s), instance{...}, density,
+    scale, caudal, curvature, mask{axis,range,to}, scale_grad{axis,range,scale_lo,scale_hi}}.
+    Permet de restreindre les plaques à une région (cou, tête) sans dupliquer la géométrie
+    du corps ni toucher aux parts non concernées."""
+    entries = spec.get('detail', {}).get('armor', [])
+    if not entries:
+        return
+    from . import detail as _detail
+    for idx, e in enumerate(entries):
+        targets = e.get('targets') or ([e['target']] if 'target' in e else [])
+        objs = [core.realize_to_mesh(o) for t in targets for o in groups.get(t, [])
+                if o.type in ('MESH', 'CURVE')]
+        if not objs:
+            continue
+        plate = _detail.keeled_scale(name=f'armor_plate_{idx}', **e.get('instance', {}))
+        materials.assign(plate, _mat(spec.get('_mats', {}), e.get('mat', 'scales')))
+        for j, ob in enumerate(objs):
+            _detail.armor_scales(
+                ob, plate, density=e.get('density', 400.0),
+                scale=tuple(e.get('scale', (0.08, 0.14))),
+                seed=e.get('seed', 1) + j,
+                caudal=tuple(e.get('caudal', (0, -1, 0))),
+                curvature=e.get('curvature', True),
+                mask=e.get('mask'), scale_grad=e.get('scale_grad'),
+                distance_min=e.get('distance_min', 0.0),
+                name=f'armor_{idx}_{ob.name}')
+
+
 def build(spec):
     """Point d'entrée : spec dict → scène complète. Retourne le nombre d'objets."""
     core.reset()
@@ -313,6 +343,7 @@ def build(spec):
         groups[part.get('id') or f"{part['type']}_{i}"] = objs
         count += len(objs)
     _apply_fuse_detail(spec, groups)
+    _apply_armor(spec, groups)
     sc = spec.get('scene', {})
     core.world(**sc.get('world', {}))
     core.sun(**sc.get('sun', {}))
