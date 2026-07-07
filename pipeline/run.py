@@ -1,5 +1,10 @@
-"""Entrée du pipeline : python3 pipeline/run.py forge <spec.json> [--fast]
-Construit la scène depuis la spec, rend une image, met à jour l'état de session."""
+"""Entrée du pipeline. Commandes :
+  forge <spec.json> [--fast] [--clay] [--sheet]  build + rendu (ou planche-contact)
+  validate <spec.json> [--pairs a:b,c:d]         sanity checks BVH, AUCUN rendu (C1)
+  sheet <spec.json> [--fast]                     planche-contact clay 4 vues, 1 PNG (C2)
+Construit la scène depuis la spec, met à jour l'état de session.
+Étapes fuse/detail (fusion voxel + displace + écailles) pilotées par la spec — cf.
+research/convergence.md (solutions convergentes des deux docs, testées dans research/tests/)."""
 import json
 import os
 import sys
@@ -7,7 +12,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'pipeline'))
 
-from bx import core, organic  # noqa: E402
+from bx import core, organic, validate, feedback  # noqa: E402
 
 STATE = os.path.join(ROOT, 'pipeline', 'state', 'session.json')
 
@@ -25,28 +30,81 @@ def save_state(st):
         json.dump(st, f, indent=1)
 
 
-def forge(spec_path, fast=False):
+def _load(spec_path):
     with open(spec_path) as f:
-        spec = json.load(f)
+        return json.load(f)
+
+
+def _next_out(st, ext='png'):
+    out = os.path.join(ROOT, 'renders', f"step_{st['step']:03d}.{ext}")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    return out
+
+
+def forge(spec_path, fast=False):
+    spec = _load(spec_path)
     st = load_state()
     st['step'] += 1
     n = organic.build(spec)
-    if '--clay' in sys.argv:
+    out = _next_out(st)
+    if '--sheet' in sys.argv:
         core.clay()
-    out = os.path.join(ROOT, 'renders', f"step_{st['step']:03d}.png")
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    res, samples = ((640, 480), 16) if fast else ((1152, 864), 48)
-    core.render(out, res=res, samples=samples)
-    blend = os.path.join(ROOT, 'renders', 'scene.blend')
-    core.save_blend(blend)
+        tgt = spec.get('scene', {}).get('camera', {}).get('target', (0, 0, 1.5))
+        res = (384, 288) if fast else (576, 432)
+        feedback.contact_sheet(out, res=res, samples=(10 if fast else 24), target=tuple(tgt))
+    else:
+        if '--clay' in sys.argv:
+            core.clay()
+        res, samples = ((640, 480), 16) if fast else ((1152, 864), 48)
+        core.render(out, res=res, samples=samples)
+    core.save_blend(os.path.join(ROOT, 'renders', 'scene.blend'))
     st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
     save_state(st)
     print(f"OK objets={n} rendu={out}")
 
 
+def do_validate(spec_path):
+    """C1 : rapport géométrique sans dépenser un seul rendu."""
+    spec = _load(spec_path)
+    organic.build(spec)
+    pairs = []
+    for a in sys.argv:
+        if a.startswith('--pairs'):
+            val = a.split('=', 1)[1] if '=' in a else sys.argv[sys.argv.index(a) + 1]
+            pairs = [tuple(p.split(':')) for p in val.split(',')]
+    rep = validate.scene_report(check_pairs=pairs)
+    print(json.dumps(rep, indent=1))
+    bad = [o for o in rep['objects'] if not o['watertight'] or o['self_intersecting_tris']]
+    clip = [g for g in rep['ground'] if g.get('status') in ('floating', 'clipping')]
+    hits = [p for p in rep['pairs'] if p['overlapping_tris'] > 0]
+    print(f"\n=> {len(bad)} mesh non étanches/auto-intersectés, "
+          f"{len(clip)} objets mal posés, {len(hits)} paires en collision.")
+
+
+def do_sheet(spec_path, fast=False):
+    spec = _load(spec_path)
+    st = load_state()
+    st['step'] += 1
+    organic.build(spec)
+    core.clay()
+    out = _next_out(st)
+    tgt = spec.get('scene', {}).get('camera', {}).get('target', (0, 0, 1.5))
+    res = (384, 288) if fast else (576, 432)
+    path, views = feedback.contact_sheet(out, res=res, samples=(10 if fast else 24),
+                                         target=tuple(tgt))
+    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
+    save_state(st)
+    print(f"OK planche-contact {views} -> {path}")
+
+
 if __name__ == '__main__':
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'forge'
+    fast = '--fast' in sys.argv
     if cmd == 'forge':
-        forge(sys.argv[2], fast='--fast' in sys.argv)
+        forge(sys.argv[2], fast=fast)
+    elif cmd == 'validate':
+        do_validate(sys.argv[2])
+    elif cmd == 'sheet':
+        do_sheet(sys.argv[2], fast=fast)
     else:
         sys.exit(f"commande inconnue: {cmd}")

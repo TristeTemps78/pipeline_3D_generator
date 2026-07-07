@@ -1,0 +1,23 @@
+{
+ "test": "t4_t5_detail",
+ "bpy": "5.0.1",
+ "date": "2026-07-07 09:03:05",
+ "t4_displace": {
+  "seconds": 0.001,
+  "faces_before": 26372,
+  "faces_after": 105488,
+  "mean_offset": 0.0357,
+  "max_offset": 0.0915,
+  "still_watertight": true,
+  "still_single_body": true,
+  "geometry_changed": true,
+  "render": "/home/user/pipeline_3D_generator/research/renders/t4_displace_layers.png"
+ },
+ "t5_scales": {
+  "seconds": 0.003,
+  "faces_added_by_instances": 7895,
+  "approx_instances": 1579,
+  "instancing_works": true,
+  "render": "/home/user/pipeline_3D_generator/research/renders/t5_geonodes_scales.png"
+ }
+}

@@ -1,0 +1,34 @@
+{
+ "test": "t3_bvh_checks",
+ "bpy": "5.0.1",
+ "date": "2026-07-07 09:02:15",
+ "self_intersection": {
+  "clean_sphere_tris": 0,
+  "overlapping_join_tris": 155,
+  "pass": true
+ },
+ "pair_overlap": {
+  "separated": 0,
+  "interpenetrating": 106,
+  "pass": true
+ },
+ "ground_contact": {
+  "grounded": {
+   "object": "foot_grounded",
+   "gap": 0.0,
+   "status": "grounded"
+  },
+  "floating": {
+   "object": "foot_floating",
+   "gap": 0.35,
+   "status": "floating"
+  },
+  "clipping": {
+   "object": "foot_clipping",
+   "gap": -0.3,
+   "status": "clipping"
+  },
+  "pass": true
+ },
+ "all_pass": true
+}

@@ -270,15 +270,49 @@ def ground(part, mats):
     return [g]
 
 
+def _apply_fuse_detail(spec, groups):
+    """Étapes post-assemblage validées (research/convergence.md) : fusion voxel du corps
+    puis détail (displace + écailles). Optionnelles, pilotées par la spec.
+    `groups` : id de part -> liste d'objets créés."""
+    from . import fuse as _fuse, detail as _detail
+    fspec = spec.get('fuse')
+    if not fspec:
+        return None
+    objs = [o for n in fspec.get('parts', []) for o in groups.get(n, [])]
+    if not objs:
+        return None
+    body = _fuse.voxel_fuse(objs, target_res=fspec.get('target_res', 200),
+                            smooth_iters=fspec.get('smooth_iters', 5),
+                            smooth_lambda=fspec.get('smooth_lambda', 0.5),
+                            name=fspec.get('name', 'body'))
+    if fspec.get('mat'):
+        materials.assign(body, spec.get('_mats', {}).get(fspec['mat']))
+    d = spec.get('detail', {})
+    if d.get('displace'):
+        _detail.displace_layers(body, d['displace'], subdiv=d.get('subdiv', 1))
+    if d.get('scales'):
+        sc = d['scales']
+        plate = _detail.scale_plate(size=sc.get('plate_size', 1.0))
+        _detail.scales(body, plate, density=sc.get('density', 120.0),
+                       scale=tuple(sc.get('scale', (0.05, 0.12))),
+                       curvature=sc.get('curvature', True))
+    return body
+
+
 def build(spec):
     """Point d'entrée : spec dict → scène complète. Retourne le nombre d'objets."""
     core.reset()
     mats = {}
     for key, m in spec.get('materials', {}).items():
         mats[key] = getattr(materials, m['builder'])(name=key, **m.get('p', {}))
+    spec['_mats'] = mats
     count = 0
-    for part in spec['parts']:
-        count += len(BUILDERS[part['type']](part, mats))
+    groups = {}
+    for i, part in enumerate(spec['parts']):
+        objs = BUILDERS[part['type']](part, mats)
+        groups[part.get('id') or f"{part['type']}_{i}"] = objs
+        count += len(objs)
+    _apply_fuse_detail(spec, groups)
     sc = spec.get('scene', {})
     core.world(**sc.get('world', {}))
     core.sun(**sc.get('sun', {}))
