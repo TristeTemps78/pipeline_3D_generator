@@ -61,127 +61,116 @@ def spine(part, mats):
 
 @builder('head')
 def head(part, mats):
-    """Tête prédateur : crâne allongé anguleux (+Y = avant), gueule ouverte rugissante
-    avec dents, arcades marquées, couronne de cornes en spirale log, yeux enfoncés."""
+    """Tête loftée par sections superellipse (GVL) : crâne→museau continu, mâchoire
+    inférieure articulée ouverte de `gape`°, dents courbes, yeux sous arcades,
+    narines, couronne de cornes en spirale log."""
     L = Vector(part['loc'])
-    pitch = part.get('pitch', -6.0)
+    pitch = part.get('pitch', -8.0)
+    gape = part.get('gape', 26.0)
+    exp = part.get('exp', 1.7)
     skin = _mat(mats, part.get('mat', 'scales'))
-    bone = _mat(mats, part.get('horns', {}).get('mat', 'bone'))
+    hp = part.get('horns', {})
+    bone_m = _mat(mats, hp.get('mat', 'bone'))
+    tooth_m = _mat(mats, 'teeth') or bone_m
     Rp = Euler((math.radians(pitch), 0, 0)).to_matrix()
+    Rj = Euler((math.radians(-gape), 0, 0)).to_matrix()
     out = []
 
     def W(p):
-        """point local tête → monde (inclinaison du crâne incluse)."""
         v = Rp @ Vector(p)
         return (L.x + v.x, L.y + v.y, L.z + v.z)
 
-    def R(rx=0.0, ry=0.0, rz=0.0):
-        return (pitch + rx, ry, rz)
+    def WJ(p):
+        """repère mâchoire inférieure (pivot arrière, ouverte de gape°) → monde."""
+        return W(Rj @ Vector(p))
 
-    def add_blob(nm, off, sc, rot=(0, 0, 0), mat=None):
-        b = ops.blob(nm, W(off), sc, R(*rot))
-        materials.assign(b, mat or skin)
-        out.append(b)
+    def interp_w(secs, y):
+        for (y0, w0, _), (y1, w1, _) in zip(secs, secs[1:]):
+            if y0 <= y <= y1:
+                f = (y - y0) / (y1 - y0)
+                return w0 + f * (w1 - w0)
+        return secs[-1][1]
 
-    sk = part.get('skull', [0.30, 0.68, 0.30])
-    sn = part.get('snout', [0.17, 0.60, 0.13])
-    sno = part.get('snout_off', [0, 0.72, 0.03])
-    jw = part.get('jaw', [0.14, 0.55, 0.085])
-    gape = part.get('gape', 32.0)
-    hinge = Vector(part.get('hinge', [0, -0.28, -0.15]))
-    Rj = Euler((math.radians(-gape), 0, 0)).to_matrix()
+    # --- crâne + museau : sections (y, demi-largeur, demi-hauteur), gueule plate z≈0 ---
+    upper = part.get('upper', [[-0.05, 0.26, 0.21], [0.20, 0.31, 0.24], [0.45, 0.27, 0.19],
+                               [0.70, 0.21, 0.13], [0.95, 0.155, 0.09], [1.18, 0.10, 0.055]])
+    lower = part.get('lower', [[0.00, 0.20, 0.090], [0.30, 0.185, 0.075], [0.60, 0.155, 0.060],
+                               [0.90, 0.115, 0.048], [1.06, 0.075, 0.038]])
+    rings = [[W((x, y, z + hh * 0.82)) for x, z in laws.superellipse(w, hh, exp)]
+             for y, w, hh in upper]
+    sk = ops.ring_loft('skull', rings)
+    materials.assign(sk, skin)
+    out.append(sk)
+    rings = [[WJ((x, y, z - hh * 0.85)) for x, z in laws.superellipse(w, hh, exp)]
+             for y, w, hh in lower]
+    jw = ops.ring_loft('jaw', rings)
+    materials.assign(jw, skin)
+    out.append(jw)
 
-    def J(p):
-        """repère mâchoire inférieure (pivot arrière crâne, ouverte de `gape`°) → local tête."""
-        return tuple(hinge + Rj @ Vector(p))
+    # --- dents : tubes effilés courbes le long des bords de gueule ---
+    for i in range(6):
+        y = 0.42 + i * 0.13
+        w = interp_w(upper, y) * 0.78
+        l = (0.07 + 0.012 * i + (0.03 if i == 4 else 0)) * (1 + 0.15 * math.sin(i * 9.1))
+        for s, tag in ((1, 'l'), (-1, 'r')):
+            x = s * w
+            t = ops.tube(f'tooth_u{tag}{i}',
+                         [W((x, y, -0.005)), W((x * 0.97, y + 0.015, -l * 0.55)), W((x * 0.92, y + 0.03, -l))],
+                         [0.020, 0.012, 0.003])
+            materials.assign(t, tooth_m)
+            out.append(t)
+    for i in range(5):
+        y = 0.35 + i * 0.16
+        w = interp_w(lower, y) * 0.75
+        l = (0.06 + 0.010 * i) * (1 + 0.15 * math.sin(i * 7.7 + 1.3))
+        for s, tag in ((1, 'l'), (-1, 'r')):
+            x = s * w
+            t = ops.tube(f'tooth_l{tag}{i}',
+                         [WJ((x, y, 0.005)), WJ((x * 0.97, y + 0.015, l * 0.55)), WJ((x * 0.92, y + 0.03, l))],
+                         [0.018, 0.011, 0.003])
+            materials.assign(t, tooth_m)
+            out.append(t)
 
-    # --- crâne très allongé + museau effilé dans son prolongement ---
-    add_blob('skull', (0, 0, 0), sk)
-    add_blob('skull_ridge', (0, -0.02, sk[2] * 0.70), (sk[0] * 0.5, sk[1] * 0.82, sk[2] * 0.34), (-4, 0, 0))
-    add_blob('snout', tuple(sno), sn, (2, 0, 0))
-    add_blob('snout_ridge', (sno[0], sno[1] + 0.04, sno[2] + sn[2] * 0.55),
-             (sn[0] * 0.52, sn[1] * 0.80, sn[2] * 0.42), (2, 0, 0))
+    # --- yeux enfoncés sous arcades + narines ---
     for s, tag in ((1, 'l'), (-1, 'r')):
-        add_blob(f'cheek_{tag}', (s * sk[0] * 0.66, -0.10, -sk[2] * 0.22),
-                 (0.10, sk[1] * 0.52, 0.13), (0, 0, -s * 10))
-        add_blob(f'brow_{tag}', (s * 0.16, 0.30, sk[2] * 0.62),
-                 (0.125, 0.30, 0.05), (-8, -s * 16, -s * 12))
+        e = ops.blob(f'eye_{tag}', W((s * 0.245, 0.30, 0.135)), (0.05, 0.05, 0.05))
+        materials.assign(e, _mat(mats, 'eye'))
+        out.append(e)
+        n = ops.blob(f'nostril_{tag}', W((s * 0.065, 1.10, 0.075)), (0.020, 0.030, 0.016))
+        materials.assign(n, _mat(mats, 'eye'))
+        out.append(n)
 
-    # --- mâchoire inférieure ouverte + intérieur de gueule sombre ---
-    add_blob('jaw_base', J((0, 0.10, 0.01)), (jw[0] * 0.9, 0.22, jw[2] * 1.2), (-gape, 0, 0))
-    add_blob('jaw', J((0, 0.60, 0.0)), jw, (-gape, 0, 0))
-    add_blob('jaw_tip', J((0, 0.60 + jw[1] * 0.72, 0.02)),
-             (jw[0] * 0.6, jw[1] * 0.35, jw[2] * 0.8), (-gape, 0, 0))
-    Rm = Euler((math.radians(-gape * 0.45), 0, 0)).to_matrix()
-    add_blob('mouth', tuple(hinge + Rm @ Vector((0, 0.48, 0.0))),
-             (jw[0] * 0.68, 0.42, 0.04), (-gape * 0.45, 0, 0), _mat(mats, 'mouth') or skin)
-
-    # --- dents : rangées de spikes fins le long des deux mâchoires ---
-    tp = part.get('teeth', {})
-    tooth_mat = _mat(mats, tp.get('mat', 'teeth')) or bone
-    nu, nl = tp.get('upper', 6), tp.get('lower', 5)
-    y0, y1 = sno[1] - sn[1] * 0.40, sno[1] + sn[1] * 0.90
-    for i in range(nu):
-        t = (i + 0.5) / nu
-        y = y0 + t * (y1 - y0)
-        f = math.sqrt(max(0.08, 1 - ((y - sno[1]) / sn[1]) ** 2))
-        h = (0.055 + 0.06 * t) * (1 + 0.18 * math.sin(i * 9.1))
-        for s, tag in ((1, 'l'), (-1, 'r')):
-            tth = ops.spike(f'tooth_u{tag}{i}', W((s * sn[0] * 0.72 * f, y, sno[2] - sn[2] * 0.80 * f - h * 0.18)),
-                            h, h * 0.20, R(180))
-            materials.assign(tth, tooth_mat)
-            out.append(tth)
-    jy0, jy1 = 0.60 - jw[1] * 0.30, 0.60 + jw[1] * 0.85
-    for i in range(nl):
-        t = (i + 0.5) / nl
-        y = jy0 + t * (jy1 - jy0)
-        f = math.sqrt(max(0.08, 1 - ((y - 0.60) / jw[1]) ** 2))
-        h = (0.05 + 0.055 * t) * (1 + 0.18 * math.sin(i * 7.7 + 1.3))
-        for s, tag in ((1, 'l'), (-1, 'r')):
-            tth = ops.spike(f'tooth_l{tag}{i}', W(J((s * jw[0] * 0.72 * f, y, jw[2] * 0.72 * f + h * 0.18))),
-                            h, h * 0.20, R(-gape))
-            materials.assign(tth, tooth_mat)
-            out.append(tth)
-
-    # --- couronne de cornes : spirale log GVL, tailles en série décroissante, éventail symétrique ---
-    hp = part.get('horns', {})
+    # --- couronne de cornes : spirale log GVL, série décroissante, éventail arrière ---
     pairs = hp.get('pairs', 5)
-    sizes = laws.decay_series(pairs, base=1.0, ratio=hp.get('ratio', 0.8))
+    sizes = laws.decay_series(pairs, base=1.0, ratio=hp.get('ratio', 0.78))
     raw = apply_law(hp.get('vocab', 'growth.horn_spiral'),
                     n=16, a=hp.get('a', 0.10), b=hp.get('b', 0.30),
                     turns=hp.get('turns', 0.6), rise=hp.get('rise', 0.55))
-    base_radii = laws.power_taper(16, hp.get('r0', 0.08), 1.15, 0.008)
+    base_radii = laws.power_taper(16, hp.get('r0', 0.075), 1.15, 0.008)
     for k in range(pairs):
         u = k / max(1, pairs - 1)
         sc = sizes[k]
         radii = [r * (0.5 + 0.5 * sc) for r in base_radii]
-        yaw = hp.get('yaw0', 10) + u * hp.get('yaw_span', 62)
-        hpitch = hp.get('pitch', 115) + u * 10
-        bx, by, bz = 0.10 + 0.20 * u, -sk[1] * 0.72 + 0.15 * u, sk[2] * (0.55 - 0.90 * u)
+        yaw = 8 + u * 55
+        hpitch = hp.get('pitch', -35) - u * 15
+        base = (0.09 + 0.15 * u, 0.05 - 0.22 * u, 0.34 - 0.12 * u)
         for s, tag in ((1, 'l'), (-1, 'r')):
-            pts = ops.transform_pts(raw, loc=W((s * bx, by, bz)),
+            pts = ops.transform_pts(raw, loc=W((s * base[0], base[1], base[2])),
                                     rot_deg=(pitch + hpitch, 0, s * yaw),
                                     scale=sc * hp.get('scale', 1.0))
             h = ops.tube(f'horn_{tag}{k}', pts, radii)
-            materials.assign(h, bone)
+            materials.assign(h, bone_m)
             out.append(h)
-
-    # --- petites pointes sous la mâchoire et sur les joues ---
-    for j, (jy, jz) in enumerate(((0.32, -0.10), (0.58, -0.09), (0.84, -0.08))):
-        c = ops.spike(f'chin_{j}', W(J((0, jy, jz))), 0.11 - 0.02 * j, 0.028, R(-gape + 168))
-        materials.assign(c, bone)
-        out.append(c)
+    # petites cornes d'arcade + pointes de joue
     for s, tag in ((1, 'l'), (-1, 'r')):
-        c = ops.spike(f'cheekspike_{tag}', W((s * sk[0] * 0.85, -0.16, -0.10)),
-                      0.14, 0.04, (pitch + 150, 0, s * 35))
-        materials.assign(c, bone)
+        b = ops.spike(f'horn_brow_{tag}', W((s * 0.22, 0.38, 0.26)), 0.14, 0.035,
+                      (pitch - 35, 0, s * 15))
+        materials.assign(b, bone_m)
+        out.append(b)
+        c = ops.spike(f'horn_cheek_{tag}', W((s * 0.30, 0.12, -0.02)), 0.16, 0.045,
+                      (pitch + 95, 0, s * 55))
+        materials.assign(c, bone_m)
         out.append(c)
-
-    # --- yeux émissifs, petits, enfoncés sous les arcades ---
-    for s, tag in ((1, 'l'), (-1, 'r')):
-        e = ops.blob(f'eye_{tag}', W((s * 0.215, 0.30, 0.105)), (0.045, 0.045, 0.045))
-        materials.assign(e, _mat(mats, 'eye'))
-        out.append(e)
     return out
 
 
@@ -238,7 +227,7 @@ def wing(part, mats):
 
 @builder('limb')
 def limb(part, mats):
-    """Patte : tube conique articulé + pied + griffes."""
+    """Patte : tube conique articulé + pied à 3 orteils griffus."""
     out = []
     sides = [1, -1] if part.get('side', 'both') == 'both' else [1]
     for s in sides:
@@ -250,16 +239,27 @@ def limb(part, mats):
         out.append(leg)
         if part.get('foot'):
             f = part['foot']
-            fb = ops.blob(f'foot_{tag}', (s * f['loc'][0], f['loc'][1], f['loc'][2]),
-                          f.get('scale', [0.24, 0.38, 0.12]))
-            materials.assign(fb, _mat(mats, part.get('mat', 'scales')))
-            out.append(fb)
-            fl = f['loc']
-            for j, dx in enumerate((-0.12, 0, 0.12)):
-                c = ops.spike(f'claw_{tag}{j}', (s * (fl[0] + dx), fl[1] + f.get('scale', [0, 0.38, 0])[1], 0.06),
-                              0.18, 0.045, (100, 0, 0))
-                materials.assign(c, _mat(mats, 'bone'))
-                out.append(c)
+            ax, ay, az = s * f['loc'][0], f['loc'][1], f['loc'][2]
+            pad = ops.blob(f'footpad_{tag}', (ax, ay, az + 0.02), (0.15, 0.19, 0.10))
+            materials.assign(pad, _mat(mats, part.get('mat', 'scales')))
+            out.append(pad)
+            for k, ang in enumerate((-26, 0, 26)):
+                ra = math.radians(ang)
+                dx, dy = math.sin(ra), math.cos(ra)
+                toe = ops.tube(f'toe_{tag}{k}',
+                               [(ax, ay - 0.04, az + 0.06),
+                                (ax + dx * 0.20, ay + dy * 0.20, 0.085),
+                                (ax + dx * 0.40, ay + dy * 0.40, 0.055)],
+                               [0.105, 0.075, 0.042])
+                materials.assign(toe, _mat(mats, part.get('mat', 'scales')))
+                out.append(toe)
+                tip = (ax + dx * 0.40, ay + dy * 0.40, 0.055)
+                claw = ops.tube(f'claw_{tag}{k}',
+                                [tip, (tip[0] + dx * 0.08, tip[1] + dy * 0.08, 0.035),
+                                 (tip[0] + dx * 0.14, tip[1] + dy * 0.14, 0.004)],
+                                [0.035, 0.020, 0.004])
+                materials.assign(claw, _mat(mats, 'bone'))
+                out.append(claw)
     return out
 
 

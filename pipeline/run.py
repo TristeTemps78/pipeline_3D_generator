@@ -31,6 +31,8 @@ def forge(spec_path, fast=False):
     st = load_state()
     st['step'] += 1
     n = organic.build(spec)
+    if '--clay' in sys.argv:
+        core.clay()
     out = os.path.join(ROOT, 'renders', f"step_{st['step']:03d}.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     res, samples = ((640, 480), 16) if fast else ((1152, 864), 48)

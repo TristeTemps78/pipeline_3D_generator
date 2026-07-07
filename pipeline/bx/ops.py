@@ -72,6 +72,35 @@ def grid_surface(name, grid):
     return core.shade_smooth(ob)
 
 
+def ring_loft(name, rings, caps=True, subsurf_levels=2):
+    """Volume lofté depuis des anneaux 3D successifs (même nombre de points).
+    Construction type box-modeling : sections transversales → surface continue lissée."""
+    m = len(rings[0])
+    verts, faces = [], []
+    for ring in rings:
+        verts.extend(ring)
+    for i in range(len(rings) - 1):
+        for j in range(m):
+            a, b = i * m + j, i * m + (j + 1) % m
+            faces.append((a, b, b + m, a + m))
+    if caps:
+        for ring, base in ((rings[0], 0), (rings[-1], (len(rings) - 1) * m)):
+            cx = tuple(sum(p[k] for p in ring) / m for k in range(3))
+            ci = len(verts)
+            verts.append(cx)
+            for j in range(m):
+                faces.append((ci, base + j, base + (j + 1) % m))
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    ob = bpy.data.objects.new(name, mesh)
+    core.link(ob)
+    core.shade_smooth(ob)
+    if subsurf_levels:
+        core.subsurf(ob, subsurf_levels)
+    return ob
+
+
 def plane(name, size=60, z=0):
     mesh = bpy.data.meshes.new(name)
     s = size / 2

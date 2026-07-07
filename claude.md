@@ -1,26 +1,23 @@
 # Pipeline 3D — Claude + Blender (bpy headless)
 
 ## État actuel
-Boucle 2 terminée (tête refaite + look feu doré), rendu HQ = renders/step_018.png. **EN ATTENTE DE FEEDBACK UTILISATEUR.**
+Boucle 3 (géométrie-d'abord, mode clay) rendue : step_023 (corps) + step_022 (tête gros plan). **EN ATTENTE DE FEEDBACK UTILISATEUR.** Budget tokens serré : plus de sous-agents, itérations inline courtes.
 
 ## Architecture (stable)
-- `pipeline/bx/` : abstraction Blender (core/ops/organic/materials). Builders spec-driven : ground, spine (crête double rangée), head (crâne allongé, gueule ouverte `gape`, dents, couronne de cornes GVL), wing, limb.
-- `pipeline/gvl/` : lois (spirale log, allométrie, caténaire, phyllotaxie, decay, L-système) + `vocabulary.json` (clés growth.* / pattern.*).
-- `specs/dragon_got.json` : source de vérité — éditer la spec, pas le code.
-- Commande : `python3 pipeline/run.py forge specs/dragon_got.json [--fast]` (~10 s fast, ~2 min HQ).
-- Protocole : `pipeline/orchestrator.md`. Agents : `.claude/agents/` (ref-analyst, shape-smith, look-dev, render-critic). État : `pipeline/state/session.json`.
-- Env : `pip install bpy` (5.0.1), Cycles CPU. Piège connu : coords Generated inutilisables sur curves → shaders en coords Object.
+- `pipeline/bx/` : core (dont `clay()` : validation géométrie, lumière uniforme, matériaux neutres), ops (tube, blob, spike, grid_surface, **ring_loft** = volumes par sections), organic (builders : ground, spine+crête, head lofté, wing, limb+orteils griffus), materials (ignorés en clay).
+- `pipeline/gvl/` : lois (+ **superellipse** : sections crâniennes anguleuses) + vocabulary.json.
+- Spec = source de vérité : `specs/dragon_got.json`. Cmd : `python3 pipeline/run.py forge <spec> [--fast] [--clay]`.
+- Méthode retenue : géométrie par sections loftées (pas d'assemblage de blobs), validation en clay, shaders EN DERNIER (le look feu doré des boucles 1-2 existe dans materials.py mais est désactivé tant que la géométrie n'est pas validée).
+- Tête = lofts `upper`/`lower` (sections y,w,h surchargeables dans la spec), mâchoire ouverte `gape`°, dents = tubes courbes, cornes = spirale log pitch -35 (balayage arrière).
 
 ## Réalisé
-- v1 blockout validé (proportions+pose). Feedback consigné : tout le reste à refaire détaillé, cible photo Drogon S7.
-- Boucle 2 déléguée : shape-smith (tête prédateur : gueule 32°, dents, 5 paires de cornes, crête double jitter, cou retendu) ; look-dev (écailles 2×voronoi arêtes cuivre, brume volumétrique dorée, lumières feu, sol cendré).
-- Orchestrateur : sol 300 m (bande horizon), cuivre atténué, lumières feu relevées, lens 40.
+- v1 blockout ; boucle 2 (tête blobs + shaders feu) rejetée par l'utilisateur : pieds moches, tête/gueule/dents/yeux/écailles pas crédibles, trop sombre.
+- Boucle 3 : refonte tête en lofts superellipse (crâne crocodilien continu, gueule 26°, 22 dents courbes, yeux sous arcades, narines, couronne 5 paires cornes longues arrière), pieds 3 orteils + griffes courbes, mode clay contrasté.
 
 ## À faire
-- Feedback utilisateur boucle 2 → boucle 3.
-- Pistes réalisme restantes : displacement réel (adaptive subdiv), variation d'échelle des écailles par zone (ventre/dos), fumée/braises, second plan champ de bataille, griffes ailes plus lisibles, gape ajustable si trop béant.
-- Généralisation : 2e créature test + agent ref-analyst sur image.
+- Feedback utilisateur sur clay v3 (silhouette tête validée en gros plan, à confirmer).
+- Améliorations géométrie candidates : cou/épaules plus musclés (le raccord tête-cou est fin), membrane d'ailes avec doigts plus marqués, langue, commissures de gueule, écailles GÉOMÉTRIQUES (displacement) plus tard.
+- Après validation géométrie : réactiver look (matériaux/lumières) progressivement.
 
 ## Prochaines actions
-1. Lire feedback → répartir shape-smith / look-dev.
-2. Itérer --fast (≤3), rendu HQ, re-stop feedback.
+1. Feedback → petites éditions spec/organic inline (pas d'agents), --fast --clay, re-stop.

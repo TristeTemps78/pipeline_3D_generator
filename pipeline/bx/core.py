@@ -111,6 +111,36 @@ def world(color=(0.03, 0.04, 0.06), strength=0.4, color_top=None, volume=None):
     return w
 
 
+def clay():
+    """Mode validation géométrie : matériaux neutres mats, éclairage uniforme lumineux.
+    Yeux/narines sombres, dents/griffes/cornes claires pour la lisibilité."""
+    def flat(name, c, rough=0.8):
+        m = bpy.data.materials.new(name)
+        m.use_nodes = True
+        b = m.node_tree.nodes['Principled BSDF']
+        b.inputs['Base Color'].default_value = (*c, 1)
+        b.inputs['Roughness'].default_value = rough
+        return m
+    grey = flat('clay', (0.55, 0.53, 0.5))
+    dark = flat('clay_dark', (0.02, 0.02, 0.02), 0.25)
+    light = flat('clay_light', (0.85, 0.82, 0.75))
+    for ob in list(bpy.context.scene.objects):
+        if ob.type == 'LIGHT':
+            bpy.data.objects.remove(ob)
+        elif ob.type in ('MESH', 'CURVE'):
+            ob.data.materials.clear()
+            nm = ob.name
+            if 'eye' in nm or 'nostril' in nm:
+                ob.data.materials.append(dark)
+            elif 'tooth' in nm or 'claw' in nm or 'horn' in nm or 'dorsal' in nm:
+                ob.data.materials.append(light)
+            else:
+                ob.data.materials.append(grey)
+    world(color=(1, 1, 1), strength=0.35)
+    sun(direction=(-0.4, -0.4, -1), energy=4.5, color=(1, 1, 1), angle_deg=12)
+    area_light((6, 10, 6), target=(0, 1, 2.5), energy=500, size=12)
+
+
 def render(path, res=(1152, 864), samples=48):
     sc = bpy.context.scene
     sc.render.engine = 'CYCLES'

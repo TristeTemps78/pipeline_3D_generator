@@ -61,6 +61,19 @@ def lerp_path(pts, n):
     return out
 
 
+def superellipse(w=1.0, h=1.0, exp=2.0, n=28):
+    """Anneau superellipse |x/w|^exp+|z/h|^exp=1. exp<2 = section anguleuse
+    (crânes reptiliens), exp=2 = ellipse, exp>2 = rectangle arrondi. Points 2D (x,z)."""
+    pts = []
+    for i in range(n):
+        a = 2 * math.pi * i / n
+        c, s = math.cos(a), math.sin(a)
+        x = w * math.copysign(abs(c) ** (2 / exp), c)
+        z = h * math.copysign(abs(s) ** (2 / exp), s)
+        pts.append((x, z))
+    return pts
+
+
 def lsystem(axiom, rules, depth):
     """L-système symbolique (ramifications : bois de cerf, veines). Retourne la chaîne."""
     s = axiom
