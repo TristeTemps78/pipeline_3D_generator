@@ -43,6 +43,15 @@ def _next_out(st, ext='png'):
     return out
 
 
+def _save_scene():
+    """Garde les 2 DERNIERS modèles ouvrables dans Blender local (demande utilisateur) :
+    scene.blend (courant) + scene_prev.blend (précédent), rotation avant chaque save."""
+    path = os.path.join(ROOT, 'renders', 'scene.blend')
+    if os.path.exists(path):
+        os.replace(path, os.path.join(ROOT, 'renders', 'scene_prev.blend'))
+    core.save_blend(path)
+
+
 def forge(spec_path, fast=False):
     spec = _load(spec_path)
     st = load_state()
@@ -59,7 +68,7 @@ def forge(spec_path, fast=False):
             core.clay()
         res, samples = ((640, 480), 16) if fast else ((1152, 864), 48)
         core.render(out, res=res, samples=samples)
-    core.save_blend(os.path.join(ROOT, 'renders', 'scene.blend'))
+    _save_scene()
     st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
     save_state(st)
     print(f"OK objets={n} rendu={out}")
@@ -98,7 +107,7 @@ def do_compare(spec_path, ref_path, fast=False):
     rep = feedback.compare_sheet(out, ref_path, tuple(hero.get('cam', (5, -6, 3))), tgt,
                                  res=res, samples=(20 if fast else 40),
                                  lens=hero.get('lens', 70))
-    core.save_blend(os.path.join(ROOT, 'renders', 'scene.blend'))
+    _save_scene()
     st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
     save_state(st)
     print(json.dumps({'sheet': rep['sheet'], 'ref': rep['ref'], 'render': rep['render']}, indent=1))

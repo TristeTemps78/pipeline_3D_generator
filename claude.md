@@ -1,5 +1,17 @@
 # Pipeline 3D — Claude + Blender (bpy headless)
 
+## But & directives permanentes (utilisateur, 2026-07-08)
+- BUT : pipeline GÉNÉRIQUE phrase/texte/vidéo → modèle 3D précis et complexe, Python+Blender
+  seulement. Le dragon = banc d'essai (important en soi) ; toute mécanique nouvelle doit rester
+  pilotée par la spec JSON, jamais du code spécifique dragon.
+- ÉCONOMIE : l'orchestrateur délègue le gros du travail à des agents SONNET (`model: sonnet`) ;
+  auto-audit régulier via `bash pipeline/audit.sh` (poids, nb fichiers, LOC) — direction claire,
+  pas de boucles/hallucinations/tokens déraisonnables.
+- COMPACITÉ : dossier léger — purger les renders sauf jalons référencés, logs compacts,
+  claude.md court. Conseil clone local léger : `git clone --depth 1`.
+- BLENDS : toujours garder les 2 derniers modèles ouvrables (`renders/scene.blend` +
+  `renders/scene_prev.blend`, rotation auto dans run.py) pour le Blender local de l'utilisateur.
+
 ## État
 Boucle 7 close (HQ **step_080** compare + **step_081** scène) : architecture détail câblée (T10-T14 testés, `research/logs/`) — archétypes par région + Pick Instance dithéré, instances VIVANTES (`realize:false`) + micro par écaille (`scale_seed` → `reptile_scales(micro)`), throttle Cycles ; tête refaite (mâchoire ++, gape 30, naseaux, 2 cornes maîtresses arrière, raccord cou par armure continue y≤3.5). Bords 0.182 / cuivre 0.404. **ATTENTE FEEDBACK utilisateur** ; suite dans `NEXT.md` (boucle 8 : densités ++, SDF macro, T13). Cible : `references/drogon_*.png`. Protocole : `pipeline/orchestrator.md`. NB : --fast sous-mesure edge_density (juger la tendance). PIÈGE : jamais 2+ entrées d'armure sans Separate Components (OOM écailles-sur-écailles, fixé dans `detail.py`).
 

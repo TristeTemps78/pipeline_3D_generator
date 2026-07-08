@@ -34,6 +34,11 @@ Boucle : **GROUND → BUILD → RENDER → CRITIQUE → FEEDBACK utilisateur →
 ## Règles d'économie de tokens
 - L'état vit dans les fichiers (spec, session.json, claude.md), pas dans la conversation.
 - Les agents lisent uniquement : claude.md + la spec + (si besoin) le module bx concerné.
+- Les phases BUILD/LOOK/GROUND sont DÉLÉGUÉES à des agents en modèle SONNET
+  (`model: sonnet` au spawn) avec un contrat précis (cibles chiffrées, fichiers à toucher,
+  nb max d'itérations) ; l'orchestrateur ne fait que cadrer, juger les rendus et committer.
+- Auto-audit à chaque fin de boucle : `bash pipeline/audit.sh` + purge des renders non-jalons
+  (garder : jalons référencés dans claude.md/NEXT.md, scene.blend + scene_prev.blend).
 - Éditions de spec par petits patchs JSON, pas de réécriture complète.
 - Rendus internes en --fast (640×480/16 spl) ; HQ (1152×864/48 spl) réservé à la présentation.
 - Mettre à jour claude.md à chaque grosse étape (fin de boucle, changement d'architecture).
