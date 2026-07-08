@@ -1,32 +1,15 @@
-# Boucle 6 — candidats (boucle 5 close : points 1-3 faits, rendu step_057 ; EN ATTENTE DE FEEDBACK)
+# Boucle 7 — candidats (boucle 6 close : arche + mandibule + détail ×2, step_073 ; EN ATTENTE DE FEEDBACK)
 
-Reste des candidats (les points 4-5 d'origine, reportés, + nouveaux constats step_057) :
-- **Luminosité/chaleur** : rendu 2× trop sombre vs réf, cuivre 0.36 (cible 0.42) ; monter
-  key/rim, réchauffer les creux, désaturer l'or de l'œil (trop bijou), éteindre le sol visible.
-- **Densité de bords 0.13 → 0.36** : rides/plis displace sur zones nues, petites écailles
-  joues/mâchoire, carènes plus saillantes en silhouette.
-- **Plans durs du crâne** : joues creuses, mâchoire anguleuse (sections superellipse plus carrées).
+Mesures step_073 (HQ, normalisé 512) : bords 0.193 (réf 0.36) · cuivre 0.42 ✓ · couleur (0.16,0.13,0.12) vs (0.33,0.27,0.26).
 
-Archive boucle 5 (fait) :
-
-Métriques honnêtes depuis le fix de normalisation (analyse à hauteur commune 512 px) :
-cibles réf = couleur moy (0.33, 0.27, 0.26) · part cuivre 0.42 · densité de bords 0.36.
-État rendu step_044 = (0.17, 0.14, 0.13) · 0.44 ✓ · 0.15.
-
-Par impact décroissant (à valider/prioriser par l'utilisateur) :
-
-1. **Œil** : actuellement un disque orange posé sur la joue. Il faut une orbite — creux
-   sous l'arcade, globe enchâssé, paupière écailleuse. Position à remonter vers l'arcade.
-2. **Couronne de cornes + crête** : la réf a une couronne DENSE et irrégulière qui se fond
-   dans la crête du cou ; nous avons quelques cônes épars. Plus de paires, tailles variées,
-   ancrage dans les plaques crâniennes.
-3. **Cou plus musclé** : la réf a un arc de cou épais avec masses qui pendent (fanons) ;
-   le nôtre est un tube. Sections de spine élargies + repli de peau sous la mâchoire.
-4. **Luminosité/chaleur** : rendu 2× plus sombre que la réf. Monter key/rim, réchauffer
-   copper_mean (0.10,0.07,0.06) → (0.26,0.17,0.15) : cuivre des creux plus émissif/clair.
-5. **Densité de bords 0.15 → 0.36** : carènes plus saillantes en silhouette, rides/plis
-   de peau (displace macro) sur les zones sans plaques, petites écailles sur joues/mâchoire.
-
-Rappel workflow : géométrie via `run.py clayhero` d'abord, look ensuite, chaque pas jugé
-par `run.py compare specs/dragon_got.json references/drogon_head_profile.png` (métriques
-maintenant invariantes à la résolution) + regard humain sur la planche.
+Candidats, par impact estimé :
+1. **Variation des écailles** : l'armure est statistiquement uniforme (même plaque partout) →
+   3-4 formes de plaques différentes par région (larges plates flancs, carénées cou, fines tête),
+   tailles beaucoup plus contrastées. L'uniformité fait « jeu vidéo », la variation fait « vivant ».
+2. **Anatomie sous la peau** : les lofts restent des fuseaux lisses — masses musculaires épaules/
+   cuisses, omoplates, côtes suggérées (points de spine X≠0 ou displace macro anatomique).
+3. **Micro-texture** : pores/craquelures displace fine sur les plaques elles-mêmes (le gap 0.19→0.36
+   est probablement là — la réf a du détail À L'INTÉRIEUR de chaque écaille).
+4. **Scène** : sol à éteindre ou remplacer (champ de bataille du feedback initial jamais traité),
+   luminosité globale (rendu 2× sombre — reporté 2 fois, à traiter avec la scène).
+5. Nettoyage : `validate` 145 mesh non étanches (pas de fuse sur le dragon), ailes simplistes.

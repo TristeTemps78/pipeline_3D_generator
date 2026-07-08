@@ -373,10 +373,30 @@ def _apply_fuse_detail(spec, groups):
     return body
 
 
+def _apply_displace(spec, groups):
+    """Rides/plis géométriques (C4, Displace réel après Subsurf SIMPLE — pas de bruit
+    shader) sur des parts précises HORS fusion `fuse` (membrane d'aile, fanon, peau nue
+    des pattes). `detail.displace_targets` = liste de {target(s), match(sous-chaîne de
+    nom d'objet optionnelle), layers:[...], subdiv}. Câblé séparément de
+    `_apply_fuse_detail` car ce dragon n'utilise pas `fuse` (corps en parts distinctes)."""
+    entries = spec.get('detail', {}).get('displace_targets', [])
+    if not entries:
+        return
+    from . import detail as _detail
+    for e in entries:
+        targets = e.get('targets') or ([e['target']] if 'target' in e else [])
+        match = e.get('match')
+        objs = [o for t in targets for o in groups.get(t, [])
+                if o.type == 'MESH' and (not match or match in o.name)]
+        for ob in objs:
+            _detail.displace_layers(ob, e.get('layers', []), subdiv=e.get('subdiv', 1))
+
+
 def _apply_armor(spec, groups):
     """Écailles GÉOMÉTRIQUES chevauchantes ciblées par groupe de parts (I1, sans passer
     par fuse). `detail.armor` = liste d'entrées {target(s), instance{...}, density,
-    scale, caudal, curvature, mask{axis,range,to}, scale_grad{axis,range,scale_lo,scale_hi}}.
+    scale, caudal, curvature, mask{axis,range,to}, scale_grad{axis,range,scale_lo,scale_hi},
+    exclude:[sous-chaînes de nom d'objet à sauter, ex. cornes/dents/yeux]}.
     Permet de restreindre les plaques à une région (cou, tête) sans dupliquer la géométrie
     du corps ni toucher aux parts non concernées."""
     entries = spec.get('detail', {}).get('armor', [])
@@ -385,8 +405,16 @@ def _apply_armor(spec, groups):
     from . import detail as _detail
     for idx, e in enumerate(entries):
         targets = e.get('targets') or ([e['target']] if 'target' in e else [])
-        objs = [core.realize_to_mesh(o) for t in targets for o in groups.get(t, [])
-                if o.type in ('MESH', 'CURVE')]
+        exclude = e.get('exclude', [])
+        # bake CURVE->MESH une seule fois par target : plusieurs entrées d'armure
+        # peuvent viser le même groupe (ex. corps découpé en zones queue/flanc/cou) —
+        # realize_to_mesh() supprime l'objet CURVE d'origine, donc on met le groupe à
+        # jour en place pour que les entrées suivantes réutilisent le mesh déjà baké.
+        for t in targets:
+            groups[t] = [core.realize_to_mesh(o) if o.type == 'CURVE' else o
+                        for o in groups.get(t, [])]
+        objs = [o for t in targets for o in groups.get(t, [])
+                if o.type == 'MESH' and not any(x in o.name for x in exclude)]
         if not objs:
             continue
         plate = _detail.keeled_scale(name=f'armor_plate_{idx}', **e.get('instance', {}))
@@ -417,6 +445,7 @@ def build(spec):
         groups[part.get('id') or f"{part['type']}_{i}"] = objs
         count += len(objs)
     _apply_fuse_detail(spec, groups)
+    _apply_displace(spec, groups)
     _apply_armor(spec, groups)
     sc = spec.get('scene', {})
     core.world(**sc.get('world', {}))
