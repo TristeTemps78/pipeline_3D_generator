@@ -186,12 +186,26 @@ def rim_setup(key=(6, -8, 5), rim=(-7, 7, 4), target=(0, 0, 1.5),
         area_light(rim2, target=target, energy=rim2_energy, size=rim2_size, color=rim2_color)
 
 
-def render(path, res=(1152, 864), samples=48):
+def render(path, res=(1152, 864), samples=48, throttle=True):
+    """`throttle` (T14, research/logs/t14_cycles_throttle.json) : bounces bornés,
+    caustiques off, adaptive sampling, BVH persistant — diff pixel 0.001 vs réglages
+    larges sur la scène complète ; le gain vient surtout des rendus multiples d'un
+    même process (contact_sheet 4 vues, boucles internes) et bornera le coût quand
+    les instances ×35k arriveront."""
     sc = bpy.context.scene
     sc.render.engine = 'CYCLES'
     sc.cycles.samples = samples
     sc.cycles.use_denoising = True
     sc.cycles.device = 'CPU'
+    if throttle:
+        cy = sc.cycles
+        cy.max_bounces = 6
+        cy.diffuse_bounces = 2
+        cy.glossy_bounces = 3
+        cy.caustics_reflective = cy.caustics_refractive = False
+        cy.use_adaptive_sampling = True
+        cy.adaptive_threshold = 0.03
+        sc.render.use_persistent_data = True
     sc.render.resolution_x, sc.render.resolution_y = res
     sc.render.filepath = path
     bpy.ops.render.render(write_still=True)

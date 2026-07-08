@@ -23,11 +23,16 @@ def assign(ob, mat):
 
 def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 0.02),
                    scale=5, scale2=16, bump=1.2, rough=0.5, warp=0.3,
-                   sss=0.0, sss_radius=(0.32, 0.11, 0.06)):
+                   sss=0.0, sss_radius=(0.32, 0.11, 0.06), micro=0.0):
     """pattern.reptile_scales v2 : 2 voronoi distance-to-edge superposés (plaques + micro-
     écailles) sur coordonnées Object distordues par noise (casse la grille ; Object car les
     curves n'ont pas de Generated fiable) ; arêtes cuivre rouge, roughness basse aux bords.
-    Échelles en cellules par unité monde (~scale 5 → plaques de 20 cm)."""
+    Échelles en cellules par unité monde (~scale 5 → plaques de 20 cm).
+    `micro` > 0 (T12, couche MICRO) : lit l'attribut d'instance 'scale_seed' (Attribute
+    type Instancer, écrit par detail.armor_scales store_seed) → chaque écaille instanciée
+    décale l'origine du voronoi micro (v2 en 4D, W par seed) et éclaircit sa base de
+    `micro`×seed — variation unique par plaque SANS réaliser les instances. Sur une
+    géométrie non instanciée l'attribut vaut 0 → matériau inchangé."""
     mat, nt, bsdf = _new(name)
     n, lk = nt.nodes, nt.links
     # --- coordonnées distordues : Object + (noise-0.5)*warp ---
@@ -58,6 +63,18 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     v2.feature = 'DISTANCE_TO_EDGE'
     v2.inputs['Scale'].default_value = scale2
     lk.new(coord, v2.inputs['Vector'])
+    seed_fac = None
+    if micro > 0:
+        attr = n.new('ShaderNodeAttribute')
+        attr.attribute_type = 'INSTANCER'
+        attr.attribute_name = 'scale_seed'
+        seed_fac = attr.outputs['Fac']
+        v2.voronoi_dimensions = '4D'
+        woff = n.new('ShaderNodeMath')
+        woff.operation = 'MULTIPLY'
+        woff.inputs[1].default_value = 61.0
+        lk.new(seed_fac, woff.inputs[0])
+        lk.new(woff.outputs['Value'], v2.inputs['W'])
     r1 = n.new('ShaderNodeValToRGB')
     r1.color_ramp.elements[0].position = 0.0
     r1.color_ramp.elements[1].position = 0.12
@@ -100,10 +117,25 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     efac.operation = 'MULTIPLY'      # cuivre net mais borné et resserré sur les arêtes
     efac.inputs[1].default_value = 0.68
     lk.new(edge.outputs['Result'], efac.inputs[0])
+    var_out = mix1.outputs['Result']
+    if seed_fac is not None:
+        # éclaircissement par écaille : Factor = seed × micro (0 sur géométrie non instanciée)
+        vfac = n.new('ShaderNodeMath')
+        vfac.operation = 'MULTIPLY'
+        vfac.inputs[1].default_value = micro
+        lk.new(seed_fac, vfac.inputs[0])
+        mixv = n.new('ShaderNodeMix')
+        mixv.data_type = 'RGBA'
+        mixv.inputs['B'].default_value = (min(1.0, base[0] * 4 + tint[0] * 0.2),
+                                          min(1.0, base[1] * 4 + tint[1] * 0.2),
+                                          min(1.0, base[2] * 4 + tint[2] * 0.2), 1)
+        lk.new(var_out, mixv.inputs['A'])
+        lk.new(vfac.outputs['Value'], mixv.inputs['Factor'])
+        var_out = mixv.outputs['Result']
     mix2 = n.new('ShaderNodeMix')
     mix2.data_type = 'RGBA'
     mix2.inputs['B'].default_value = (*tint, 1)
-    lk.new(mix1.outputs['Result'], mix2.inputs['A'])
+    lk.new(var_out, mix2.inputs['A'])
     lk.new(efac.outputs['Value'], mix2.inputs['Factor'])
     lk.new(mix2.outputs['Result'], bsdf.inputs['Base Color'])
     # --- roughness plus basse sur les arêtes/carènes : casse le mat pour révéler le

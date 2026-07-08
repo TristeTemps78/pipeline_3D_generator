@@ -417,8 +417,19 @@ def _apply_armor(spec, groups):
                 if o.type == 'MESH' and not any(x in o.name for x in exclude)]
         if not objs:
             continue
-        plate = _detail.keeled_scale(name=f'armor_plate_{idx}', **e.get('instance', {}))
-        materials.assign(plate, _mat(spec.get('_mats', {}), e.get('mat', 'scales')))
+        # bibliothèque d'archétypes (T11) ou plaque unique (rétro-compatible).
+        # `realize` défaut False (T12) : instances vivantes + attribut 'scale_seed'
+        # → micro par écaille côté shader, mémoire ~divisée par 10.
+        archs = e.get('archetypes')
+        if archs:
+            plate = [_detail.archetype(f'armor_plate_{idx}_{k}', **a)
+                     for k, a in enumerate(archs)]
+            for p in plate:
+                materials.assign(p, _mat(spec.get('_mats', {}), e.get('mat', 'scales')))
+        else:
+            plate = _detail.keeled_scale(name=f'armor_plate_{idx}', **e.get('instance', {}))
+            materials.assign(plate, _mat(spec.get('_mats', {}), e.get('mat', 'scales')))
+        realize = e.get('realize', False)
         for j, ob in enumerate(objs):
             _detail.armor_scales(
                 ob, plate, density=e.get('density', 400.0),
@@ -428,6 +439,11 @@ def _apply_armor(spec, groups):
                 curvature=e.get('curvature', True),
                 mask=e.get('mask'), scale_grad=e.get('scale_grad'),
                 distance_min=e.get('distance_min', 0.0),
+                index_grad=e.get('index_grad'),
+                index_noise=tuple(e.get('index_noise', (3.0, 1.4))),
+                rot_jitter=e.get('rot_jitter', 0.0),
+                realize=realize,
+                store_seed=e.get('store_seed', not realize),
                 name=f'armor_{idx}_{ob.name}')
 
 

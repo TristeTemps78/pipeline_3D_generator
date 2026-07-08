@@ -105,7 +105,9 @@ def _axis_factor(ng, axis, frm, to, clamp=True):
 
 def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
                  caudal=(0, -1, 0), curvature=True, realize=True, name='armor',
-                 mask=None, scale_grad=None, distance_min=0.0):
+                 mask=None, scale_grad=None, distance_min=0.0,
+                 index_grad=None, index_noise=(3.0, 1.4), rot_jitter=0.0,
+                 store_seed=False):
     """Écailles-armure chevauchantes (inversion I1). Différence clé avec `scales` :
     densité élevée pour que les plaques se TOUCHENT/chevauchent, et orientation COHÉRENTE
     — Z aligné à la normale de surface puis Y aligné à la direction caudale `caudal`
@@ -119,7 +121,26 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
     taille d'écaille en continu le long d'un axe (ex: grandes au cou, fines au museau).
     `distance_min` : espacement Poisson minimal entre écailles — le vrai contrôle du
     chevauchement ordonné (viser ~0.4-0.6x la longueur de plaque) ; `density` reste un
-    plafond haut, sans lui `Distance Min` seul suffit à éviter les paquets chaotiques."""
+    plafond haut, sans lui `Distance Min` seul suffit à éviter les paquets chaotiques.
+
+    Architecture détail (T11+T12, research/detail_architecture.md) :
+    `instance_ob` peut être une LISTE d'archétypes → Pick Instance par index, avec
+    `index_grad` = {'axis','range'} : gradient spatial → index 0..n-1, bruit
+    `index_noise` = (échelle, amplitude) ajouté AVANT l'arrondi → frontières de régions
+    ditherées (pas de lignes) ; sans `index_grad`, archétype aléatoire par point.
+    `rot_jitter` (rad) : rotation Z aléatoire par instance. `store_seed` : écrit
+    l'attribut float 'scale_seed' (domaine INSTANCE, aléatoire 0-1) — lu côté shader
+    par Attribute type Instancer pour un micro unique par écaille, à condition de NE
+    PAS réaliser (T12 : l'attribut meurt au Realize Instances). `realize=False` +
+    `store_seed=True` = couche MESO+MICRO complète à coût mémoire quasi nul.
+
+    La distribution se fait sur le SEUL composant mesh de l'entrée (Separate
+    Components) : plusieurs modifiers d'armure empilés sur un même objet ne se
+    voient pas entre eux — sans ça, chaque entrée sème des écailles SUR les plaques
+    des entrées précédentes (les masques sont des rampes clampées, pas des bandes)
+    et le nombre d'instances explose de façon combinatoire (OOM constaté : 272k
+    instances dès la 2e entrée, mémoire infinie à la 5e)."""
+    plates = list(instance_ob) if isinstance(instance_ob, (list, tuple)) else [instance_ob]
     ng = bpy.data.node_groups.new(name, 'GeometryNodeTree')
     ng.interface.new_socket('Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
     ng.interface.new_socket('Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
@@ -130,9 +151,56 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
     dist.inputs['Density Max'].default_value = density
     dist.inputs['Seed'].default_value = seed
     inst = ng.nodes.new('GeometryNodeInstanceOnPoints')
-    info = ng.nodes.new('GeometryNodeObjectInfo')
-    info.inputs['Object'].default_value = instance_ob
-    info.transform_space = 'ORIGINAL'
+    lk = ng.links.new
+    # bibliothèque d'archétypes : chaque plaque devient UNE instance distincte
+    if len(plates) > 1:
+        geo2inst = ng.nodes.new('GeometryNodeGeometryToInstance')
+        for p in plates:
+            info = ng.nodes.new('GeometryNodeObjectInfo')
+            info.inputs['Object'].default_value = p
+            info.transform_space = 'ORIGINAL'
+            lk(info.outputs['Geometry'], geo2inst.inputs['Geometry'])
+        lk(geo2inst.outputs['Instances'], inst.inputs['Instance'])
+        inst.inputs['Pick Instance'].default_value = True
+        nmax = float(len(plates) - 1)
+        if index_grad:
+            # gradient spatial -> 0..n-1, bruit ajouté AVANT l'arrondi = dither
+            base_idx = _axis_factor(ng, index_grad['axis'], index_grad['range'],
+                                    (0.0, nmax))
+            noise = ng.nodes.new('ShaderNodeTexNoise')
+            noise.inputs['Scale'].default_value = index_noise[0]
+            ctr = ng.nodes.new('ShaderNodeMath')
+            ctr.operation = 'SUBTRACT'
+            ctr.inputs[1].default_value = 0.5
+            lk(noise.outputs['Fac'], ctr.inputs[0])
+            amp = ng.nodes.new('ShaderNodeMath')
+            amp.operation = 'MULTIPLY'
+            amp.inputs[1].default_value = index_noise[1]
+            lk(ctr.outputs['Value'], amp.inputs[0])
+            addn = ng.nodes.new('ShaderNodeMath')
+            addn.operation = 'ADD'
+            lk(base_idx, addn.inputs[0])
+            lk(amp.outputs['Value'], addn.inputs[1])
+            clampn = ng.nodes.new('ShaderNodeClamp')
+            clampn.inputs['Min'].default_value = 0.0
+            clampn.inputs['Max'].default_value = nmax
+            lk(addn.outputs['Value'], clampn.inputs['Value'])
+            to_int = ng.nodes.new('FunctionNodeFloatToInt')
+            to_int.rounding_mode = 'ROUND'
+            lk(clampn.outputs['Result'], to_int.inputs['Float'])
+            lk(to_int.outputs['Integer'], inst.inputs['Instance Index'])
+        else:
+            rnd_idx = ng.nodes.new('FunctionNodeRandomValue')
+            rnd_idx.data_type = 'INT'
+            rnd_idx.inputs['Min'].default_value = 0
+            rnd_idx.inputs['Max'].default_value = len(plates) - 1
+            rnd_idx.inputs['Seed'].default_value = seed + 31
+            lk(rnd_idx.outputs['Value'], inst.inputs['Instance Index'])
+    else:
+        info = ng.nodes.new('GeometryNodeObjectInfo')
+        info.inputs['Object'].default_value = plates[0]
+        info.transform_space = 'ORIGINAL'
+        lk(info.outputs['Geometry'], inst.inputs['Instance'])
     rnd = ng.nodes.new('FunctionNodeRandomValue')
     rnd.data_type = 'FLOAT'
     rnd.inputs['Min'].default_value, rnd.inputs['Max'].default_value = scale
@@ -177,25 +245,50 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
             dens_factor = mfac
     if dens_factor is not None:
         lk(dens_factor, dist.inputs['Density Factor'])
-    lk(n_in.outputs['Geometry'], dist.inputs['Mesh'])
+    sepc = ng.nodes.new('GeometryNodeSeparateComponents')
+    lk(n_in.outputs['Geometry'], sepc.inputs['Geometry'])
+    lk(sepc.outputs['Mesh'], dist.inputs['Mesh'])
     lk(dist.outputs['Normal'], alignZ.inputs['Vector'])
     lk(alignZ.outputs['Rotation'], alignY.inputs['Rotation'])
     lk(caud.outputs['Vector'], alignY.inputs['Vector'])
     lk(dist.outputs['Points'], inst.inputs['Points'])
     lk(alignY.outputs['Rotation'], inst.inputs['Rotation'])
-    lk(info.outputs['Geometry'], inst.inputs['Instance'])
     lk(rnd.outputs['Value'], inst.inputs['Scale'])
     lk(n_in.outputs['Geometry'], join.inputs['Geometry'])
+    tail = inst.outputs['Instances']
+    if rot_jitter:
+        rot = ng.nodes.new('GeometryNodeRotateInstances')
+        rnd_rot = ng.nodes.new('FunctionNodeRandomValue')
+        rnd_rot.data_type = 'FLOAT_VECTOR'
+        rnd_rot.inputs['Min'].default_value = (0, 0, -rot_jitter)
+        rnd_rot.inputs['Max'].default_value = (0, 0, rot_jitter)
+        rnd_rot.inputs['Seed'].default_value = seed + 13
+        lk(tail, rot.inputs['Instances'])
+        lk(rnd_rot.outputs['Value'], rot.inputs['Rotation'])
+        tail = rot.outputs['Instances']
+    if store_seed:
+        store = ng.nodes.new('GeometryNodeStoreNamedAttribute')
+        store.domain = 'INSTANCE'
+        store.data_type = 'FLOAT'
+        store.inputs['Name'].default_value = 'scale_seed'
+        rnd_seed = ng.nodes.new('FunctionNodeRandomValue')
+        rnd_seed.data_type = 'FLOAT'
+        rnd_seed.inputs['Min'].default_value = 0.0
+        rnd_seed.inputs['Max'].default_value = 1.0
+        rnd_seed.inputs['Seed'].default_value = seed + 21
+        lk(tail, store.inputs['Geometry'])
+        lk(rnd_seed.outputs['Value'], store.inputs['Value'])
+        tail = store.outputs['Geometry']
     if realize:
         real = ng.nodes.new('GeometryNodeRealizeInstances')
-        lk(inst.outputs['Instances'], real.inputs['Geometry'])
-        lk(real.outputs['Geometry'], join.inputs['Geometry'])
-    else:
-        lk(inst.outputs['Instances'], join.inputs['Geometry'])
+        lk(tail, real.inputs['Geometry'])
+        tail = real.outputs['Geometry']
+    lk(tail, join.inputs['Geometry'])
     lk(join.outputs['Geometry'], n_out.inputs['Geometry'])
     mod = ob.modifiers.new(name, 'NODES')
     mod.node_group = ng
-    instance_ob.hide_render = True
+    for p in plates:
+        p.hide_render = True
     return ob
 
 
@@ -227,6 +320,23 @@ def keeled_scale(name='keeled_scale', size=1.0, length=1.6, keel=0.5, lift=0.35,
     ob = bpy.data.objects.new(name, me)
     core.link(ob)
     return core.shade_smooth(ob) if smooth else ob
+
+
+def archetype(name, kind='keeled', size=1.0, squash=None, **kw):
+    """Plaque canonique d'une famille d'écailles (couche MESO, T11) : 'keeled'
+    (carénée — kw: length/keel/lift/smooth) ou 'plate' (losange bombé). `squash`
+    = (sx, sy, sz) baké DANS les vertices : Object Info en transform_space ORIGINAL
+    ignore le transform objet, un scale objet serait silencieusement perdu."""
+    if kind == 'plate':
+        ob = scale_plate(name, size=size)
+    else:
+        ob = keeled_scale(name, size=size, **kw)
+    if squash:
+        for v in ob.data.vertices:
+            v.co.x *= squash[0]
+            v.co.y *= squash[1]
+            v.co.z *= squash[2]
+    return ob
 
 
 def scale_plate(name='scale_plate', size=1.0):
