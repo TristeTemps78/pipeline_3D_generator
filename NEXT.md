@@ -1,27 +1,23 @@
-# Boucle 7 CLOSE (2026-07-08) — EN ATTENTE DE FEEDBACK UTILISATEUR sur step_080/step_081
+# Boucle 8 CLOSE (2026-07-08) — EN ATTENTE DE FEEDBACK sur step_087 (compare) / step_088 (scène)
 
-## Fait cette boucle
-1. **Tests architecture T10-T14** (`research/logs/`) : SDF voie A OK (T10), archétypes
-   +15 % bords (T11), micro par instance OK mais meurt au Realize (T12), throttle neutre (T14).
-2. **Câblage** : archétypes par région (`detail.armor[].archetypes` + `index_grad` dithéré),
-   instances vivantes (`realize:false` défaut) + `scale_seed` lu par `reptile_scales(micro)`,
-   throttle Cycles. FIX OOM : distribution bornée au mesh de base (Separate Components) —
-   les entrées empilées semaient des écailles sur les écailles (272k instances dès 2 entrées).
-3. **Tête refaite** (feedback step_073) : crâne élargi/reculé fondu dans le cou (armure cou
-   continuée sur l'arrière du crâne jusqu'à y 3.5 = plus de bande lisse « greffe »),
-   mâchoire inf. fortement agrandie + gape 30°, dents ×1.55, naseaux monticule+ouverture,
-   2 cornes MAÎTRESSES balayées arrière (pairs 6, master_k 1, pitch -48, scale 1.6).
+## Fait (tête v2, par agent shape-smith Sonnet + retouche orchestrateur)
+1. **Cornes** : maîtresses couchées vers l'ARRIÈRE au-dessus du haut du cou (pitch +70 —
+   ATTENTION : angle X POSITIF = bascule arrière dans ce repère), bases reculées, r0 0.13.
+2. **Naseaux intégrés** : ouverture CARVÉE au boolean dans le museau (comme les orbites),
+   monticule enfoncé aux 2/3 — plus de blob posé.
+3. **Gueule** : gape 36°, mâchoire inf. élargie/approfondie (~×1.15/×1.3), crocs saillants
+   génériques (fang_idx_*/fang_scale_* dans la spec), tooth_scale 1.7, arcade rehaussée.
+Aussi : directives projet (généricité, agents Sonnet, compacité), audit.sh, purge 72→14 Mo,
+rotation scene.blend + scene_prev.blend (2 derniers modèles pour Blender local).
 
-## Mesures HQ (step_080, compare drogon_head_roar)
-bords 0.182 (cible 0.36) · cuivre 0.404 (cible 0.42) · 19.5k plaques, build 0.33 Go.
+## Mesures HQ (step_087 vs drogon_head_roar)
+bords 0.195 (0.182 en b7 ; cible 0.36) · cuivre 0.403 (cible 0.42).
 
-## Boucle 8 (après feedback)
-- Bords encore loin : monter densités/distance_min (mémoire désormais quasi gratuite),
-  displacement VRAI zones héros (T13 adaptive subdiv OBJECT à tester), micro plus visible.
-- Couche MACRO anatomie : câbler la voie SDF (T10 OK) — muscles/os sous-peau + règle
-  les 119 non-manifolds restants.
-- Si la tête convient : verrouiller, sinon itérer sur retours précis.
+## Boucle 9 (après feedback)
+- Bords : monter densités/distance_min (mémoire quasi gratuite), displacement zones héros
+  (T13 adaptive subdiv OBJECT à tester), micro par instance plus contrasté.
+- Couche MACRO anatomie SDF (T10 OK) : muscles/os sous-peau + règle les non-manifolds.
+- Déléguer la phase BUILD à shape-smith Sonnet avec contrat chiffré (protocole).
 
-## Reprise de session (conteneur neuf)
-`bash pipeline/bootstrap.sh` puis lire claude.md. Modèle Blender ouvrable :
-`renders/scene.blend` (régénérable : `python3 pipeline/run.py forge specs/dragon_got.json --fast`).
+## Reprise (conteneur neuf)
+`bash pipeline/bootstrap.sh` puis lire claude.md.

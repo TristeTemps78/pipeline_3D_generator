@@ -114,6 +114,19 @@ def head(part, mats):
                           (esr * 0.95, esr * 0.78, esr * 0.95))
         sk = ops.boolean_diff(sk, cutter, name='skull')
         materials.assign(sk, skin)
+
+    # --- naseaux : ouverture carvée dans le museau (boolean, même schéma que les
+    # orbites) — pas un blob posé dessus. Le monticule charnu vient après, enfoncé
+    # aux 2/3 dans la surface pour fondre le raccord au lieu de flotter dessus. ---
+    np_ = part.get('nostril', {})
+    npos = np_.get('pos', (0.065, 1.10, 0.075))
+    nk = np_.get('size', 0.03)
+    for s, tag in ((1, 'l'), (-1, 'r')):
+        cx, cy, cz = s * npos[0], npos[1], npos[2]
+        cutter = ops.blob(f'nostril_cutter_{tag}', W((cx, cy, cz)),
+                          (nk * 1.05, nk * 1.7, nk * 0.85), rot_deg=(pitch - 18, 0, s * 20))
+        sk = ops.boolean_diff(sk, cutter, name='skull')
+        materials.assign(sk, skin)
     out.append(sk)
 
     rings = [[WJ((x, y, z - hh * 0.85)) for x, z in laws.superellipse(w, hh, exp)]
@@ -129,10 +142,14 @@ def head(part, mats):
     ts = part.get('tooth_scale', 1.0)
     su = part.get('tooth_span_upper', (0.42, 1.07))
     nu = part.get('teeth_upper', 6)
+    fu_idx = set(part.get('fang_idx_upper', ()))
+    fu_scale = part.get('fang_scale_upper', 1.0)
     for i in range(nu):
         y = su[0] + i * (su[1] - su[0]) / max(1, nu - 1)
         w = interp_w(upper, y) * 0.78
-        l = (0.07 + 0.012 * i + (0.03 if i == 4 else 0)) * (1 + 0.15 * math.sin(i * 9.1)) * ts
+        l = (0.07 + 0.012 * i) * (1 + 0.15 * math.sin(i * 9.1)) * ts
+        if i in fu_idx:
+            l *= fu_scale
         for s, tag in ((1, 'l'), (-1, 'r')):
             x = s * w
             t = ops.tube(f'tooth_u{tag}{i}',
@@ -142,10 +159,14 @@ def head(part, mats):
             out.append(t)
     sl = part.get('tooth_span_lower', (0.35, 0.99))
     nl = part.get('teeth_lower', 5)
+    fl_idx = set(part.get('fang_idx_lower', ()))
+    fl_scale = part.get('fang_scale_lower', 1.0)
     for i in range(nl):
         y = sl[0] + i * (sl[1] - sl[0]) / max(1, nl - 1)
         w = interp_w(lower, y) * 0.75
         l = (0.06 + 0.010 * i) * (1 + 0.15 * math.sin(i * 7.7 + 1.3)) * ts
+        if i in fl_idx:
+            l *= fl_scale
         for s, tag in ((1, 'l'), (-1, 'r')):
             x = s * w
             t = ops.tube(f'tooth_l{tag}{i}',
@@ -168,21 +189,19 @@ def head(part, mats):
         materials.assign(ll, skin)
         out.append(ll)
 
-    # --- naseaux : monticule charnu (peau) + ouverture sombre inclinée — des
-    # narines-points (blobs 2 cm) ne se lisent pas ; celles-ci font ~2× l'œil ---
-    np_ = part.get('nostril', {})
-    npos = np_.get('pos', (0.065, 1.10, 0.075))
-    nk = np_.get('size', 0.03)
+    # --- naseaux (suite) : cavité sombre logée sous l'ouverture carvée (donne la
+    # profondeur qu'on ne voit pas dans le trou seul) + monticule charnu enfoncé
+    # aux 2/3 dans le museau (centre déplacé vers l'intérieur, pas posé dessus) ---
     for s, tag in ((1, 'l'), (-1, 'r')):
-        mound = ops.blob(f'nose_mound_{tag}', W((s * npos[0], npos[1], npos[2])),
-                         (nk * 1.9, nk * 2.6, nk * 1.5), rot_deg=(pitch - 8, 0, s * 14))
+        cx, cy, cz = s * npos[0], npos[1], npos[2]
+        cavity = ops.blob(f'nostril_cavity_{tag}', W((cx * 1.02, cy + nk * 0.25, cz - nk * 0.2)),
+                          (nk * 0.55, nk * 0.8, nk * 0.42), rot_deg=(pitch - 18, 0, s * 20))
+        materials.assign(cavity, _mat(mats, 'eye'))
+        out.append(cavity)
+        mound = ops.blob(f'nose_mound_{tag}', W((cx, cy - nk * 0.55, cz - nk * 0.7)),
+                         (nk * 2.2, nk * 2.8, nk * 1.7), rot_deg=(pitch - 8, 0, s * 14))
         materials.assign(mound, skin)
         out.append(mound)
-        op = ops.blob(f'nostril_{tag}', W((s * (npos[0] * 1.06), npos[1] + nk * 1.5,
-                                           npos[2] + nk * 0.55)),
-                      (nk * 0.95, nk * 1.5, nk * 0.75), rot_deg=(pitch - 22, 0, s * 24))
-        materials.assign(op, _mat(mats, 'eye'))
-        out.append(op)
 
     # --- couronne de cornes : spirale log GVL, profil à 2 maîtresses + dégradé,
     # densifiée pour se fondre dans la crête dorsale du cou (pas de trou tête-cou) ---

@@ -13,7 +13,13 @@
   `renders/scene_prev.blend`, rotation auto dans run.py) pour le Blender local de l'utilisateur.
 
 ## État
-Boucle 7 close (HQ **step_080** compare + **step_081** scène) : architecture détail câblée (T10-T14 testés, `research/logs/`) — archétypes par région + Pick Instance dithéré, instances VIVANTES (`realize:false`) + micro par écaille (`scale_seed` → `reptile_scales(micro)`), throttle Cycles ; tête refaite (mâchoire ++, gape 30, naseaux, 2 cornes maîtresses arrière, raccord cou par armure continue y≤3.5). Bords 0.182 / cuivre 0.404. **ATTENTE FEEDBACK utilisateur** ; suite dans `NEXT.md` (boucle 8 : densités ++, SDF macro, T13). Cible : `references/drogon_*.png`. Protocole : `pipeline/orchestrator.md`. NB : --fast sous-mesure edge_density (juger la tendance). PIÈGE : jamais 2+ entrées d'armure sans Separate Components (OOM écailles-sur-écailles, fixé dans `detail.py`).
+Boucle 8 close (HQ **step_087** compare + **step_088** scène) : tête v2 — gueule gape 36°
++ crocs génériques (fang_idx/scale), naseaux CARVÉS (boolean, plus de blob), 2 maîtresses
+couchées vers le haut du cou (pitch +70 : angle X POSITIF = arrière !, r0 0.13). Bords
+0.195 / cuivre 0.403. **ATTENTE FEEDBACK** ; boucle 9 dans `NEXT.md`. Cible :
+`references/drogon_*.png`. Protocole : `pipeline/orchestrator.md`. NB : --fast sous-mesure
+edge_density. PIÈGES : armure = Separate Components obligatoire (OOM sinon) ; Object Info
+ORIGINAL ignore le transform objet (baker dans les verts).
 
 ## Métriques (normalisées h=512 — `run.py compare`)
 Cibles réf : couleur moy (0.33,0.27,0.26) · cuivre 0.42 · bords 0.36. La PRIORITÉ utilisateur est la densité de détail (bords), pas la couleur.
