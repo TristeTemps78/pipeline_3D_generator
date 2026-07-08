@@ -45,6 +45,9 @@ def spine(part, mats):
             vy, vz = -uz, uy                 # normale « dessus »
             t = i / (n - 1)
             env = math.sin(math.pi * t) ** 0.6 * min(1.0, r * 2.0 + 0.3)
+            if t > 0.72:  # pas de fondu vers 0 côté tête : fusion avec la couronne de cornes
+                fade = (t - 0.72) / 0.28
+                env = max(env, 0.62 * (1 - fade) + 0.42 * fade)
             for row, sx in ((0, 1.0), (1, -1.0)):
                 jit = 1.0 + 0.30 * math.sin(i * 7.3 + row * 2.6)
                 h = max(0.07, sp.get('h0', 0.65) * env * jit * (1.0 if row == 0 else 0.85))
@@ -100,7 +103,19 @@ def head(part, mats):
              for y, w, hh in upper]
     sk = ops.ring_loft('skull', rings)
     materials.assign(sk, skin)
+
+    # --- orbites : creux sous l'arcade sourcilière, carvé dans le crâne (boolean) ---
+    eyep = part.get('eye', {})
+    ex, ey, ez = eyep.get('pos', (0.25, 0.315, 0.20))
+    esr = eyep.get('socket_r', 0.088)
+    egr = eyep.get('globe_r', 0.072)
+    for s, tag in ((1, 'l'), (-1, 'r')):
+        cutter = ops.blob(f'eye_cutter_{tag}', W((s * ex, ey, ez)),
+                          (esr * 0.95, esr * 0.78, esr * 0.95))
+        sk = ops.boolean_diff(sk, cutter, name='skull')
+        materials.assign(sk, skin)
     out.append(sk)
+
     rings = [[WJ((x, y, z - hh * 0.85)) for x, z in laws.superellipse(w, hh, exp)]
              for y, w, hh in lower]
     jw = ops.ring_loft('jaw', rings)
@@ -131,18 +146,32 @@ def head(part, mats):
             materials.assign(t, tooth_m)
             out.append(t)
 
-    # --- yeux enfoncés sous arcades + narines ---
+    # --- globe enchâssé (calotte seule visible) + bourrelets de paupière + narines ---
     for s, tag in ((1, 'l'), (-1, 'r')):
-        e = ops.blob(f'eye_{tag}', W((s * 0.245, 0.30, 0.135)), (0.05, 0.05, 0.05))
-        materials.assign(e, _mat(mats, 'eye'))
-        out.append(e)
+        g = ops.blob(f'eye_{tag}', W((s * ex * 0.88, ey - 0.006, ez)), (egr, egr, egr))
+        materials.assign(g, _mat(mats, 'eye'))
+        out.append(g)
+        lu = ops.blob(f'lid_up_{tag}', W((s * ex, ey + 0.025, ez + esr * 0.68)),
+                      (esr * 0.80, esr * 0.46, esr * 0.30), rot_deg=(0, 0, s * 10))
+        materials.assign(lu, skin)
+        out.append(lu)
+        ll = ops.blob(f'lid_lo_{tag}', W((s * ex, ey - 0.02, ez - esr * 0.66)),
+                      (esr * 0.72, esr * 0.42, esr * 0.24))
+        materials.assign(ll, skin)
+        out.append(ll)
         n = ops.blob(f'nostril_{tag}', W((s * 0.065, 1.10, 0.075)), (0.020, 0.030, 0.016))
         materials.assign(n, _mat(mats, 'eye'))
         out.append(n)
 
-    # --- couronne de cornes : spirale log GVL, série décroissante, éventail arrière ---
-    pairs = hp.get('pairs', 5)
-    sizes = laws.decay_series(pairs, base=1.0, ratio=hp.get('ratio', 0.78))
+    # --- couronne de cornes : spirale log GVL, profil à 2 maîtresses + dégradé,
+    # densifiée pour se fondre dans la crête dorsale du cou (pas de trou tête-cou) ---
+    pairs = hp.get('pairs', 11)
+    master_k = hp.get('master_k', 2.4)
+    master_w = hp.get('master_w', 1.7)
+    sizes = []
+    for k in range(pairs):
+        bump = math.exp(-((k - master_k) / master_w) ** 2)
+        sizes.append(0.24 + 0.85 * bump)
     raw = apply_law(hp.get('vocab', 'growth.horn_spiral'),
                     n=16, a=hp.get('a', 0.10), b=hp.get('b', 0.30),
                     turns=hp.get('turns', 0.6), rise=hp.get('rise', 0.55))
@@ -150,27 +179,72 @@ def head(part, mats):
     for k in range(pairs):
         u = k / max(1, pairs - 1)
         sc = sizes[k]
-        radii = [r * (0.5 + 0.5 * sc) for r in base_radii]
-        yaw = 8 + u * 55
-        hpitch = hp.get('pitch', -35) - u * 15
-        base = (0.09 + 0.15 * u, 0.05 - 0.22 * u, 0.34 - 0.12 * u)
+        radii = [r * (0.45 + 0.55 * sc) for r in base_radii]
+        yaw = 6 + u * 62
+        hpitch = hp.get('pitch', -35) - u * 20
+        jit = 0.05 * math.sin(k * 5.1)
+        base = (0.08 + 0.19 * u, 0.10 - 0.34 * u, 0.35 - 0.16 * u + jit)
         for s, tag in ((1, 'l'), (-1, 'r')):
             pts = ops.transform_pts(raw, loc=W((s * base[0], base[1], base[2])),
-                                    rot_deg=(pitch + hpitch, 0, s * yaw),
+                                    rot_deg=(pitch + hpitch, 0, s * (yaw + 6 * jit)),
                                     scale=sc * hp.get('scale', 1.0))
             h = ops.tube(f'horn_{tag}{k}', pts, radii)
             materials.assign(h, bone_m)
             out.append(h)
-    # petites cornes d'arcade + pointes de joue
+    # petites cornes d'arcade + pointes de joue (ancrées sur l'os, base large)
     for s, tag in ((1, 'l'), (-1, 'r')):
-        b = ops.spike(f'horn_brow_{tag}', W((s * 0.22, 0.38, 0.26)), 0.14, 0.035,
+        b = ops.spike(f'horn_brow_{tag}', W((s * 0.22, 0.38, 0.26)), 0.14, 0.038,
                       (pitch - 35, 0, s * 15))
         materials.assign(b, bone_m)
         out.append(b)
-        c = ops.spike(f'horn_cheek_{tag}', W((s * 0.30, 0.12, -0.02)), 0.16, 0.045,
+        c = ops.spike(f'horn_cheek_{tag}', W((s * 0.30, 0.12, -0.02)), 0.16, 0.048,
                       (pitch + 95, 0, s * 55))
         materials.assign(c, bone_m)
         out.append(c)
+    # --- picots de remplissage : densifient la couronne entre/autour des cornes
+    # principales, petites tailles variées, ancrés dans les plaques crâniennes ---
+    fill_n = hp.get('fill_n', 7)
+    for j in range(fill_n):
+        u = j / max(1, fill_n - 1)
+        jit = 0.6 + 0.4 * math.sin(j * 3.7)
+        h = (0.05 + 0.05 * jit) * (1.3 if 0.25 < u < 0.55 else 1.0)
+        r = 0.016 + 0.012 * jit
+        loc_local = (0.14 + 0.13 * u, 0.44 - 0.62 * u, 0.33 - 0.14 * u + 0.02 * math.sin(j * 4.3))
+        for s, tag in ((1, 'l'), (-1, 'r')):
+            fp = ops.spike(f'horn_fill_{tag}{j}', W((s * loc_local[0], loc_local[1], loc_local[2])),
+                           h, r, (pitch - 20 - 45 * u, 0, s * (18 + 50 * u)))
+            materials.assign(fp, bone_m)
+            out.append(fp)
+    return out
+
+
+@builder('dewlap')
+def dewlap(part, mats):
+    """Fanon de gorge : chapelet de masses charnues qui pendent sous la mâchoire/le cou,
+    avec petits plis superposés (chaque maillon = un blob principal + un pli secondaire
+    décalé vers l'avant-bas, silhouette de peau lâche plutôt que tube lisse)."""
+    pts = [tuple(p) for p in part['pts']]
+    sizes = part['sizes']
+    mat = _mat(mats, part.get('mat', 'scales'))
+    out = []
+    n = len(pts)
+    for i, (p, r) in enumerate(zip(pts, sizes)):
+        # masse principale très allongée le long du cou (recouvre le point suivant) :
+        # fond la chaîne en une seule poche continue plutôt qu'un chapelet de perles
+        # étroit en X et très allongé en Y : quille de peau lâche continue le long de
+        # la gorge — des ratios proches de la sphère rendent comme un chapelet d'œufs
+        b = ops.blob(f"dewlap_{part.get('id', 'd')}_{i}", p, (r * 0.5, r * 2.7, r * 0.78))
+        materials.assign(b, mat)
+        out.append(b)
+        if i < n - 1:
+            # petit pli superposé entre deux maillons, discret (pas une grosse sphère)
+            nxt = pts[i + 1]
+            mid = tuple((p[k] + nxt[k]) / 2 for k in range(3))
+            fr = (r + sizes[i + 1]) * 0.30
+            fold = (mid[0], mid[1], mid[2] - fr * 0.55)
+            f = ops.blob(f"dewlap_fold_{part.get('id', 'd')}_{i}", fold, (fr * 0.75, fr * 1.3, fr * 0.55))
+            materials.assign(f, mat)
+            out.append(f)
     return out
 
 
@@ -299,10 +373,30 @@ def _apply_fuse_detail(spec, groups):
     return body
 
 
+def _apply_displace(spec, groups):
+    """Rides/plis géométriques (C4, Displace réel après Subsurf SIMPLE — pas de bruit
+    shader) sur des parts précises HORS fusion `fuse` (membrane d'aile, fanon, peau nue
+    des pattes). `detail.displace_targets` = liste de {target(s), match(sous-chaîne de
+    nom d'objet optionnelle), layers:[...], subdiv}. Câblé séparément de
+    `_apply_fuse_detail` car ce dragon n'utilise pas `fuse` (corps en parts distinctes)."""
+    entries = spec.get('detail', {}).get('displace_targets', [])
+    if not entries:
+        return
+    from . import detail as _detail
+    for e in entries:
+        targets = e.get('targets') or ([e['target']] if 'target' in e else [])
+        match = e.get('match')
+        objs = [o for t in targets for o in groups.get(t, [])
+                if o.type == 'MESH' and (not match or match in o.name)]
+        for ob in objs:
+            _detail.displace_layers(ob, e.get('layers', []), subdiv=e.get('subdiv', 1))
+
+
 def _apply_armor(spec, groups):
     """Écailles GÉOMÉTRIQUES chevauchantes ciblées par groupe de parts (I1, sans passer
     par fuse). `detail.armor` = liste d'entrées {target(s), instance{...}, density,
-    scale, caudal, curvature, mask{axis,range,to}, scale_grad{axis,range,scale_lo,scale_hi}}.
+    scale, caudal, curvature, mask{axis,range,to}, scale_grad{axis,range,scale_lo,scale_hi},
+    exclude:[sous-chaînes de nom d'objet à sauter, ex. cornes/dents/yeux]}.
     Permet de restreindre les plaques à une région (cou, tête) sans dupliquer la géométrie
     du corps ni toucher aux parts non concernées."""
     entries = spec.get('detail', {}).get('armor', [])
@@ -311,8 +405,16 @@ def _apply_armor(spec, groups):
     from . import detail as _detail
     for idx, e in enumerate(entries):
         targets = e.get('targets') or ([e['target']] if 'target' in e else [])
-        objs = [core.realize_to_mesh(o) for t in targets for o in groups.get(t, [])
-                if o.type in ('MESH', 'CURVE')]
+        exclude = e.get('exclude', [])
+        # bake CURVE->MESH une seule fois par target : plusieurs entrées d'armure
+        # peuvent viser le même groupe (ex. corps découpé en zones queue/flanc/cou) —
+        # realize_to_mesh() supprime l'objet CURVE d'origine, donc on met le groupe à
+        # jour en place pour que les entrées suivantes réutilisent le mesh déjà baké.
+        for t in targets:
+            groups[t] = [core.realize_to_mesh(o) if o.type == 'CURVE' else o
+                        for o in groups.get(t, [])]
+        objs = [o for t in targets for o in groups.get(t, [])
+                if o.type == 'MESH' and not any(x in o.name for x in exclude)]
         if not objs:
             continue
         plate = _detail.keeled_scale(name=f'armor_plate_{idx}', **e.get('instance', {}))
@@ -343,6 +445,7 @@ def build(spec):
         groups[part.get('id') or f"{part['type']}_{i}"] = objs
         count += len(objs)
     _apply_fuse_detail(spec, groups)
+    _apply_displace(spec, groups)
     _apply_armor(spec, groups)
     sc = spec.get('scene', {})
     core.world(**sc.get('world', {}))

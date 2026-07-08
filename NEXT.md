@@ -1,23 +1,18 @@
-# Prochaine boucle — candidats (boucle 4 close le 2026-07-07, EN ATTENTE DE FEEDBACK)
+# Boucle 7 — feedback utilisateur sur step_073 (2026-07-08), RIEN N'EST LANCÉ
 
-Métriques honnêtes depuis le fix de normalisation (analyse à hauteur commune 512 px) :
-cibles réf = couleur moy (0.33, 0.27, 0.26) · part cuivre 0.42 · densité de bords 0.36.
-État rendu step_044 = (0.17, 0.14, 0.13) · 0.44 ✓ · 0.15.
+## Feedback à traiter (géométrie tête, prioritaire)
+1. **Tête pas intégrée au cou** (impression de greffe — raccord/continuité à retravailler).
+2. **Mâchoire inférieure encore beaucoup trop petite** (2e fois : agrandir FORTEMENT).
+3. **Gueule bien plus imposante et impressionnante** dans l'ensemble.
+4. **Gros naseaux**.
+5. **2 cornes pointant vers l'ARRIÈRE sur la tête** (2 maîtresses claires, pas une forêt).
+6. Toujours plus de détails (le +35k va dans le bon sens mais insuffisant).
 
-Par impact décroissant (à valider/prioriser par l'utilisateur) :
+## Architecture à tester d'abord (budget tokens neuf)
+Suivre `research/detail_architecture.md` : tests T10-T14 (SDF anatomie, archétypes
+d'écailles par région, micro par instance via Attribute Instancer, adaptive subdiv
+OBJECT, throttling Cycles). Câbler seulement ce qui passe les tests. T14 et T11 d'abord.
 
-1. **Œil** : actuellement un disque orange posé sur la joue. Il faut une orbite — creux
-   sous l'arcade, globe enchâssé, paupière écailleuse. Position à remonter vers l'arcade.
-2. **Couronne de cornes + crête** : la réf a une couronne DENSE et irrégulière qui se fond
-   dans la crête du cou ; nous avons quelques cônes épars. Plus de paires, tailles variées,
-   ancrage dans les plaques crâniennes.
-3. **Cou plus musclé** : la réf a un arc de cou épais avec masses qui pendent (fanons) ;
-   le nôtre est un tube. Sections de spine élargies + repli de peau sous la mâchoire.
-4. **Luminosité/chaleur** : rendu 2× plus sombre que la réf. Monter key/rim, réchauffer
-   copper_mean (0.10,0.07,0.06) → (0.26,0.17,0.15) : cuivre des creux plus émissif/clair.
-5. **Densité de bords 0.15 → 0.36** : carènes plus saillantes en silhouette, rides/plis
-   de peau (displace macro) sur les zones sans plaques, petites écailles sur joues/mâchoire.
-
-Rappel workflow : géométrie via `run.py clayhero` d'abord, look ensuite, chaque pas jugé
-par `run.py compare specs/dragon_got.json references/drogon_head_profile.png` (métriques
-maintenant invariantes à la résolution) + regard humain sur la planche.
+## Reprise de session (conteneur neuf)
+`bash pipeline/bootstrap.sh` puis lire claude.md. Modèle Blender ouvrable :
+`renders/scene.blend` (commité, régénérable par `python3 pipeline/run.py forge specs/dragon_got.json --fast`).

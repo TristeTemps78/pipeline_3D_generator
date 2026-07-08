@@ -101,6 +101,33 @@ def ring_loft(name, rings, caps=True, subsurf_levels=2):
     return ob
 
 
+def boolean_diff(target, cutter, name=None):
+    """Soustrait `cutter` de `target` (creux d'orbite oculaire, etc.) via un modifier
+    Boolean évalué par le depsgraph — même schéma que `core.realize_to_mesh` (bake vers
+    un nouvel objet MESH, aucun bpy.ops nécessaire, robuste en headless). `cutter` est
+    consommé (retiré de la scène) après l'opération."""
+    mod = target.modifiers.new('bool_diff', 'BOOLEAN')
+    mod.operation = 'DIFFERENCE'
+    mod.object = cutter
+    mod.solver = 'EXACT'
+    deps = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(target.evaluated_get(deps), depsgraph=deps)
+    new = bpy.data.objects.new(name or target.name, me)
+    core.link(new)
+    new.matrix_world = target.matrix_world
+    for mat in target.data.materials:
+        new.data.materials.append(mat)
+    old_data = target.data
+    bpy.data.objects.remove(target)
+    if old_data.users == 0:
+        bpy.data.meshes.remove(old_data)
+    cutter_data = cutter.data
+    bpy.data.objects.remove(cutter)
+    if cutter_data.users == 0:
+        bpy.data.meshes.remove(cutter_data)
+    return core.shade_smooth(new)
+
+
 def plane(name, size=60, z=0):
     mesh = bpy.data.meshes.new(name)
     s = size / 2
