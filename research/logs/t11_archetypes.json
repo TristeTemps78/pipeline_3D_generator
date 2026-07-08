@@ -1,0 +1,14 @@
+{
+ "test": "t11_archetypes",
+ "bpy": "5.0.1",
+ "date": "2026-07-08 02:31:22",
+ "edge_density_single": 0.0518,
+ "edge_density_multi": 0.0596,
+ "time_single_s": 5.805,
+ "time_multi_s": 5.693,
+ "renders": [
+  "/home/user/pipeline_3D_generator/research/renders/t11_single.png",
+  "/home/user/pipeline_3D_generator/research/renders/t11_multi.png"
+ ],
+ "verdict": "OK"
+}
