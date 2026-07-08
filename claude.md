@@ -13,13 +13,14 @@
   `renders/scene_prev.blend`, rotation auto dans run.py) pour le Blender local de l'utilisateur.
 
 ## État
-Boucle 8 close (HQ **step_087** compare + **step_088** scène) : tête v2 — gueule gape 36°
-+ crocs génériques (fang_idx/scale), naseaux CARVÉS (boolean, plus de blob), 2 maîtresses
-couchées vers le haut du cou (pitch +70 : angle X POSITIF = arrière !, r0 0.13). Bords
-0.195 / cuivre 0.403. **ATTENTE FEEDBACK** ; boucle 9 dans `NEXT.md`. Cible :
-`references/drogon_*.png`. Protocole : `pipeline/orchestrator.md`. NB : --fast sous-mesure
-edge_density. PIÈGES : armure = Separate Components obligatoire (OOM sinon) ; Object Info
-ORIGINAL ignore le transform objet (baker dans les verts).
+Boucle 9 close (HQ **step_091** compare + **step_092** scène) : tête v3 — yeux enchâssés
+(bourrelet sous-œil + crête sourcilière œil→cornes), dents réduites/menton massif, lèvres,
+reliefs visage (mécanismes génériques head.ridges/face_blobs). Bords 0.195 (plafond des
+primitives : suite = SDF/displacement, cf. HANDOFF.md). **ATTENTE : réponse au prompt
+HANDOFF.md + feedback step_091/092.** Boucle 10 : ailes « planche à voile » + pose de VOL
+(backlog HANDOFF). Cible : `references/drogon_*.png`. Protocole : `pipeline/orchestrator.md`.
+PIÈGES : armure = Separate Components sinon OOM ; Object Info ORIGINAL ignore le transform
+objet ; couronne : angle X POSITIF = bascule arrière.
 
 ## Métriques (normalisées h=512 — `run.py compare`)
 Cibles réf : couleur moy (0.33,0.27,0.26) · cuivre 0.42 · bords 0.36. La PRIORITÉ utilisateur est la densité de détail (bords), pas la couleur.

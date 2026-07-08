@@ -203,6 +203,36 @@ def head(part, mats):
         materials.assign(mound, skin)
         out.append(mound)
 
+    # --- traits fondus génériques pilotés par la spec : crêtes (`ridges`, tube fin
+    # suivant des points) et masses charnues (`face_blobs`, blob aplati/allongé).
+    # Aucune valeur dragon ici : sourcils, joues, menton, lèvres... tout vient du JSON.
+    def _space(sp):
+        return WJ if sp == 'jaw' else W
+
+    for r in part.get('ridges', []):
+        Wf = _space(r.get('space'))
+        pts = r['pts']
+        radii = r.get('radii', [0.02] * len(pts))
+        sides = ((1, 'l'), (-1, 'r')) if r.get('mirror', True) else ((1, ''),)
+        for s, tag in sides:
+            wp = [Wf((s * x, y, z)) for x, y, z in pts]
+            t = ops.tube(f"ridge_{r.get('id', 'r')}_{tag}", wp, radii)
+            materials.assign(t, skin)
+            out.append(t)
+
+    for fb in part.get('face_blobs', []):
+        Wf = _space(fb.get('space'))
+        pos = fb['pos']
+        scale = fb.get('scale', (0.05, 0.05, 0.03))
+        rot = fb.get('rot', (0, 0, 0))
+        sides = ((1, 'l'), (-1, 'r')) if fb.get('mirror', True) else ((1, ''),)
+        for s, tag in sides:
+            b = ops.blob(f"face_{fb.get('id', 'b')}_{tag}",
+                        Wf((s * pos[0], pos[1], pos[2])), scale,
+                        rot_deg=(rot[0], rot[1], s * rot[2]))
+            materials.assign(b, skin)
+            out.append(b)
+
     # --- couronne de cornes : spirale log GVL, profil à 2 maîtresses + dégradé,
     # densifiée pour se fondre dans la crête dorsale du cou (pas de trou tête-cou) ---
     pairs = hp.get('pairs', 11)
