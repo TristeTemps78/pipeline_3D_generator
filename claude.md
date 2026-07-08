@@ -1,7 +1,7 @@
 # Pipeline 3D — Claude + Blender (bpy headless)
 
 ## État
-Boucle 6 close (rendu HQ **step_073**) : arche du cou + mandibule agrandie + couverture d'écailles corps entier (35k instances, `detail.armor` ×6 entrées + `displace_targets` rides) — bords 0.09→0.19, cuivre 0.42 ✓. **ATTENTE FEEDBACK**, candidats boucle 7 : `NEXT.md`. Cible : `references/drogon_*.png`. Feedback : `pipeline/state/session.json`. Protocole : `pipeline/orchestrator.md`. NB : --fast sous-mesure edge_density (~0.16 fast vs 0.19 HQ, juger la tendance pas l'absolu).
+Boucle 6 close (HQ **step_073** : arche cou, écailles corps entier 35k, bords 0.09→0.19, cuivre 0.42 ✓). **Boucle 7 PAS lancée** : feedback tête (mâchoire/gueule/naseaux/2 cornes arrière/intégration cou) dans `NEXT.md` + `session.json`, et NOUVELLE ARCHITECTURE détail 4 couches à TESTER d'abord (T10-T14) : `research/detail_architecture.md`. Cible : `references/drogon_*.png`. Protocole : `pipeline/orchestrator.md`. `renders/scene.blend` commité (ouvrable dans Blender). NB : --fast sous-mesure edge_density (juger la tendance).
 
 ## Métriques (normalisées h=512 — `run.py compare`)
 Cibles réf : couleur moy (0.33,0.27,0.26) · cuivre 0.42 · bords 0.36. La PRIORITÉ utilisateur est la densité de détail (bords), pas la couleur.

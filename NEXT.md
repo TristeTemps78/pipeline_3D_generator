@@ -1,15 +1,18 @@
-# Boucle 7 — candidats (boucle 6 close : arche + mandibule + détail ×2, step_073 ; EN ATTENTE DE FEEDBACK)
+# Boucle 7 — feedback utilisateur sur step_073 (2026-07-08), RIEN N'EST LANCÉ
 
-Mesures step_073 (HQ, normalisé 512) : bords 0.193 (réf 0.36) · cuivre 0.42 ✓ · couleur (0.16,0.13,0.12) vs (0.33,0.27,0.26).
+## Feedback à traiter (géométrie tête, prioritaire)
+1. **Tête pas intégrée au cou** (impression de greffe — raccord/continuité à retravailler).
+2. **Mâchoire inférieure encore beaucoup trop petite** (2e fois : agrandir FORTEMENT).
+3. **Gueule bien plus imposante et impressionnante** dans l'ensemble.
+4. **Gros naseaux**.
+5. **2 cornes pointant vers l'ARRIÈRE sur la tête** (2 maîtresses claires, pas une forêt).
+6. Toujours plus de détails (le +35k va dans le bon sens mais insuffisant).
 
-Candidats, par impact estimé :
-1. **Variation des écailles** : l'armure est statistiquement uniforme (même plaque partout) →
-   3-4 formes de plaques différentes par région (larges plates flancs, carénées cou, fines tête),
-   tailles beaucoup plus contrastées. L'uniformité fait « jeu vidéo », la variation fait « vivant ».
-2. **Anatomie sous la peau** : les lofts restent des fuseaux lisses — masses musculaires épaules/
-   cuisses, omoplates, côtes suggérées (points de spine X≠0 ou displace macro anatomique).
-3. **Micro-texture** : pores/craquelures displace fine sur les plaques elles-mêmes (le gap 0.19→0.36
-   est probablement là — la réf a du détail À L'INTÉRIEUR de chaque écaille).
-4. **Scène** : sol à éteindre ou remplacer (champ de bataille du feedback initial jamais traité),
-   luminosité globale (rendu 2× sombre — reporté 2 fois, à traiter avec la scène).
-5. Nettoyage : `validate` 145 mesh non étanches (pas de fuse sur le dragon), ailes simplistes.
+## Architecture à tester d'abord (budget tokens neuf)
+Suivre `research/detail_architecture.md` : tests T10-T14 (SDF anatomie, archétypes
+d'écailles par région, micro par instance via Attribute Instancer, adaptive subdiv
+OBJECT, throttling Cycles). Câbler seulement ce qui passe les tests. T14 et T11 d'abord.
+
+## Reprise de session (conteneur neuf)
+`bash pipeline/bootstrap.sh` puis lire claude.md. Modèle Blender ouvrable :
+`renders/scene.blend` (commité, régénérable par `python3 pipeline/run.py forge specs/dragon_got.json --fast`).
