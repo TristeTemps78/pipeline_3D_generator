@@ -1,7 +1,7 @@
 # Pipeline 3D — Claude + Blender (bpy headless)
 
 ## État
-Boucle 6 close (HQ **step_073** : arche cou, écailles corps entier 35k, bords 0.09→0.19, cuivre 0.42 ✓). **Boucle 7 PAS lancée** : feedback tête (mâchoire/gueule/naseaux/2 cornes arrière/intégration cou) dans `NEXT.md` + `session.json`, et NOUVELLE ARCHITECTURE détail 4 couches à TESTER d'abord (T10-T14) : `research/detail_architecture.md`. Cible : `references/drogon_*.png`. Protocole : `pipeline/orchestrator.md`. `renders/scene.blend` commité (ouvrable dans Blender). NB : --fast sous-mesure edge_density (juger la tendance).
+Boucle 7 close (HQ **step_080** compare + **step_081** scène) : architecture détail câblée (T10-T14 testés, `research/logs/`) — archétypes par région + Pick Instance dithéré, instances VIVANTES (`realize:false`) + micro par écaille (`scale_seed` → `reptile_scales(micro)`), throttle Cycles ; tête refaite (mâchoire ++, gape 30, naseaux, 2 cornes maîtresses arrière, raccord cou par armure continue y≤3.5). Bords 0.182 / cuivre 0.404. **ATTENTE FEEDBACK utilisateur** ; suite dans `NEXT.md` (boucle 8 : densités ++, SDF macro, T13). Cible : `references/drogon_*.png`. Protocole : `pipeline/orchestrator.md`. NB : --fast sous-mesure edge_density (juger la tendance). PIÈGE : jamais 2+ entrées d'armure sans Separate Components (OOM écailles-sur-écailles, fixé dans `detail.py`).
 
 ## Métriques (normalisées h=512 — `run.py compare`)
 Cibles réf : couleur moy (0.33,0.27,0.26) · cuivre 0.42 · bords 0.36. La PRIORITÉ utilisateur est la densité de détail (bords), pas la couleur.
@@ -21,4 +21,4 @@ Cibles réf : couleur moy (0.33,0.27,0.26) · cuivre 0.42 · bords 0.36. La PRIO
 core (clay, rim_setup, camera, realize_to_mesh) · ops (tube, blob, spike, grid_surface, ring_loft, boolean_diff) · organic (builders spine/head lofts superellipse/wing/limb/dewlap/armure via `_apply_armor`) · detail (keeled_scale, armor_scales, displace_layers, scales) · fuse (voxel_fuse défaut) · validate (BVH) · feedback (compare_sheet, contact_sheet, iou) · materials (reptile_scales SSS ; ignorés en clay). GVL : `pipeline/gvl/` (lois + vocabulary.json).
 
 ## Git
-Branche unique : `claude/project-orchestration-pipeline-p5ap88` (les 2 autres branches claude/* sont à supprimer côté GitHub UI, deletes 403 en session). Commit par étape de boucle, push + état AVANT fin de session (conteneur éphémère).
+Lignée de travail : `claude/project-orchestration-dslej5` (miroir sur `claude/project-orchestration-pipeline-p5ap88` après push, cf. orchestrator.md — une seule session écrit à la fois). Commit par étape de boucle, push + état AVANT fin de session (conteneur éphémère).

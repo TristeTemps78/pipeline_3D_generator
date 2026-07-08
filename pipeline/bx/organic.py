@@ -122,31 +122,39 @@ def head(part, mats):
     materials.assign(jw, skin)
     out.append(jw)
 
-    # --- dents : tubes effilés courbes le long des bords de gueule ---
-    for i in range(6):
-        y = 0.42 + i * 0.13
+    # --- dents : tubes effilés courbes le long des bords de gueule.
+    # `tooth_scale` grossit longueur ET rayon ; les rangées suivent la longueur du
+    # museau via tooth_span_* (y début/fin) — une gueule agrandie garde ses dents
+    # réparties jusqu'au bout du museau au lieu de s'arrêter à mi-chemin. ---
+    ts = part.get('tooth_scale', 1.0)
+    su = part.get('tooth_span_upper', (0.42, 1.07))
+    nu = part.get('teeth_upper', 6)
+    for i in range(nu):
+        y = su[0] + i * (su[1] - su[0]) / max(1, nu - 1)
         w = interp_w(upper, y) * 0.78
-        l = (0.07 + 0.012 * i + (0.03 if i == 4 else 0)) * (1 + 0.15 * math.sin(i * 9.1))
+        l = (0.07 + 0.012 * i + (0.03 if i == 4 else 0)) * (1 + 0.15 * math.sin(i * 9.1)) * ts
         for s, tag in ((1, 'l'), (-1, 'r')):
             x = s * w
             t = ops.tube(f'tooth_u{tag}{i}',
                          [W((x, y, -0.005)), W((x * 0.97, y + 0.015, -l * 0.55)), W((x * 0.92, y + 0.03, -l))],
-                         [0.020, 0.012, 0.003])
+                         [0.020 * ts, 0.012 * ts, 0.003])
             materials.assign(t, tooth_m)
             out.append(t)
-    for i in range(5):
-        y = 0.35 + i * 0.16
+    sl = part.get('tooth_span_lower', (0.35, 0.99))
+    nl = part.get('teeth_lower', 5)
+    for i in range(nl):
+        y = sl[0] + i * (sl[1] - sl[0]) / max(1, nl - 1)
         w = interp_w(lower, y) * 0.75
-        l = (0.06 + 0.010 * i) * (1 + 0.15 * math.sin(i * 7.7 + 1.3))
+        l = (0.06 + 0.010 * i) * (1 + 0.15 * math.sin(i * 7.7 + 1.3)) * ts
         for s, tag in ((1, 'l'), (-1, 'r')):
             x = s * w
             t = ops.tube(f'tooth_l{tag}{i}',
                          [WJ((x, y, 0.005)), WJ((x * 0.97, y + 0.015, l * 0.55)), WJ((x * 0.92, y + 0.03, l))],
-                         [0.018, 0.011, 0.003])
+                         [0.018 * ts, 0.011 * ts, 0.003])
             materials.assign(t, tooth_m)
             out.append(t)
 
-    # --- globe enchâssé (calotte seule visible) + bourrelets de paupière + narines ---
+    # --- globe enchâssé (calotte seule visible) + bourrelets de paupière ---
     for s, tag in ((1, 'l'), (-1, 'r')):
         g = ops.blob(f'eye_{tag}', W((s * ex * 0.88, ey - 0.006, ez)), (egr, egr, egr))
         materials.assign(g, _mat(mats, 'eye'))
@@ -159,31 +167,52 @@ def head(part, mats):
                       (esr * 0.72, esr * 0.42, esr * 0.24))
         materials.assign(ll, skin)
         out.append(ll)
-        n = ops.blob(f'nostril_{tag}', W((s * 0.065, 1.10, 0.075)), (0.020, 0.030, 0.016))
-        materials.assign(n, _mat(mats, 'eye'))
-        out.append(n)
+
+    # --- naseaux : monticule charnu (peau) + ouverture sombre inclinée — des
+    # narines-points (blobs 2 cm) ne se lisent pas ; celles-ci font ~2× l'œil ---
+    np_ = part.get('nostril', {})
+    npos = np_.get('pos', (0.065, 1.10, 0.075))
+    nk = np_.get('size', 0.03)
+    for s, tag in ((1, 'l'), (-1, 'r')):
+        mound = ops.blob(f'nose_mound_{tag}', W((s * npos[0], npos[1], npos[2])),
+                         (nk * 1.9, nk * 2.6, nk * 1.5), rot_deg=(pitch - 8, 0, s * 14))
+        materials.assign(mound, skin)
+        out.append(mound)
+        op = ops.blob(f'nostril_{tag}', W((s * (npos[0] * 1.06), npos[1] + nk * 1.5,
+                                           npos[2] + nk * 0.55)),
+                      (nk * 0.95, nk * 1.5, nk * 0.75), rot_deg=(pitch - 22, 0, s * 24))
+        materials.assign(op, _mat(mats, 'eye'))
+        out.append(op)
 
     # --- couronne de cornes : spirale log GVL, profil à 2 maîtresses + dégradé,
     # densifiée pour se fondre dans la crête dorsale du cou (pas de trou tête-cou) ---
     pairs = hp.get('pairs', 11)
     master_k = hp.get('master_k', 2.4)
     master_w = hp.get('master_w', 1.7)
+    size_min = hp.get('size_min', 0.24)
+    size_bump = hp.get('size_bump', 0.85)
     sizes = []
     for k in range(pairs):
         bump = math.exp(-((k - master_k) / master_w) ** 2)
-        sizes.append(0.24 + 0.85 * bump)
+        sizes.append(size_min + size_bump * bump)
     raw = apply_law(hp.get('vocab', 'growth.horn_spiral'),
                     n=16, a=hp.get('a', 0.10), b=hp.get('b', 0.30),
                     turns=hp.get('turns', 0.6), rise=hp.get('rise', 0.55))
     base_radii = laws.power_taper(16, hp.get('r0', 0.075), 1.15, 0.008)
+    # ancrages : lerp base_from -> base_to (repère local tête, x=côté y=avant z=haut)
+    # + éventail yaw0..yaw0+yaw_spread. « 2 maîtresses arrière » = master_w étroit,
+    # size_bump fort, pitch très négatif (couchées vers la nuque), yaw_spread faible.
+    bf = hp.get('base_from', (0.08, 0.10, 0.35))
+    bt = hp.get('base_to', (0.27, -0.24, 0.19))
     for k in range(pairs):
         u = k / max(1, pairs - 1)
         sc = sizes[k]
         radii = [r * (0.45 + 0.55 * sc) for r in base_radii]
-        yaw = 6 + u * 62
-        hpitch = hp.get('pitch', -35) - u * 20
+        yaw = hp.get('yaw0', 6) + u * hp.get('yaw_spread', 62)
+        hpitch = hp.get('pitch', -35) - u * hp.get('pitch_spread', 20)
         jit = 0.05 * math.sin(k * 5.1)
-        base = (0.08 + 0.19 * u, 0.10 - 0.34 * u, 0.35 - 0.16 * u + jit)
+        base = (bf[0] + (bt[0] - bf[0]) * u, bf[1] + (bt[1] - bf[1]) * u,
+                bf[2] + (bt[2] - bf[2]) * u + jit)
         for s, tag in ((1, 'l'), (-1, 'r')):
             pts = ops.transform_pts(raw, loc=W((s * base[0], base[1], base[2])),
                                     rot_deg=(pitch + hpitch, 0, s * (yaw + 6 * jit)),
@@ -191,14 +220,16 @@ def head(part, mats):
             h = ops.tube(f'horn_{tag}{k}', pts, radii)
             materials.assign(h, bone_m)
             out.append(h)
-    # petites cornes d'arcade + pointes de joue (ancrées sur l'os, base large)
+    # petites cornes d'arcade + pointes de joue (ancrées sur l'os, base large) ;
+    # feature_scale suit l'agrandissement du crâne (positions ET tailles locales)
+    hk = part.get('feature_scale', 1.0)
     for s, tag in ((1, 'l'), (-1, 'r')):
-        b = ops.spike(f'horn_brow_{tag}', W((s * 0.22, 0.38, 0.26)), 0.14, 0.038,
-                      (pitch - 35, 0, s * 15))
+        b = ops.spike(f'horn_brow_{tag}', W((s * 0.22 * hk, 0.38 * hk, 0.26 * hk)),
+                      0.14 * hk, 0.038 * hk, (pitch - 35, 0, s * 15))
         materials.assign(b, bone_m)
         out.append(b)
-        c = ops.spike(f'horn_cheek_{tag}', W((s * 0.30, 0.12, -0.02)), 0.16, 0.048,
-                      (pitch + 95, 0, s * 55))
+        c = ops.spike(f'horn_cheek_{tag}', W((s * 0.30 * hk, 0.12 * hk, -0.02 * hk)),
+                      0.16 * hk, 0.048 * hk, (pitch + 95, 0, s * 55))
         materials.assign(c, bone_m)
         out.append(c)
     # --- picots de remplissage : densifient la couronne entre/autour des cornes
@@ -207,9 +238,10 @@ def head(part, mats):
     for j in range(fill_n):
         u = j / max(1, fill_n - 1)
         jit = 0.6 + 0.4 * math.sin(j * 3.7)
-        h = (0.05 + 0.05 * jit) * (1.3 if 0.25 < u < 0.55 else 1.0)
-        r = 0.016 + 0.012 * jit
-        loc_local = (0.14 + 0.13 * u, 0.44 - 0.62 * u, 0.33 - 0.14 * u + 0.02 * math.sin(j * 4.3))
+        h = (0.05 + 0.05 * jit) * (1.3 if 0.25 < u < 0.55 else 1.0) * hk
+        r = (0.016 + 0.012 * jit) * hk
+        loc_local = ((0.14 + 0.13 * u) * hk, (0.44 - 0.62 * u) * hk,
+                     (0.33 - 0.14 * u) * hk + 0.02 * math.sin(j * 4.3))
         for s, tag in ((1, 'l'), (-1, 'r')):
             fp = ops.spike(f'horn_fill_{tag}{j}', W((s * loc_local[0], loc_local[1], loc_local[2])),
                            h, r, (pitch - 20 - 45 * u, 0, s * (18 + 50 * u)))
