@@ -1275,6 +1275,33 @@
     0.95
    ],
    "rim2_size": 5
-  }
+  },
+  "shots": [
+   {
+    "id": "hero"
+   },
+   {
+    "id": "head",
+    "frame_part": "head",
+    "dir": [
+     1.0,
+     1.1,
+     0.35
+    ],
+    "lens": 55,
+    "margin": 1.15
+   },
+   {
+    "id": "legs",
+    "frame_part": "hindleg",
+    "dir": [
+     1.4,
+     -0.7,
+     -0.45
+    ],
+    "lens": 50,
+    "margin": 1.35
+   }
+  ]
  }
 }
