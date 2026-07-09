@@ -2,6 +2,21 @@
 
 Priorisé, à recadrer à chaque feedback. Le « fait » vit dans git log + HANDOFF, pas ici.
 
+0. ROADMAP utilisateur (feedback step_141, détail intégral dans session.json) — chaque item
+   doit devenir un MÉCANISME PIPELINE générique, pas une rustine spec (« les boucles qu'on
+   fait maintenant, je ne veux pas les refaire plus tard ») :
+   a. Écailles : variation de taille par zone (ventre fin / dos+membres robustes — étendre
+      scale_grad/masks en gradient multi-zones générique), plis de peau aux articulations
+      (nouvel op générique `fold_rings` aux joints des tubes limb/spine).
+   b. Tête : iris reptilien (shader fente verticale), narines creusées nettes, cornes plus
+      définies, gencives + dents individualisées, rides autour des yeux.
+   c. Membrane : réseau tendons/vaisseaux SOUS la peau (shader bump/veines procédural
+      générique dans materials.py), peau fine plissée (micro-plis).
+   d. PBR patine : cuivre frotté + vert-de-gris dans les CREUX (masque cavité/AO générique
+      dans le shader écailles), reflets dorés sur bords exposés, griffes/épines cornées,
+      cicatrices subtiles.
+   e. Environnement : fond détaillé flou (caverne trésor / canyon), lumières d'appoint
+      dorées, volumétriques (brume, poussière d'or) — builders scène génériques.
 1. Membrane organique niveau 2 (après boucle 13) : micro-plis dynamiques, translucidité
    contrôlée sans taches (cf. pièges claude.md), déchirures/cicatrices héros.
 2. fuse_groups : étendre à head (couture crâne/cou) et hindleg (hanche) — BLOQUÉ tel quel

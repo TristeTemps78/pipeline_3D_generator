@@ -1,5 +1,8 @@
 """Entrée du pipeline. Commandes :
-  forge <spec.json> [--fast] [--clay] [--sheet]  build + rendu (ou planche-contact)
+  forge <spec.json> [--fast] [--clay] [--sheet]  build + rendu (ou planche-contact) ;
+        [--shot <id>]                            si spec scene.shots : 1 PNG par shot
+                                                  (step_XXX_<id>.png, cadrage auto par
+                                                  pièce via frame_part), --shot = 1 seul
   validate <spec.json> [--pairs a:b,c:d]         sanity checks BVH, AUCUN rendu (C1)
   sheet <spec.json> [--fast]                     planche-contact clay 4 vues, 1 PNG (C2)
   sheet4 <spec.json> [--fast]                    planche-contact clay 6 vues : profil/face/
@@ -57,6 +60,37 @@ def _save_scene():
     core.save_blend(path)
 
 
+def _shot_camera(spec, shot, res):
+    """Caméra d'un shot (`scene.shots`, mécanisme générique multi-prises) :
+    - sans `frame_part` : caméra par défaut de la scène (cadrage « héros » actuel) ;
+    - avec `frame_part`: cadrage AUTO sur la bbox monde du groupe de pièces (préfixe,
+      cf. feedback.part_bbox) — distance déduite de la focale et du rayon bbox, la
+      DIRECTION de visée vient de `dir` (vecteur cible→caméra) ou, à défaut, de la
+      caméra par défaut (même point de vue, juste recentré/rapproché). `margin`
+      multiplie la distance (1 = bbox tangente au cadre). Zéro constante objet."""
+    cam = spec.get('scene', {}).get('camera', {})
+    base_loc = tuple(cam.get('loc', (9, -11, 3.5)))
+    base_tgt = tuple(cam.get('target', (0, 0, 2)))
+    lens = shot.get('lens', cam.get('lens', 45))
+    part = shot.get('frame_part')
+    if not part:
+        core.camera(base_loc, target=base_tgt, lens=lens)
+        return
+    bb = feedback.part_bbox(spec, part)
+    if bb is None:
+        raise SystemExit(f"shot '{shot.get('id')}' : frame_part '{part}' introuvable")
+    center, radius = bb
+    d = shot.get('dir') or [base_loc[i] - base_tgt[i] for i in range(3)]
+    norm = sum(c * c for c in d) ** 0.5 or 1.0
+    d = [c / norm for c in d]
+    # champ le plus serré (capteur 36mm horizontal, vertical = ratio de rendu)
+    tan_h = 18.0 / lens
+    tan_v = tan_h * (res[1] / res[0])
+    dist = radius * shot.get('margin', 1.3) / min(tan_h, tan_v)
+    tgt = tuple(center[i] + shot.get('target_offset', (0, 0, 0))[i] for i in range(3))
+    core.camera(tuple(tgt[i] + d[i] * dist for i in range(3)), target=tgt, lens=lens)
+
+
 def forge(spec_path, fast=False):
     spec = _load(spec_path)
     st = load_state()
@@ -72,7 +106,23 @@ def forge(spec_path, fast=False):
         if '--clay' in sys.argv:
             core.clay()
         res, samples = ((640, 480), 16) if fast else ((1152, 864), 48)
-        core.render(out, res=res, samples=samples)
+        shots = spec.get('scene', {}).get('shots')
+        only = None
+        if '--shot' in sys.argv:
+            only = sys.argv[sys.argv.index('--shot') + 1]
+        if shots:
+            outs = []
+            for shot in shots:
+                sid = shot.get('id', 'shot')
+                if only and sid != only:
+                    continue
+                _shot_camera(spec, shot, res)
+                o = out.replace('.png', f'_{sid}.png')
+                core.render(o, res=res, samples=samples)
+                outs.append(o)
+            out = outs[0] if outs else out
+        else:
+            core.render(out, res=res, samples=samples)
     _save_scene()
     st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
     save_state(st)

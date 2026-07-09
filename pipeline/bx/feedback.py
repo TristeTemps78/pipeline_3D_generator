@@ -290,6 +290,32 @@ def spec_parts(spec):
             for i, p in enumerate(spec.get('parts', []))]
 
 
+def part_bbox(spec, part_key):
+    """Bbox MONDE d'un groupe de pièces, clé par préfixe : 'hindleg' couvre aussi
+    'hindleg_L'/'hindleg_R'. Retourne (center, radius) — radius = demi-diagonale,
+    prêt pour un cadrage caméra. None si aucune pièce ne matche (id inconnu)."""
+    deps = bpy.context.evaluated_depsgraph_get()
+    registry = part_registry(spec_parts(spec))
+    mins, maxs = [], []
+    for key, objs in registry.items():
+        if key != part_key and not key.startswith(part_key + '_'):
+            continue
+        for ob in objs:
+            coords, _ = _obj_world_coords(ob, deps)
+            if not coords:
+                continue
+            xs, ys, zs = zip(*coords)
+            mins.append((min(xs), min(ys), min(zs)))
+            maxs.append((max(xs), max(ys), max(zs)))
+    if not mins:
+        return None
+    bmin = [min(v[i] for v in mins) for i in range(3)]
+    bmax = [max(v[i] for v in maxs) for i in range(3)]
+    center = tuple((bmin[i] + bmax[i]) / 2 for i in range(3))
+    radius = sum((bmax[i] - bmin[i]) ** 2 for i in range(3)) ** 0.5 / 2
+    return center, radius
+
+
 def part_registry(parts, overrides=None):
     """Scène déjà construite -> {groupe: [objets Blender]}. Objets non classés -> 'other'.
     Exclut `hide_render` (bibliothèque d'archétypes d'écailles `armor_plate_*`/

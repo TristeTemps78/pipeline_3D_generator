@@ -34,6 +34,10 @@
   {
    "step": 133,
    "user": "Encore beaucoup de travail mais c'est plus massif, pas mal — DIRECTION ACTUELLE VALIDÉE (continuer sans refonte). AILES : peu d'amélioration, encore BEAUCOUP TROP DELTAPLANE — se rappeler references/drogon_wing_membrane.png ; il reste encore un peu d'« aile-nageoire ». PATTES : bien de les avoir ; les PIEDS doivent être BEAUCOUP plus massifs. Aussi demandé : réorganiser les 4 .md (rôles uniques, zéro doublon, reprise de session rapide et économe en tokens) — fait dans cette session."
+  },
+  {
+   "step": 141,
+   "user": "Ailes : le bras se sépare en plusieurs lignes (pas réaliste) ; membrane à un z différent, comme des nageoires collées au corps. IMPORTANT : intégrer les correctifs dans la PIPELINE (mécanismes génériques), pas seulement dans le JSON — minimiser les futures boucles par objet. Roadmap détaillée fournie : (1) sculpt organique — écailles imbriquées variées par zone (petites ventre / grosses dos+membres), plis de peau aux articulations, tête (iris reptilien, narines, cornes définies, gencives+dents individuelles, rides autour des yeux), membranes (réseau tendons/vaisseaux sous la peau, peau fine plissée) ; (2) PBR — patine métal usé (cuivre frotté, vert-de-gris dans les creux, reflets dorés sur bords exposés), membrane semi-transparente à réseau vasculaire et gradients rose-brun→brun-doré, épines/griffes cornées, cicatrices subtiles ; (3) environnement — fond détaillé flou (caverne au trésor or-cuivre ou canyon), lumières d'appoint dorées, volumétriques (brume, poussière d'or). Rendu HQ fait par l'utilisateur en LOCAL (bpy) ; la pipeline doit sortir 3 images : gros plan tête, cadrage actuel, vue des pattes."
   }
  ]
 }
