@@ -367,6 +367,10 @@ def wing(part, mats):
     batten_r0 = part.get('batten_r0', 0.05)
     batten_rmin = part.get('batten_rmin', 0.008)
     batten_lift = part.get('batten_lift', 0.012)
+    # batten_start (défaut 0, rétro-compat) : fraction de la corde (racine->bord
+    # libre) où démarrent les lattes -> détachées du poignet/bras, elles lisent
+    # comme des veines de membrane plutôt que des tiges qui rayonnent depuis l'os.
+    batten_start = max(0.0, min(0.95, part.get('batten_start', 0.0)))
     bone_mat_key = part.get('bone_mat', 'scales')
     # camber (v3, anti-origami) : bombé chordwise (racine->bord libre, via `t`) qui
     # s'ajoute au sag existant (bombé envergure, via `u`) -> double courbure au lieu
@@ -415,10 +419,38 @@ def wing(part, mats):
                 if perp.dot(ref) < 0:
                     finger_dirs[i] = -perp
 
-        def col_pts(root_pt, e, u, bow_perp=None):
+        # knuckle_spread (défaut 0, rétro-compat) : masse carpienne — les doigts
+        # n'émergent plus tous du même point W (éclatement en rayons filaires) mais
+        # d'origines échelonnées le long d'une courte courbe carpienne, prolongement
+        # de la direction coude->poignet. Le doigt du bord d'attaque (rays[0]) part
+        # le plus loin, celui du bord de fuite (dernier) le plus tôt -> comme une
+        # main, transition continue au lieu d'un point d'éclatement unique. Aucune
+        # constante dragon : direction et ordre dérivés de `elbow`/`wrist`/`tips`.
+        knuckle_spread = part.get('knuckle_spread', 0.0)
+        n_fingers = len(rays)
+        dc = W - Vector(el)
+        dir_carpe = dc.normalized() if dc.length > 1e-6 else Vector((1.0, 0.0, 0.0))
+
+        def finger_frac(j):
+            return (n_fingers - 1 - j) / (n_fingers - 1) if n_fingers > 1 else 0.0
+
+        knuckles = [W + dir_carpe * (knuckle_spread * finger_frac(j)) for j in range(n_fingers)]
+
+        if knuckle_spread > 0 and n_fingers > 0:
+            hand_r0 = arm_radii[-1] * 1.05
+            hand_r1 = max(part.get('finger_r0', 0.085) * 0.9, arm_radii[-1] * 0.5)
+            far = knuckles[0]
+            hand_pts = [W, W.lerp(far, 0.55), far]
+            hand_radii = [hand_r0, (hand_r0 + hand_r1) * 0.5, hand_r1]
+            hand = ops.tube(f'hand_{tag}', [tuple(p) for p in hand_pts], hand_radii)
+            materials.assign(hand, _mat(mats, bone_mat_key))
+            out.append(hand)
+
+        def col_pts(root_pt, e, u, bow_perp=None, t0=0.0):
             pts = []
             for i in range(nt):
-                t = i / (nt - 1)
+                tt = i / (nt - 1)
+                t = t0 + (1.0 - t0) * tt
                 v = root_pt.lerp(e, t)
                 v.z -= sag * math.sin(math.pi * u) * t
                 v.z += camber * math.sin(math.pi * t)
@@ -450,6 +482,10 @@ def wing(part, mats):
         ref_width = (sum(fest_widths) / len(fest_widths)) if fest_widths else 1.0
         col_defs = []
         col_bow = []
+        col_knuckle = []  # décalage de racine par colonne (aligne la bande de membrane
+        # d'un doigt sur son knuckle échelonné, cf. `knuckle_spread`) -> nul partout
+        # sauf sur la colonne du doigt lui-même (k==0), sinon la membrane resterait
+        # ancrée à W pendant que le doigt (bourrelet) démarre plus loin -> décollement.
         seg_bounds = []  # (index de départ, nb de colonnes) par segment j -> réutilisé par les lattes
         for j in range(len(ends) - 1):
             a, b = Vector(ends[j]), Vector(ends[j + 1])
@@ -461,9 +497,12 @@ def wing(part, mats):
             for k in range(steps):
                 u = k / steps
                 col_defs.append((edge_pt(a, b, u, fest, chord_scale), u))
-                col_bow.append(finger_dirs[j] if (k == 0 and j < len(rays)) else None)
+                is_finger_root = k == 0 and j < len(rays)
+                col_bow.append(finger_dirs[j] if is_finger_root else None)
+                col_knuckle.append((knuckles[j] - W) if is_finger_root else Vector((0.0, 0.0, 0.0)))
         col_defs.append((Vector(anchor), 1.0))
         col_bow.append(None)
+        col_knuckle.append(Vector((0.0, 0.0, 0.0)))
 
         # root_curve (aile « nageoire », doctrine axe 2 attachment_curve) : la racine
         # de la membrane suit une polyligne le long du flanc (épaule->hanche) au lieu
@@ -479,17 +518,49 @@ def wing(part, mats):
             off = abs(part.get('root_offset', 0.02))  # décalage vers l'intérieur (flanc)
             root_world = [(s * (x - off), y, z) for x, y, z in rc]
 
-            def root_at(gu):
+            def flank_root_at(gu):
                 return Vector(laws.sample_path(root_world, gu))
         else:
-            def root_at(gu):
+            def flank_root_at(gu):
                 return W
+
+        # root_follow_arm (défaut 0, fraction 0..1, rétro-compat) : au lieu d'une
+        # racine de membrane entièrement plaquée au flanc (root_curve) alors que le
+        # bras passe au-dessus -> lecture "nageoire collée", décalée en z -> la
+        # partie AVANT de la racine (gu proche de 0, adjacente au poignet/1er doigt)
+        # suit le dessous du bras (épaule->coude->poignet, décalé de -z de son rayon
+        # local) : la membrane s'accroche SOUS l'os. S'estompe vers root_curve
+        # (flanc) à mi-parcours de la racine (`front_extent`) ; la partie arrière
+        # (vers l'ancrage/hanche) reste inchangée. camber/panel_billow/sag valent
+        # déjà 0 en t=0 (racine, sin(pi*0)=0) donc n'ont pas besoin d'amortissement
+        # séparé : la racine suit exactement `root_at`.
+        root_follow = max(0.0, min(1.0, part.get('root_follow_arm', 0.0)))
+        arm_poly = [tuple(sh), tuple(el), tuple(wr)]
+        arm_rad_pts = [(r, 0.0, 0.0) for r in arm_radii]
+
+        def arm_root_at(t):
+            p = Vector(laws.sample_path(arm_poly, t))
+            r = laws.sample_path(arm_rad_pts, t)[0]
+            return Vector((p.x, p.y, p.z - r))
+
+        if root_follow > 0:
+            front_extent = 0.5
+
+            def root_at(gu):
+                flank = flank_root_at(gu)
+                if gu >= front_extent:
+                    return flank
+                w = root_follow * (1.0 - gu / front_extent)
+                arm_pt = arm_root_at(1.0 - gu / front_extent)
+                return flank.lerp(arm_pt, w)
+        else:
+            root_at = flank_root_at
 
         def global_u(j, u_local):
             cum_start, steps = seg_bounds[j]
             return (cum_start + u_local * steps) / denom
 
-        cols = [[tuple(v) for v in col_pts(root_at(gi / denom), e, u, col_bow[gi])]
+        cols = [[tuple(v) for v in col_pts(root_at(gi / denom) + col_knuckle[gi], e, u, col_bow[gi])]
                for gi, (e, u) in enumerate(col_defs)]
         # épaisseur dégradée par rangée : racine (i=0, le long des os) épaisse, bord
         # libre (dernière rangée) fin -> remplace le Solidify constant, donne le
@@ -512,7 +583,8 @@ def wing(part, mats):
                     u = (bi + 1) / (bp + 1)
                     gu = global_u(j, u)
                     bpts = [(v.x, v.y, v.z + batten_lift)
-                            for v in col_pts(root_at(gu), edge_pt(a, b, u, fest, chord_scale), u)]
+                            for v in col_pts(root_at(gu), edge_pt(a, b, u, fest, chord_scale), u,
+                                             t0=batten_start)]
                     batt = ops.tube(f'batten_{tag}{j}_{bi}', bpts, batten_radii)
                     materials.assign(batt, _mat(mats, bone_mat_key))
                     out.append(batt)
@@ -524,10 +596,11 @@ def wing(part, mats):
                               part.get('finger_rmin', 0.015))
         for j, tip in enumerate(rays):
             perp = finger_dirs[j]
+            knuckle = knuckles[j]
             fpts = []
             for i in range(nt):
                 t = i / (nt - 1)
-                v = W.lerp(Vector(tip), t)
+                v = knuckle.lerp(Vector(tip), t)
                 if finger_bow:
                     v = v + perp * (finger_bow * math.sin(math.pi * t))
                 fpts.append((v.x, v.y, v.z + finger_lift))

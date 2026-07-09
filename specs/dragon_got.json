@@ -635,8 +635,11 @@
    "batten_r0": 0.038,
    "batten_rmin": 0.007,
    "batten_lift": 0.02,
+   "batten_start": 0.28,
    "camber": 0.18,
-   "festoon": 0.55
+   "festoon": 0.55,
+   "knuckle_spread": 0.4,
+   "root_follow_arm": 0.75
   },
   {
    "type": "limb",
@@ -1084,7 +1087,8 @@
     "wing"
    ],
    "objects_like": [
-    "arm_"
+    "arm_",
+    "hand_"
    ],
    "exclude_like": [
     "membrane_",
