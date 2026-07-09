@@ -1,0 +1,44 @@
+{
+ "test": "t6_t7_feedback",
+ "bpy": "5.0.1",
+ "date": "2026-07-07 09:05:16",
+ "t6_contact_sheet": {
+  "views": [
+   "front",
+   "side",
+   "top",
+   "three_quarter"
+  ],
+  "stitched_png": "/home/user/pipeline_3D_generator/research/renders/t6_contact_sheet.png",
+  "dims": [
+   768,
+   576
+  ],
+  "expected_dims": [
+   768,
+   576
+  ],
+  "single_png": true,
+  "pass": true
+ },
+ "t7_iou": {
+  "iou_identical": 1.0,
+  "iou_distorted_1.9x_tall": 0.791,
+  "proportions_ref": {
+   "aspect": 0.567,
+   "centroid": [
+    0.494,
+    0.498
+   ]
+  },
+  "proportions_tall": {
+   "aspect": 0.357,
+   "centroid": [
+    0.493,
+    0.456
+   ]
+  },
+  "metric_discriminates": true,
+  "pass": true
+ }
+}

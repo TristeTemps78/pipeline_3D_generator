@@ -1,0 +1,39 @@
+{
+ "step": 141,
+ "spec": "specs/dragon_got.json",
+ "last_render": "renders/step_141.png",
+ "feedback": [
+  {
+   "step": 6,
+   "user": "Proportions+pose OK, tout le reste à refaire beaucoup plus détaillé. Tête ignoble. Cible = photo Drogon S7 : crâne long anguleux, gueule ouverte rugissante, dents, couronne de cornes balayées en arrière, crête dorsale dense, écailles très marquées noir/rouge cuivré, atmosphère dorée feu/brume, champ de bataille."
+  },
+  {
+   "step": 57,
+   "user": "Tête n'évolue pas, cou inchangé, mâchoire du bas BEAUCOUP plus grande. Trop de focus luminosité/couleur : le plus important = QUANTITÉ de détails, beaucoup trop faible. Cou qui monte puis descend (arche). claude.md le plus court possible."
+  },
+  {
+   "step": 73,
+   "user": "Cou un peu mieux. Tête : NE VA PAS — pas intégrée au cou, mâchoire inf. encore beaucoup trop petite, gueule bien plus imposante/impressionnante, gros naseaux, 2 cornes pointant vers l'arrière. Encore plus de détails. Architecture : suivre research/detail_architecture.md (2 rapports convergents), TESTER d'abord (T10-T14)."
+  },
+  {
+   "step": 81,
+   "user": "Tête mieux intégrée au cou ✓. Gueule PAS assez impressionnante (gros travail). Naseaux pas bien intégrés du tout. Cornes PAS balayées vers l'arrière (vers le haut du cou). DIRECTIVES PROJET : pipeline générique texte/vidéo→3D (dragon = essai), auto-audit tokens/complexité/nb fichiers, dossier compact (purger, logs compacts), garder les 2 derniers .blend, orchestrateur → agents Sonnet pour économiser les tokens."
+  },
+  {
+   "step": 88,
+   "user": "Tête : ça ne va toujours pas. Yeux : utiliser du RELIEF en dessous (bourrelet), intégrés avec un TRAIT au-dessus lié aux cornes (crête sourcilière continue). Dents RIDICULES bien trop grandes vs menton MINUSCULE (réduire dents, agrandir menton). HUMANISER la tête, bouche correcte (lèvres), relief dans le visage (joues/arcades). NOTÉ pour prochaine session : ailes BEAUCOUP plus grandes (volume type planche à voile, pas un tronc) + pose de VOL au lieu de posé sur 2 jambes."
+  },
+  {
+   "step": 118,
+   "user": "Silhouette de vol pas mal MAIS plus de pattes visibles (gros travail). Ailes : taille mieux, mais l'aile doit être COLLÉE au corps sur toute la longueur (comme une nageoire de poisson totalement collée), pas un seul point de liaison — en gardant l'envergure. Tête : énorme travail sur la gueule, manque de RELIEF, menton trop petit = pas impressionnant, naseaux pas bons du tout, tête plus CARRÉE, beaucoup plus imposante, relief partout comme des LIGNES qui sortent du corps avec des PIQUES dessus. Yeux : à grandement améliorer — de vrais yeux (détail, contraste, relief), pas des boules uniformément colorées. Avant boucle 11 : écrire un prompt de réflexion sur tout le projet (issue/works/doesn't work/need to solve/how)."
+  },
+  {
+   "step": 124,
+   "user": "CA NE VA PAS DU TOUT le corps : on dirait une LIBELLULE, pas la grâce d'un dragon. REJET de l'interprétation « aile-nageoire collée sur tout le flanc » : les ailes majestueuses SE COLLENT AUX PATTES et partent d'UN SEUL ENDROIT LOCALISÉ du corps mais s'étendent en RELIEF. OK pour garder une origine localisée (épaule), mais il faut des ailes TRÈS PUISSANTES avec du relief, comme des ailes d'aigle en plus puissant (bras musculeux, doigts osseux en bourrelets saillants sur la membrane, plis/veines). Toujours PAS les 4 pattes, censées être MASSIVES — se rappeler du modèle de base (réf Drogon) : 2 pattes arrière pleines de puissance, orteils bien définis, relief ; les ailes-bras servent de membres avant. 2 images de réf refournies (vue de dos ailes déployées + vue de profil en vol) ≈ references/drogon_body_flight.png et drogon_wing_membrane.png. Reprise : l'utilisateur dira juste « continue »."
+  },
+  {
+   "step": 133,
+   "user": "Encore beaucoup de travail mais c'est plus massif, pas mal — DIRECTION ACTUELLE VALIDÉE (continuer sans refonte). AILES : peu d'amélioration, encore BEAUCOUP TROP DELTAPLANE — se rappeler references/drogon_wing_membrane.png ; il reste encore un peu d'« aile-nageoire ». PATTES : bien de les avoir ; les PIEDS doivent être BEAUCOUP plus massifs. Aussi demandé : réorganiser les 4 .md (rôles uniques, zéro doublon, reprise de session rapide et économe en tokens) — fait dans cette session."
+  }
+ ]
+}

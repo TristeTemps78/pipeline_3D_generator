@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+renders/*.blend1
+renders/*.blend@

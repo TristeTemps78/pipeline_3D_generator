@@ -1,0 +1,1276 @@
+{
+ "name": "dragon_got",
+ "ref": "Drogon (GoT S7) : crâne très allongé et anguleux, gueule ouverte rugissante avec dents coniques, couronne de 6-10 cornes balayées vers l'arrière + pointes sous mâchoire, arcades marquées, crête dorsale double dense, écailles noires très marquées à reflets rouge cuivré, ailes-membres avant, atmosphère dorée brumeuse de champ de bataille en feu.",
+ "materials": {
+  "scales": {
+   "builder": "reptile_scales",
+   "p": {
+    "scale": 15,
+    "scale2": 40,
+    "bump": 0.6,
+    "base": [
+     0.05,
+     0.044,
+     0.041
+    ],
+    "tint": [
+     0.3,
+     0.12,
+     0.065
+    ],
+    "rough": 0.58,
+    "sss": 0.22,
+    "micro": 0.5
+   }
+  },
+  "membrane": {
+   "builder": "membrane",
+   "p": {
+    "color": [
+     0.045,
+     0.008,
+     0.007
+    ],
+    "rough": 0.72,
+    "transmission": 0.0,
+    "sss": 0.04
+   }
+  },
+  "bone": {
+   "builder": "bone",
+   "p": {}
+  },
+  "mouth": {
+   "builder": "bone",
+   "p": {
+    "color": [
+     0.12,
+     0.015,
+     0.01
+    ],
+    "rough": 0.6
+   }
+  },
+  "teeth": {
+   "builder": "bone",
+   "p": {
+    "color": [
+     0.55,
+     0.5,
+     0.42
+    ],
+    "rough": 0.5
+   }
+  },
+  "eye": {
+   "builder": "eye",
+   "p": {}
+  },
+  "rock": {
+   "builder": "rock",
+   "p": {
+    "color": [
+     0.07,
+     0.055,
+     0.042
+    ],
+    "bump": 1.2
+   }
+  },
+  "iris": {
+   "builder": "eye",
+   "p": {
+    "color": [
+     0.55,
+     0.3,
+     0.045
+    ],
+    "glow": 0.3
+   }
+  },
+  "pupil": {
+   "builder": "bone",
+   "p": {
+    "color": [
+     0.02,
+     0.015,
+     0.012
+    ],
+    "rough": 0.15
+   }
+  }
+ },
+ "parts": [
+  {
+   "type": "spine",
+   "id": "body",
+   "mat": "scales",
+   "pts": [
+    [
+     0,
+     -7.5,
+     2.5
+    ],
+    [
+     0,
+     -5.5,
+     3.0
+    ],
+    [
+     0,
+     -3.5,
+     3.4
+    ],
+    [
+     0,
+     -2.0,
+     3.7
+    ],
+    [
+     0,
+     -0.6,
+     3.6
+    ],
+    [
+     0,
+     0.5,
+     3.35
+    ],
+    [
+     0,
+     1.5,
+     3.55
+    ],
+    [
+     0,
+     2.15,
+     3.75
+    ],
+    [
+     0,
+     2.65,
+     3.95
+    ],
+    [
+     0,
+     3.5,
+     4.0
+    ]
+   ],
+   "radii": [
+    0.05,
+    0.22,
+    0.42,
+    0.6,
+    0.78,
+    0.74,
+    0.62,
+    0.52,
+    0.46,
+    0.4
+   ],
+   "spikes": {
+    "n": 26,
+    "h0": 0.65,
+    "skip": 2,
+    "mat": "bone"
+   }
+  },
+  {
+   "type": "dewlap",
+   "id": "throat",
+   "mat": "scales",
+   "pts": [
+    [
+     0,
+     3.45,
+     3.669
+    ],
+    [
+     0,
+     3.1,
+     3.496
+    ],
+    [
+     0,
+     2.6,
+     2.98
+    ],
+    [
+     0,
+     1.9,
+     2.841
+    ],
+    [
+     0,
+     1.0,
+     2.81
+    ],
+    [
+     0,
+     0.2,
+     2.769
+    ]
+   ],
+   "sizes": [
+    0.09,
+    0.096,
+    0.09,
+    0.078,
+    0.066,
+    0.048
+   ]
+  },
+  {
+   "type": "head",
+   "id": "head",
+   "loc": [
+    0,
+    3.6,
+    3.87
+   ],
+   "mat": "scales",
+   "horns": {
+    "a": 0.14,
+    "b": 0.25,
+    "turns": 0.18,
+    "rise": 0.45,
+    "r0": 0.13,
+    "pairs": 6,
+    "master_k": 1.0,
+    "master_w": 0.6,
+    "size_min": 0.22,
+    "size_bump": 1.35,
+    "pitch": 87,
+    "pitch_spread": 20,
+    "yaw0": 12,
+    "yaw_spread": 18,
+    "fill_n": 4,
+    "base_from": [
+     0.06,
+     -0.15,
+     0.58
+    ],
+    "base_to": [
+     0.22,
+     -0.75,
+     0.25
+    ],
+    "mat": "bone",
+    "scale": 1.65
+   },
+   "pitch": -12,
+   "gape": 40,
+   "upper": [
+    [
+     -0.75,
+     0.44,
+     0.38
+    ],
+    [
+     -0.15,
+     0.44,
+     0.335
+    ],
+    [
+     0.2,
+     0.5,
+     0.315
+    ],
+    [
+     0.5,
+     0.46,
+     0.275
+    ],
+    [
+     0.8,
+     0.355,
+     0.195
+    ],
+    [
+     1.05,
+     0.265,
+     0.145
+    ],
+    [
+     1.28,
+     0.19,
+     0.115
+    ],
+    [
+     1.45,
+     0.125,
+     0.068
+    ]
+   ],
+   "lower": [
+    [
+     -0.42,
+     0.4,
+     0.28
+    ],
+    [
+     0.2,
+     0.4,
+     0.27
+    ],
+    [
+     0.5,
+     0.375,
+     0.245
+    ],
+    [
+     0.8,
+     0.335,
+     0.215
+    ],
+    [
+     1.1,
+     0.32,
+     0.23
+    ],
+    [
+     1.32,
+     0.235,
+     0.155
+    ]
+   ],
+   "feature_scale": 1.3,
+   "tooth_scale": 1.0,
+   "tooth_span_upper": [
+    0.5,
+    1.3
+   ],
+   "teeth_upper": 7,
+   "fang_idx_upper": [
+    1,
+    4
+   ],
+   "fang_scale_upper": 1.15,
+   "tooth_span_lower": [
+    0.38,
+    1.15
+   ],
+   "teeth_lower": 6,
+   "fang_idx_lower": [
+    0,
+    1
+   ],
+   "fang_scale_lower": 1.15,
+   "ridges": [
+    {
+     "id": "brow",
+     "mirror": true,
+     "pts": [
+      [
+       0.26,
+       0.44,
+       0.44
+      ],
+      [
+       0.17,
+       0.2,
+       0.55
+      ],
+      [
+       0.1,
+       -0.05,
+       0.6
+      ],
+      [
+       0.06,
+       -0.15,
+       0.58
+      ]
+     ],
+     "radii": [
+      0.024,
+      0.026,
+      0.02,
+      0.012
+     ]
+    },
+    {
+     "id": "lip_u",
+     "mirror": true,
+     "pts": [
+      [
+       0.365,
+       -0.1,
+       0.02
+      ],
+      [
+       0.36,
+       0.2,
+       0.02
+      ],
+      [
+       0.31,
+       0.5,
+       0.015
+      ],
+      [
+       0.24,
+       0.8,
+       0.012
+      ],
+      [
+       0.19,
+       1.05,
+       0.01
+      ],
+      [
+       0.15,
+       1.28,
+       0.008
+      ],
+      [
+       0.1,
+       1.45,
+       0.006
+      ]
+     ],
+     "radii": [
+      0.034,
+      0.032,
+      0.03,
+      0.026,
+      0.022,
+      0.017,
+      0.012
+     ]
+    }
+   ],
+   "face_blobs": [
+    {
+     "id": "cheekpad",
+     "mirror": true,
+     "pos": [
+      0.3,
+      0.36,
+      0.16
+     ],
+     "scale": [
+      0.13,
+      0.11,
+      0.055
+     ],
+     "rot": [
+      0,
+      0,
+      8
+     ]
+    },
+    {
+     "id": "masseter",
+     "mirror": true,
+     "pos": [
+      0.34,
+      0.06,
+      0.02
+     ],
+     "scale": [
+      0.19,
+      0.29,
+      0.1
+     ],
+     "rot": [
+      0,
+      0,
+      20
+     ]
+    },
+    {
+     "id": "frontal",
+     "mirror": false,
+     "pos": [
+      0,
+      0.32,
+      0.42
+     ],
+     "scale": [
+      0.14,
+      0.16,
+      0.045
+     ]
+    },
+    {
+     "id": "commissure",
+     "mirror": true,
+     "pos": [
+      0.36,
+      -0.12,
+      0.15
+     ],
+     "scale": [
+      0.05,
+      0.09,
+      0.035
+     ],
+     "rot": [
+      0,
+      0,
+      -10
+     ]
+    },
+    {
+     "id": "chin",
+     "mirror": false,
+     "space": "jaw",
+     "pos": [
+      0.0,
+      1.28,
+      -0.15
+     ],
+     "scale": [
+      0.17,
+      0.2,
+      0.1
+     ]
+    }
+   ],
+   "eye": {
+    "pos": [
+     0.29,
+     0.42,
+     0.33
+    ],
+    "socket_r": 0.105,
+    "globe_r": 0.085
+   },
+   "nostril": {
+    "pos": [
+     0.085,
+     1.18,
+     0.185
+    ],
+    "size": 0.055
+   },
+   "exp": 2.7
+  },
+  {
+   "type": "wing",
+   "id": "wing",
+   "side": "both",
+   "mat": "membrane",
+   "bone_mat": "scales",
+   "shoulder": [
+    0.5,
+    0.3,
+    3.35
+   ],
+   "elbow": [
+    2.1,
+    0.1,
+    4.05
+   ],
+   "wrist": [
+    3.4,
+    -0.1,
+    4.4
+   ],
+   "arm_radii": [
+    0.32,
+    0.2,
+    0.12
+   ],
+   "arm_order": 2,
+   "tips": [
+    [
+     11.5,
+     2.0,
+     6.0
+    ],
+    [
+     11.0,
+     -0.5,
+     5.3
+    ],
+    [
+     9.0,
+     -3.0,
+     4.3
+    ],
+    [
+     6.2,
+     -5.5,
+     3.0
+    ]
+   ],
+   "anchor": [
+    0.62,
+    -3.05,
+    3.5
+   ],
+   "root_curve": [
+    [
+     0.62,
+     0.6,
+     3.42
+    ],
+    [
+     0.68,
+     0.3,
+     3.38
+    ],
+    [
+     0.62,
+     0.0,
+     3.45
+    ]
+   ],
+   "root_offset": 0.02,
+   "sag": 0.22,
+   "samples": 16,
+   "columns_between": 6,
+   "thickness_root": 0.11,
+   "thickness_edge": 0.016,
+   "finger_r0": 0.22,
+   "finger_rmin": 0.028,
+   "finger_taper": 1.7,
+   "finger_lift": 0.03,
+   "finger_bow": 0.9,
+   "panel_billow": 0.35,
+   "battens_per_panel": 2,
+   "batten_r0": 0.038,
+   "batten_rmin": 0.007,
+   "batten_lift": 0.02,
+   "camber": 0.18,
+   "festoon": 0.55
+  },
+  {
+   "type": "limb",
+   "id": "hindleg",
+   "side": "both",
+   "mat": "scales",
+   "pts": [
+    [
+     0.7,
+     -3.0,
+     3.3
+    ],
+    [
+     0.95,
+     -1.6,
+     2.2
+    ],
+    [
+     0.8,
+     -3.5,
+     1.3
+    ],
+    [
+     0.65,
+     -4.2,
+     1.05
+    ]
+   ],
+   "radii": [
+    0.62,
+    0.44,
+    0.28,
+    0.17
+   ],
+   "foot": {
+    "loc": [
+     0.65,
+     -4.2,
+     1.05
+    ],
+    "length": 0.9,
+    "toe_r0": 0.28,
+    "claw_len": 0.32,
+    "pad_size": [
+     0.4,
+     0.48,
+     0.26
+    ],
+    "toe_angles": [
+     -32,
+     -11,
+     11,
+     32
+    ]
+   }
+  }
+ ],
+ "detail": {
+  "armor": [
+   {
+    "exclude": [
+     "dorsal",
+     "horn",
+     "tooth",
+     "eye",
+     "lid",
+     "nostril",
+     "nose"
+    ],
+    "density": 1500.0,
+    "distance_min": 0.058,
+    "scale": [
+     0.085,
+     0.13
+    ],
+    "caudal": [
+     0,
+     -1,
+     0
+    ],
+    "curvature": false,
+    "mask": {
+     "axis": "y",
+     "range": [
+      -1.2,
+      3.5
+     ],
+     "to": [
+      0.0,
+      1.0
+     ]
+    },
+    "archetypes": [
+     {
+      "kind": "plate",
+      "size": 1.0,
+      "squash": [
+       1.15,
+       1.0,
+       0.55
+      ]
+     },
+     {
+      "kind": "keeled",
+      "size": 1.0,
+      "length": 1.8,
+      "keel": 0.44,
+      "lift": 0.2,
+      "smooth": false
+     },
+     {
+      "kind": "keeled",
+      "size": 1.0,
+      "length": 1.2,
+      "keel": 0.8,
+      "lift": 0.28,
+      "smooth": false
+     }
+    ],
+    "index_grad": {
+     "axis": "z",
+     "range": [
+      1.6,
+      4.3
+     ]
+    },
+    "index_noise": [
+     2.5,
+     1.2
+    ],
+    "rot_jitter": 0.15,
+    "targets": [
+     "body"
+    ]
+   },
+   {
+    "target": "body",
+    "exclude": [
+     "dorsal"
+    ],
+    "density": 900.0,
+    "distance_min": 0.08,
+    "scale": [
+     0.1,
+     0.16
+    ],
+    "seed": 11,
+    "caudal": [
+     0,
+     -1,
+     0
+    ],
+    "curvature": false,
+    "mask": {
+     "axis": "y",
+     "range": [
+      -4.0,
+      -1.0
+     ],
+     "to": [
+      0.0,
+      1.0
+     ]
+    },
+    "archetypes": [
+     {
+      "kind": "plate",
+      "size": 1.0,
+      "squash": [
+       1.5,
+       1.15,
+       0.4
+      ]
+     },
+     {
+      "kind": "keeled",
+      "size": 1.0,
+      "length": 1.7,
+      "keel": 0.42,
+      "lift": 0.19,
+      "smooth": false
+     },
+     {
+      "kind": "keeled",
+      "size": 1.0,
+      "length": 1.3,
+      "keel": 0.62,
+      "lift": 0.24,
+      "smooth": false
+     }
+    ],
+    "index_grad": {
+     "axis": "z",
+     "range": [
+      0.6,
+      2.3
+     ]
+    },
+    "index_noise": [
+     2.5,
+     1.2
+    ],
+    "rot_jitter": 0.15
+   },
+   {
+    "target": "body",
+    "exclude": [
+     "dorsal"
+    ],
+    "density": 1100.0,
+    "distance_min": 0.036,
+    "seed": 21,
+    "caudal": [
+     0,
+     -1,
+     0
+    ],
+    "curvature": false,
+    "mask": {
+     "axis": "y",
+     "range": [
+      -7.2,
+      -4.2
+     ],
+     "to": [
+      0.0,
+      1.0
+     ]
+    },
+    "scale_grad": {
+     "axis": "y",
+     "range": [
+      -7.2,
+      -4.2
+     ],
+     "scale_lo": [
+      0.035,
+      0.06
+     ],
+     "scale_hi": [
+      0.075,
+      0.11
+     ]
+    },
+    "archetypes": [
+     {
+      "kind": "keeled",
+      "size": 1.0,
+      "length": 1.7,
+      "keel": 0.4,
+      "lift": 0.17,
+      "smooth": false
+     },
+     {
+      "kind": "plate",
+      "size": 1.0,
+      "squash": [
+       1.1,
+       1.0,
+       0.5
+      ]
+     }
+    ],
+    "rot_jitter": 0.12
+   },
+   {
+    "target": "head",
+    "exclude": [
+     "horn",
+     "tooth",
+     "eye",
+     "lid",
+     "nostril",
+     "nose",
+     "ridge_",
+     "face_"
+    ],
+    "density": 6000.0,
+    "distance_min": 0.012,
+    "caudal": [
+     0,
+     -0.99,
+     0.14
+    ],
+    "curvature": false,
+    "scale_grad": {
+     "axis": "y",
+     "range": [
+      3.2,
+      5.0
+     ],
+     "scale_lo": [
+      0.034,
+      0.048
+     ],
+     "scale_hi": [
+      0.016,
+      0.024
+     ]
+    },
+    "archetypes": [
+     {
+      "kind": "keeled",
+      "size": 1.0,
+      "length": 1.35,
+      "keel": 0.22,
+      "lift": 0.045,
+      "smooth": false
+     },
+     {
+      "kind": "plate",
+      "size": 1.0,
+      "squash": [
+       1.0,
+       0.9,
+       0.25
+      ]
+     }
+    ],
+    "rot_jitter": 0.04,
+    "mask": {
+     "axis": "y",
+     "range": [
+      3.1,
+      3.6
+     ],
+     "to": [
+      0.0,
+      1.0
+     ]
+    }
+   },
+   {
+    "target": "hindleg",
+    "exclude": [
+     "footpad",
+     "toe",
+     "claw"
+    ],
+    "density": 900.0,
+    "distance_min": 0.03,
+    "scale": [
+     0.06,
+     0.1
+    ],
+    "seed": 31,
+    "caudal": [
+     0,
+     0,
+     -1
+    ],
+    "curvature": false,
+    "archetypes": [
+     {
+      "kind": "keeled",
+      "size": 1.0,
+      "length": 1.6,
+      "keel": 0.4,
+      "lift": 0.16,
+      "smooth": false
+     },
+     {
+      "kind": "plate",
+      "size": 1.0,
+      "squash": [
+       1.2,
+       1.0,
+       0.5
+      ]
+     }
+    ],
+    "rot_jitter": 0.15
+   }
+  ],
+  "displace_targets": [
+   {
+    "target": "wing",
+    "match": "membrane",
+    "subdiv": 1,
+    "layers": [
+     {
+      "type": "CLOUDS",
+      "size": 0.7,
+      "strength": 0.07,
+      "mid": 0.5,
+      "coords": "OBJECT"
+     },
+     {
+      "type": "STUCCI",
+      "size": 0.16,
+      "strength": 0.032,
+      "mid": 0.5,
+      "coords": "OBJECT"
+     }
+    ]
+   },
+   {
+    "target": "throat",
+    "subdiv": 1,
+    "layers": [
+     {
+      "type": "CLOUDS",
+      "size": 0.4,
+      "strength": 0.045,
+      "mid": 0.5,
+      "coords": "OBJECT"
+     },
+     {
+      "type": "STUCCI",
+      "size": 0.12,
+      "strength": 0.02,
+      "mid": 0.5,
+      "coords": "OBJECT"
+     }
+    ]
+   },
+   {
+    "target": "hindleg",
+    "match": "hindleg_",
+    "subdiv": 1,
+    "layers": [
+     {
+      "type": "CLOUDS",
+      "size": 0.32,
+      "strength": 0.03,
+      "mid": 0.5,
+      "coords": "OBJECT"
+     },
+     {
+      "type": "STUCCI",
+      "size": 0.1,
+      "strength": 0.016,
+      "mid": 0.5,
+      "coords": "OBJECT"
+     }
+    ]
+   }
+  ]
+ },
+ "fuse_groups": [
+  {
+   "id": "torso_wings",
+   "parts": [
+    "body",
+    "wing"
+   ],
+   "objects_like": [
+    "arm_"
+   ],
+   "exclude_like": [
+    "membrane_",
+    "finger_",
+    "batten_",
+    "wclaw_",
+    "spike_",
+    "dorsal_"
+   ],
+   "voxel": 0.05,
+   "fillet": 0.25,
+   "mat": "scales"
+  }
+ ],
+ "scene": {
+  "world": {
+   "color": [
+    0.45,
+    0.24,
+    0.07
+   ],
+   "color_top": [
+    0.1,
+    0.055,
+    0.025
+   ],
+   "strength": 0.4,
+   "volume": {
+    "density": 0.0014,
+    "anisotropy": 0.3,
+    "color": [
+     1.0,
+     0.78,
+     0.5
+    ]
+   }
+  },
+  "sun": {
+   "direction": [
+    -0.25,
+    -0.7,
+    -0.6
+   ],
+   "energy": 7.5,
+   "color": [
+    1.0,
+    0.66,
+    0.32
+   ]
+  },
+  "area_lights": [
+   {
+    "loc": [
+     -5,
+     -9,
+     4.0
+    ],
+    "target": [
+     0,
+     -1,
+     3.8
+    ],
+    "energy": 4500,
+    "size": 8,
+    "color": [
+     1.0,
+     0.3,
+     0.07
+    ]
+   },
+   {
+    "loc": [
+     2.5,
+     5.5,
+     3.0
+    ],
+    "target": [
+     0,
+     2,
+     4.3
+    ],
+    "energy": 1125,
+    "size": 6,
+    "color": [
+     1.0,
+     0.45,
+     0.12
+    ]
+   },
+   {
+    "loc": [
+     -3,
+     -17,
+     10
+    ],
+    "target": [
+     0,
+     -0.5,
+     4.0
+    ],
+    "energy": 3500,
+    "size": 8,
+    "color": [
+     1.0,
+     0.72,
+     0.38
+    ]
+   },
+   {
+    "loc": [
+     11,
+     19,
+     8
+    ],
+    "target": [
+     0,
+     1,
+     4.2
+    ],
+    "energy": 250,
+    "size": 14,
+    "color": [
+     0.9,
+     0.75,
+     0.6
+    ]
+   }
+  ],
+  "camera": {
+   "loc": [
+    12.4,
+    8.8,
+    16.9
+   ],
+   "target": [
+    0,
+    -1.2,
+    4.1
+   ],
+   "lens": 30
+  },
+  "hero": {
+   "cam": [
+    7,
+    5,
+    10
+   ],
+   "target": [
+    0,
+    -1.5,
+    4.0
+   ],
+   "lens": 34
+  },
+  "rim": {
+   "key": [
+    1,
+    5,
+    11
+   ],
+   "rim": [
+    -4,
+    -2,
+    5
+   ],
+   "key_energy": 950,
+   "rim_energy": 4200,
+   "rim_color": [
+    1.0,
+    0.68,
+    0.4
+   ],
+   "rim_size": 2.5,
+   "key_size": 6,
+   "rim2": [
+    4,
+    -3,
+    2.5
+   ],
+   "rim2_energy": 550,
+   "rim2_color": [
+    0.55,
+    0.68,
+    0.95
+   ],
+   "rim2_size": 5
+  }
+ }
+}

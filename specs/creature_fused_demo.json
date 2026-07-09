@@ -1,0 +1,35 @@
+{
+ "name": "creature_fused_demo",
+ "ref": "Démo de la chaîne validée (research/convergence.md) : blockout quadrupède spine+pattes → fusion voxel en un corps continu et étanche → displace 3 couches + écailles geonodes. Prouve le chemin fuse/detail câblé dans run.py.",
+ "materials": {
+  "scales": {"builder": "reptile_scales", "p": {"scale": 6, "bump": 1.0, "base": [0.05, 0.05, 0.06], "rough": 0.6}},
+  "rock": {"builder": "rock", "p": {"color": [0.09, 0.08, 0.07]}}
+ },
+ "parts": [
+  {"type": "ground", "mat": "rock", "size": 120},
+  {"type": "spine", "id": "body", "mat": "scales",
+   "pts": [[0, -3.4, 1.0], [0, -2.5, 1.15], [0, -1.6, 1.35], [0, -0.7, 1.5],
+           [0, 0.2, 1.55], [0, 1.0, 1.5], [0, 1.7, 1.75], [0, 2.4, 2.15], [0, 3.0, 2.25]],
+   "radii": [0.06, 0.16, 0.30, 0.42, 0.46, 0.40, 0.28, 0.20, 0.17]},
+  {"type": "limb", "id": "foreleg", "side": "both", "mat": "scales",
+   "pts": [[0.5, 1.2, 1.35], [0.62, 1.25, 0.85], [0.6, 1.15, 0.4], [0.62, 1.2, 0.08]],
+   "radii": [0.24, 0.16, 0.12, 0.11]},
+  {"type": "limb", "id": "hindleg", "side": "both", "mat": "scales",
+   "pts": [[0.55, -0.9, 1.3], [0.7, -1.0, 0.8], [0.66, -0.75, 0.38], [0.7, -0.7, 0.08]],
+   "radii": [0.28, 0.18, 0.13, 0.11]}
+ ],
+ "fuse": {"parts": ["body", "foreleg", "hindleg"], "target_res": 200,
+          "smooth_iters": 5, "smooth_lambda": 0.5, "name": "body", "mat": "scales"},
+ "detail": {
+  "subdiv": 1,
+  "displace": [
+   {"type": "CLOUDS", "size": 1.6, "strength": 0.09, "coords": "OBJECT"},
+   {"type": "VORONOI", "size": 0.35, "strength": 0.045, "coords": "OBJECT"},
+   {"type": "CLOUDS", "size": 0.12, "strength": 0.014, "coords": "OBJECT"}
+  ],
+  "scales": {"density": 130.0, "scale": [0.05, 0.11], "curvature": true, "plate_size": 1.0}
+ },
+ "scene": {
+  "camera": {"loc": [6.5, -6.5, 3.4], "target": [0, 0, 1.4], "lens": 42}
+ }
+}

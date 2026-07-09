@@ -1,0 +1,24 @@
+{
+ "test": "t14_cycles_throttle",
+ "bpy": "5.0.1",
+ "date": "2026-07-08 02:27:35",
+ "res": [
+  640,
+  480
+ ],
+ "samples": 16,
+ "baseline_s": [
+  16.79,
+  16.572
+ ],
+ "throttle_s": [
+  16.971,
+  16.521
+ ],
+ "gain_first_render": -0.011,
+ "gain_second_render": 0.016,
+ "mean_abs_pixel_diff": 0.00113,
+ "edge_density_base": 0.1736,
+ "edge_density_thr": 0.1772,
+ "verdict": "OK"
+}

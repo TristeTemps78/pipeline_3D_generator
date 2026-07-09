@@ -1,0 +1,24 @@
+{
+ "test": "t12_instance_attr",
+ "bpy": "5.0.1",
+ "date": "2026-07-08 02:33:04",
+ "live_instances_attr": {
+  "render": "/home/user/pipeline_3D_generator/research/renders/t12_live_attr.png",
+  "time_s": 10.178,
+  "evaluated_verts": 760,
+  "hue_spread": 2.1694
+ },
+ "control_const": {
+  "render": "/home/user/pipeline_3D_generator/research/renders/t12_ctrl_const.png",
+  "time_s": 10.079,
+  "evaluated_verts": 760,
+  "hue_spread": 0.1646
+ },
+ "realized_attr": {
+  "render": "/home/user/pipeline_3D_generator/research/renders/t12_realized.png",
+  "time_s": 8.93,
+  "evaluated_verts": 8008,
+  "hue_spread": 0.2635
+ },
+ "verdict": "OK"
+}

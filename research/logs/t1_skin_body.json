@@ -1,0 +1,19 @@
+{
+ "test": "t1_skin_body",
+ "bpy": "5.0.1",
+ "date": "2026-07-07 09:01:35",
+ "method": "SKIN modifier + subsurf2 (doc 1)",
+ "build_seconds": 0.015,
+ "report": {
+  "object": "skin_quadruped",
+  "verts": 3630,
+  "faces": 3632,
+  "non_manifold_edges": 4,
+  "loose_verts": 0,
+  "islands": 1,
+  "watertight": false,
+  "single_body": true,
+  "self_intersecting_tris": 26
+ },
+ "render": "/home/user/pipeline_3D_generator/research/renders/t1_skin_quadruped.png"
+}

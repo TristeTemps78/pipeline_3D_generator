@@ -1,0 +1,17 @@
+{
+ "test": "t10_sdf_nodes",
+ "bpy": "5.0.1",
+ "date": "2026-07-08 02:30:18",
+ "nodes": {
+  "GeometryNodeMeshToSDFGrid": true,
+  "GeometryNodeSDFGridBoolean": true,
+  "GeometryNodeGridToMesh": true,
+  "GeometryNodeSDFGridFillet": true,
+  "GeometryNodeGridLaplacianSmooth": false,
+  "GeometryNodeMeshToVolume": true,
+  "GeometryNodeVolumeToMesh": true
+ },
+ "union_mesh_verts": 12208,
+ "error": null,
+ "verdict": "VOIE A OK"
+}

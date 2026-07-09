@@ -1,0 +1,30 @@
+{
+ "test": "t2_voxel_fuse",
+ "bpy": "5.0.1",
+ "date": "2026-07-07 09:02:56",
+ "method": "join + REMESH voxel + laplacian (doc 2)",
+ "fuse_seconds": 3.184,
+ "before_fuse": {
+  "object": "raw_assembly",
+  "verts": 6248,
+  "faces": 6224,
+  "non_manifold_edges": 480,
+  "loose_verts": 0,
+  "islands": 22,
+  "watertight": false,
+  "single_body": false,
+  "self_intersecting_tris": 904
+ },
+ "after_fuse": {
+  "object": "voxel_quadruped",
+  "verts": 26374,
+  "faces": 26372,
+  "non_manifold_edges": 0,
+  "loose_verts": 0,
+  "islands": 1,
+  "watertight": true,
+  "single_body": true,
+  "self_intersecting_tris": 0
+ },
+ "render": "/home/user/pipeline_3D_generator/research/renders/t2_voxel_quadruped.png"
+}
