@@ -120,6 +120,36 @@ def curl_offset(n, amount=0.0, power=1.6):
     return [amount * (i / (n - 1)) ** power if n > 1 else 0.0 for i in range(n)]
 
 
+def axis_flex(n, dip=0.0, tip=0.0, dip_pos=0.4, sharp=1.0):
+    """Flèche verticale non-linéaire le long d'un axe de loft (n points, t=0..1) —
+    boucle 17 CR3 : remplace un profil de mâchoire quasi-droit par une courbe
+    crocodilienne générique (museau qui PLONGE (`dip`, vers le bas) jusqu'à
+    `dip_pos` puis REMONTE (`tip`, vers le haut) vers la pointe t=1 ; signe inversé
+    -> mâchoire inférieure en courbe inverse). Interpolation cosinus (dérivée nulle
+    aux points de contrôle 0/dip_pos/1, pas de cassure) entre 3 hauteurs (0, -dip,
+    tip). `sharp` (>1) resserre la remontée finale vers la pointe (profil plus
+    concentré en "bec" sur les derniers points). Retourne n décalages Z à ADDITIONNER
+    aux centres d'anneaux d'un `ring_loft` (offset(t=0)=0 -> préserve l'ancrage à la
+    base de l'axe, ex. jonction crâne/cou). Aucune valeur anatomique dragon ici :
+    juste une courbe de flèche générique réutilisable pour tout profil de loft
+    (mâchoires, becs, museaux, cous...)."""
+    def cos_interp(a, b, f):
+        f2 = (1 - math.cos(max(0.0, min(1.0, f)) * math.pi)) / 2
+        return a + (b - a) * f2
+    n = max(1, n)
+    dip_pos = max(1e-4, min(1.0 - 1e-4, dip_pos))
+    out = []
+    for i in range(n):
+        t = i / (n - 1) if n > 1 else 0.0
+        if t <= dip_pos:
+            z = cos_interp(0.0, -dip, t / dip_pos)
+        else:
+            f = ((t - dip_pos) / (1.0 - dip_pos)) ** sharp
+            z = cos_interp(-dip, tip, f)
+        out.append(z)
+    return out
+
+
 def lsystem(axiom, rules, depth):
     """L-système symbolique (ramifications : bois de cerf, veines). Retourne la chaîne."""
     s = axiom

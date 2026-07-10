@@ -111,6 +111,67 @@ def _kera_spike(name, base_world, height, r0, rot_deg, mat, ring_p=None, curl=0.
     return h
 
 
+def _interp_scalar(ys, vals, y):
+    """Interpolation linéaire générique le long d'une liste croissante `ys` (position)
+    -> `vals` (valeur associée), clampée aux extrémités. Brique partagée par le profil
+    de largeur des sections tête (`interp_w`), la courbure d'axe (`axis_flex`) et le
+    bourrelet de lèvre (`_lip_bourrelet`) — un seul mécanisme d'échantillonnage pour
+    tout ce qui suit le même profil `[y, w, hh]` que les dents."""
+    if not ys:
+        return 0.0
+    if y <= ys[0]:
+        return vals[0]
+    if y >= ys[-1]:
+        return vals[-1]
+    for i in range(len(ys) - 1):
+        y0, y1 = ys[i], ys[i + 1]
+        if y0 <= y <= y1:
+            f = (y - y0) / (y1 - y0) if y1 != y0 else 0.0
+            return vals[i] + f * (vals[i + 1] - vals[i])
+    return vals[-1]
+
+
+def _lip_bourrelet(prefix, secs, y_span, Wf, mat, out, n=16, thickness=0.03,
+                   thickness_min_frac=0.55, w_frac=0.9, z_frac=-0.2,
+                   flex=None, ys_flex=None, noise_scale=0.14, noise_strength=0.4,
+                   seed=0.0, mirror=True):
+    """Bourrelet de lèvre/gencive GÉNÉRIQUE (boucle 17 CR3, feedback A2) : tube continu
+    qui suit la largeur `secs` (sections [y,w,hh], le MÊME profil que le crâne/la
+    mâchoire et les dents, cf. `interp_w`) et la courbure d'axe `flex` (optionnelle,
+    cf. `growth.axis_flex`) au lieu de points codés en dur dans la spec (`ridges`
+    gum_u/gum_l/lip_l — doute consigné boucle 15 : ils désynchronisent si les dents ou
+    le profil bougent). `noise_scale`/`noise_strength` cassent la ligne d'ouverture
+    droite (jitter sinusoïdal multi-fréquence sur le RAYON et un léger décalage en Z)
+    -> lèvre charnue irrégulière plutôt qu'un tube lisse à section constante. `z_frac`
+    place le bourrelet le long de la hauteur locale de la section, MÊME convention que
+    les formules de ring du crâne/mâchoire (`z+hh*0.82` / `z-hh*0.85`) : un `z_frac`
+    négatif (~-0.18 à -0.3) suit le bord bas de la superellipse (bouche du HAUT), un
+    `z_frac` positif (~0.15 à 0.25) suit le bord haut (mâchoire du BAS)."""
+    ys = [s[0] for s in secs]
+    ws = [s[1] for s in secs]
+    hs = [s[2] for s in secs]
+    y0, y1 = y_span
+    sides = ((1, 'l'), (-1, 'r')) if mirror else ((1, ''),)
+    for s, tag in sides:
+        pts, radii = [], []
+        for i in range(n):
+            t = i / max(1, n - 1)
+            y = y0 + t * (y1 - y0)
+            w = _interp_scalar(ys, ws, y)
+            hh = _interp_scalar(ys, hs, y)
+            fz = _interp_scalar(ys_flex, flex, y) if flex else 0.0
+            ph = seed + t / max(noise_scale, 1e-4)
+            jit = 0.6 * math.sin(ph * 2 * math.pi) + 0.4 * math.sin(ph * 5.3 + 1.7)
+            z = fz + hh * z_frac + jit * noise_strength * hh * 0.15
+            x = s * w * w_frac
+            pts.append(Wf((x, y, z)))
+            rr = thickness * (thickness_min_frac + (1 - thickness_min_frac) * math.sin(math.pi * t) ** 0.5)
+            radii.append(max(thickness * 0.15, rr * (1 + 0.3 * jit)))
+        tube = ops.tube(f'{prefix}_{tag}', pts, radii, resolution_u=8, bevel_resolution=6)
+        materials.assign(tube, mat)
+        out.append(tube)
+
+
 @builder('head')
 def head(part, mats):
     """Tête loftée par sections superellipse (GVL) : crâne→museau continu, mâchoire
@@ -148,19 +209,32 @@ def head(part, mats):
                                [0.70, 0.21, 0.13], [0.95, 0.155, 0.09], [1.18, 0.10, 0.055]])
     lower = part.get('lower', [[0.00, 0.20, 0.090], [0.30, 0.185, 0.075], [0.60, 0.155, 0.060],
                                [0.90, 0.115, 0.048], [1.06, 0.075, 0.038]])
-    rings = [[W((x, y, z + hh * 0.82)) for x, z in laws.superellipse(w, hh, exp)]
-             for y, w, hh in upper]
+    # courbure non-linéaire du museau (boucle 17 CR3, feedback A1) : `snout_curve`
+    # {dip,tip,dip_pos,sharp} pilote `growth.axis_flex` -> le museau plonge puis
+    # remonte vers la pointe au lieu d'un loft quasi-droit (effet "pince"). Décalage
+    # nul en t=0 (base du crâne) -> ne déplace PAS la jonction avec le cou/spine.
+    sc = part.get('snout_curve')
+    ys_u = [s[0] for s in upper]
+    upper_flex = apply_law('growth.axis_flex', n=len(upper), **sc) if sc else [0.0] * len(upper)
+    rings = [[W((x, y, z + hh * 0.82 + upper_flex[i])) for x, z in laws.superellipse(w, hh, exp)]
+             for i, (y, w, hh) in enumerate(upper)]
     sk = ops.ring_loft('skull', rings)
     materials.assign(sk, skin)
 
     # --- orbites : creux sous l'arcade sourcilière, carvé dans le crâne (boolean) ---
+    # cavité plus PROFONDE et légèrement enfoncée (feedback B "retrait net") : le
+    # cutter précédent (0.95/0.78/0.95, centré pile sur `ex`) mordait à peine la
+    # surface -> orbite qui se lisait comme un simple aplat. Étendu en profondeur
+    # (axe X local = normale de la calotte, cf. EyeBuilder plus bas) et recentré vers
+    # l'intérieur du crâne (`ex*0.92`) pour créer un vrai rebord visible autour du
+    # globe, où viennent s'ancrer les paupières.
     eyep = part.get('eye', {})
     ex, ey, ez = eyep.get('pos', (0.25, 0.315, 0.20))
     esr = eyep.get('socket_r', 0.088)
     egr = eyep.get('globe_r', 0.072)
     for s, tag in ((1, 'l'), (-1, 'r')):
-        cutter = ops.blob(f'eye_cutter_{tag}', W((s * ex, ey, ez)),
-                          (esr * 0.95, esr * 0.78, esr * 0.95))
+        cutter = ops.blob(f'eye_cutter_{tag}', W((s * ex * 0.92, ey, ez)),
+                          (esr * 1.30, esr * 0.82, esr * 0.98))
         sk = ops.boolean_diff(sk, cutter, name='skull')
         materials.assign(sk, skin)
 
@@ -178,8 +252,14 @@ def head(part, mats):
         materials.assign(sk, skin)
     out.append(sk)
 
-    rings = [[WJ((x, y, z - hh * 0.85)) for x, z in laws.superellipse(w, hh, exp)]
-             for y, w, hh in lower]
+    # mâchoire inférieure : courbe INVERSE de celle du museau (`jaw_curve`, même loi) —
+    # décalage nul en t=0 (pivot de la mâchoire, près de la charnière) donc l'ouverture
+    # `gape` reste valide sans recalage.
+    jc = part.get('jaw_curve')
+    ys_l = [s[0] for s in lower]
+    lower_flex = apply_law('growth.axis_flex', n=len(lower), **jc) if jc else [0.0] * len(lower)
+    rings = [[WJ((x, y, z - hh * 0.85 + lower_flex[i])) for x, z in laws.superellipse(w, hh, exp)]
+             for i, (y, w, hh) in enumerate(lower)]
     jw = ops.ring_loft('jaw', rings)
     materials.assign(jw, skin)
     out.append(jw)
@@ -192,7 +272,15 @@ def head(part, mats):
     # `tooth_scale` grossit longueur ET rayon ; les rangées suivent la longueur du
     # museau via tooth_span_* (y début/fin) — une gueule agrandie garde ses dents
     # réparties jusqu'au bout du museau au lieu de s'arrêter à mi-chemin. ---
+    # graine générique de variance dents (feedback A3) : `tooth_seed` déphase les
+    # sinusoïdes d'inclinaison/latéralité sans changer le nombre/l'espacement des
+    # dents -> une seule valeur spec fait "rejouer" un autre jeu de dents irrégulières.
     ts = part.get('tooth_scale', 1.0)
+    tooth_seed = part.get('tooth_seed', 0.0)
+    gp = part.get('gum', {})
+    gum_scale = gp.get('scale', 1.0)
+    gum_flat = gp.get('flatten', 0.42)
+    gum_seg = gp.get('seg', 10)
     su = part.get('tooth_span_upper', (0.42, 1.07))
     nu = part.get('teeth_upper', 6)
     fu_idx = set(part.get('fang_idx_upper', ()))
@@ -202,7 +290,8 @@ def head(part, mats):
     for i in range(nu):
         y = su[0] + i * (su[1] - su[0]) / max(1, nu - 1)
         w = interp_w(upper, y) * 0.78
-        jit_l = 1 + 0.15 * math.sin(i * 9.1) + 0.05 * math.sin(i * 3.3 + 0.6)
+        fz = _interp_scalar(ys_u, upper_flex, y)
+        jit_l = 1 + 0.15 * math.sin(i * 9.1 + tooth_seed) + 0.05 * math.sin(i * 3.3 + 0.6 + tooth_seed)
         is_fang = i in fu_idx
         l = (0.07 + 0.012 * i) * ts * jit_l
         if is_fang:
@@ -210,15 +299,28 @@ def head(part, mats):
         rscale = max(0.55, min(1.9, (l / max(lu_ref, 1e-4)) ** 0.5))
         if is_fang:
             rscale *= fu_girth
-        jit_r = 1 + 0.08 * math.sin(i * 6.1 + 1.1)
+        jit_r = 1 + 0.08 * math.sin(i * 6.1 + 1.1 + tooth_seed)
         radii = [0.021 * ts * rscale * jit_r, 0.0125 * ts * rscale * jit_r, 0.0032 * ts]
+        # inclinaison avant/arrière + léger galbe latéral PAR DENT (`tooth_seed`) : une
+        # rangée de cônes tous parallèles -> variance crédible, occasionnellement une
+        # dent penche vers l'arrière au lieu de toutes pencher pareil vers l'avant.
+        lean = 0.55 + 0.85 * math.sin(i * 3.7 + 1.1 + tooth_seed)
+        twist = 0.05 * w * math.sin(i * 5.9 + 2.3 + tooth_seed)
         for s, tag in ((1, 'l'), (-1, 'r')):
             x = s * w
-            t = ops.tube(f'tooth_u{tag}{i}',
-                         [W((x, y, -0.005)), W((x * 0.97, y + 0.015, -l * 0.55)), W((x * 0.92, y + 0.03, -l))],
-                         radii)
+            mid = W((x * 0.97 + s * twist * 0.5, y + 0.015 * lean, fz - l * 0.55))
+            tip = W((x * 0.92 + s * twist, y + 0.03 * lean, fz - l))
+            t = ops.tube(f'tooth_u{tag}{i}', [W((x, y, fz - 0.005)), mid, tip], radii)
             materials.assign(t, tooth_m)
             out.append(t)
+            # volume de gencive à la base (feedback A3) : petit bourrelet APLATI (pas
+            # une sphère), fondu au bourrelet de lèvre (`lip_profile`, même matériau
+            # peau) -> ancre la dent au lieu de la planter nue dans la mâchoire.
+            gr = (0.022 * ts * rscale + 0.006) * gum_scale
+            gb = ops.blob(f'gum_u{tag}{i}', W((x, y - 0.008, fz - 0.004)),
+                         (gr, gr * 1.5, gr * gum_flat), rot_deg=(0, 0, s * 6), seg=gum_seg)
+            materials.assign(gb, skin)
+            out.append(gb)
     sl = part.get('tooth_span_lower', (0.35, 0.99))
     nl = part.get('teeth_lower', 5)
     fl_idx = set(part.get('fang_idx_lower', ()))
@@ -228,7 +330,8 @@ def head(part, mats):
     for i in range(nl):
         y = sl[0] + i * (sl[1] - sl[0]) / max(1, nl - 1)
         w = interp_w(lower, y) * 0.75
-        jit_l = 1 + 0.15 * math.sin(i * 7.7 + 1.3) + 0.05 * math.sin(i * 3.1 + 0.2)
+        fz = _interp_scalar(ys_l, lower_flex, y)
+        jit_l = 1 + 0.15 * math.sin(i * 7.7 + 1.3 + tooth_seed) + 0.05 * math.sin(i * 3.1 + 0.2 + tooth_seed)
         is_fang = i in fl_idx
         l = (0.06 + 0.010 * i) * ts * jit_l
         if is_fang:
@@ -236,47 +339,84 @@ def head(part, mats):
         rscale = max(0.55, min(1.9, (l / max(ll_ref, 1e-4)) ** 0.5))
         if is_fang:
             rscale *= fl_girth
-        jit_r = 1 + 0.08 * math.sin(i * 5.3 + 0.4)
+        jit_r = 1 + 0.08 * math.sin(i * 5.3 + 0.4 + tooth_seed)
         radii = [0.019 * ts * rscale * jit_r, 0.011 * ts * rscale * jit_r, 0.0032 * ts]
+        lean = 0.55 + 0.85 * math.sin(i * 4.1 + 2.6 + tooth_seed)
+        twist = 0.05 * w * math.sin(i * 6.7 + 0.4 + tooth_seed)
         for s, tag in ((1, 'l'), (-1, 'r')):
             x = s * w
-            t = ops.tube(f'tooth_l{tag}{i}',
-                         [WJ((x, y, 0.005)), WJ((x * 0.97, y + 0.015, l * 0.55)), WJ((x * 0.92, y + 0.03, l))],
-                         radii)
+            mid = WJ((x * 0.97 + s * twist * 0.5, y + 0.015 * lean, fz + l * 0.55))
+            tip = WJ((x * 0.92 + s * twist, y + 0.03 * lean, fz + l))
+            t = ops.tube(f'tooth_l{tag}{i}', [WJ((x, y, fz + 0.005)), mid, tip], radii)
             materials.assign(t, tooth_m)
             out.append(t)
+            gr = (0.020 * ts * rscale + 0.006) * gum_scale
+            gb = ops.blob(f'gum_l{tag}{i}', WJ((x, y - 0.008, fz + 0.004)),
+                         (gr, gr * 1.5, gr * gum_flat), rot_deg=(0, 0, s * 6), seg=gum_seg)
+            materials.assign(gb, skin)
+            out.append(gb)
 
-    # --- globe enchâssé (calotte seule visible) + iris/pupille (œil composite
-    # générique : sclère + cornée/iris + pupille en matériaux séparés, au lieu d'une
-    # boule uniformément colorée) + bourrelets de paupière ---
-    iris_r = eyep.get('iris_r', egr * 0.60)
-    pupil_r = eyep.get('pupil_r', egr * 0.28)
-    iris_m = _mat(mats, eyep.get('iris_mat', 'iris')) or _mat(mats, 'eye')
-    pupil_m = _mat(mats, eyep.get('pupil_mat', 'pupil')) or bone_m
+    # --- bourrelets de lèvre/gencive fondus (feedback A2) : suivent la MÊME courbe
+    # que les dents (profil `upper`/`lower` + `snout_curve`/`jaw_curve`) au lieu de
+    # points `ridges` codés en dur -> ne désynchronise plus si les dents bougent. ---
+    lp = part.get('lip_profile')
+    if lp:
+        n_lip = lp.get('n', 16)
+        pad0 = lp.get('pad_start', 0.10)
+        pad1 = lp.get('pad_end', 0.05)
+        span_u = (max(ys_u[0], su[0] - pad0), min(ys_u[-1], su[1] + pad1))
+        span_l = (max(ys_l[0], sl[0] - pad0), min(ys_l[-1], sl[1] + pad1))
+        _lip_bourrelet('lip_u', upper, span_u, W, skin, out, n=n_lip,
+                       thickness=lp.get('thickness_upper', 0.032),
+                       w_frac=lp.get('w_frac_upper', 0.92), z_frac=lp.get('z_frac_upper', -0.28),
+                       flex=upper_flex, ys_flex=ys_u, noise_scale=lp.get('noise_scale', 0.16),
+                       noise_strength=lp.get('noise_strength', 0.4), seed=0.0)
+        _lip_bourrelet('lip_l', lower, span_l, WJ, skin, out, n=n_lip,
+                       thickness=lp.get('thickness_lower', 0.028),
+                       w_frac=lp.get('w_frac_lower', 0.90), z_frac=lp.get('z_frac_lower', 0.22),
+                       flex=lower_flex, ys_flex=ys_l, noise_scale=lp.get('noise_scale', 0.16),
+                       noise_strength=lp.get('noise_strength', 0.4), seed=1.7)
+
+    # --- EyeBuilder (boucle 17 CR3, feedback B) : globe ISOLÉ (un seul objet, un seul
+    # matériau `eye_globe` à gradient nodal sclère->iris->pupille fente verticale, cf.
+    # `materials.eye_globe`) au lieu d'un empilement sclère+iris+pupille en 3 disques
+    # sur un matériau émissif plat -- regard qui accroche la lumière (spéculaire bas +
+    # clearcoat) plutôt qu'un flat-color mort. Paupières : anneau de 4 bourrelets
+    # APLATIS (haut/bas/avant/arrière, pas des sphères) fondus à la peau, qui referment
+    # l'orbite autour du globe. Objet + matériau restent séparés du reste de la tête
+    # (préfixes `eye_`/`lid_` déjà filtrés partout où nécessaire, ex. detail.armor
+    # `exclude` ; aucun groupe `bake` ne cible `head` pour l'instant donc pas de risque
+    # de bake croisé, mais un futur `spec['bake']` visant `head` devra lister ces
+    # préfixes dans `exclude_like`, même convention que `bake.gather_group_objects`).
+    # convention de profondeur (axe X local = normale de la calotte/axe de vue,
+    # cf. docstring `materials.eye_globe`) : le globe est placé au PLUS LOIN (`ex`
+    # plein) pour poker à travers l'ouverture, les 4 bourrelets de paupière sont
+    # RECULÉS (`ex*0.72`, X peu profond) pour rester un anneau de rebord fondu à la
+    # peau plutôt qu'une masse qui recouvre toute la calotte visible du globe (bug
+    # corrigé boucle 17 : les anciennes paupières, centrées plus en avant que le
+    # globe, le cachaient entièrement -> "regard mort" par occlusion, pas seulement
+    # par matériau plat).
+    eye_m = _mat(mats, eyep.get('mat', 'eye'))
     for s, tag in ((1, 'l'), (-1, 'r')):
-        g = ops.blob(f'eye_{tag}', W((s * ex * 0.88, ey - 0.006, ez)), (egr, egr, egr))
-        materials.assign(g, _mat(mats, 'eye'))
+        g = ops.blob(f'eye_{tag}', W((s * ex, ey - 0.006, ez)), (egr, egr, egr))
+        materials.assign(g, eye_m)
         out.append(g)
-        # disques plaqués sur la calotte visible, poussés vers l'extérieur (axe X
-        # local = normale de la calotte côté joue) : iris large, pupille par-dessus.
-        iris = ops.blob(f'eye_iris_{tag}',
-                        W((s * (ex * 0.88 + egr * 0.55), ey - 0.006, ez)),
-                        (egr * 0.22, iris_r, iris_r * 0.9))
-        materials.assign(iris, iris_m)
-        out.append(iris)
-        pupil = ops.blob(f'eye_pupil_{tag}',
-                         W((s * (ex * 0.88 + egr * 0.68), ey - 0.006, ez)),
-                         (egr * 0.16, pupil_r, pupil_r * 0.85))
-        materials.assign(pupil, pupil_m)
-        out.append(pupil)
-        lu = ops.blob(f'lid_up_{tag}', W((s * ex, ey + 0.025, ez + esr * 0.68)),
-                      (esr * 0.80, esr * 0.46, esr * 0.30), rot_deg=(0, 0, s * 10))
+        lu = ops.blob(f'lid_up_{tag}', W((s * ex * 0.72, ey + 0.02, ez + esr * 0.74)),
+                      (esr * 0.30, esr * 0.5, esr * 0.24), rot_deg=(0, 0, s * 10))
         materials.assign(lu, skin)
         out.append(lu)
-        ll = ops.blob(f'lid_lo_{tag}', W((s * ex, ey - 0.02, ez - esr * 0.66)),
-                      (esr * 0.72, esr * 0.42, esr * 0.24))
+        ll = ops.blob(f'lid_lo_{tag}', W((s * ex * 0.72, ey - 0.018, ez - esr * 0.72)),
+                      (esr * 0.28, esr * 0.46, esr * 0.20))
         materials.assign(ll, skin)
         out.append(ll)
+        lf = ops.blob(f'lid_fr_{tag}', W((s * ex * 0.72, ey + esr * 0.68, ez)),
+                      (esr * 0.26, esr * 0.20, esr * 0.42), rot_deg=(0, 22, 0))
+        materials.assign(lf, skin)
+        out.append(lf)
+        lb = ops.blob(f'lid_bk_{tag}', W((s * ex * 0.72, ey - esr * 0.64, ez)),
+                      (esr * 0.24, esr * 0.18, esr * 0.38), rot_deg=(0, -20, 0))
+        materials.assign(lb, skin)
+        out.append(lb)
 
     # --- naseaux (suite) : cavité sombre logée sous l'ouverture carvée (donne la
     # profondeur qu'on ne voit pas dans le trou seul) + monticule charnu enfoncé
@@ -285,7 +425,10 @@ def head(part, mats):
         cx, cy, cz = s * npos[0], npos[1], npos[2]
         cavity = ops.blob(f'nostril_cavity_{tag}', W((cx * 1.02, cy + nk * 0.25, cz - nk * 0.2)),
                           (nk * 0.55, nk * 0.8, nk * 0.42), rot_deg=(pitch - 18, 0, s * 20))
-        materials.assign(cavity, _mat(mats, 'eye'))
+        # 'cavity' (pas 'eye' -> ce matériau est désormais le globe à gradient nodal
+        # spéculaire de l'EyeBuilder, inadapté à une simple cavité sombre) : dark mat
+        # neutre générique.
+        materials.assign(cavity, _mat(mats, np_.get('cavity_mat', 'cavity')) or skin)
         out.append(cavity)
         mound = ops.blob(f'nose_mound_{tag}', W((cx, cy - nk * 0.55, cz - nk * 0.7)),
                          (nk * 2.2, nk * 2.8, nk * 1.7), rot_deg=(pitch - 8, 0, s * 14))

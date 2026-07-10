@@ -492,6 +492,78 @@ def eye(name='eye', color=(0.9, 0.45, 0.08), glow=2.0):
     return mat
 
 
+def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 0.22, 0.045),
+             pupil_color=(0.012, 0.009, 0.007), pupil_width=0.16, iris_r=0.5,
+             rough=0.08, clearcoat=0.55, glow=0.12):
+    """EyeBuilder (boucle 17 CR3, feedback B) : matériau GÉNÉRIQUE pour un globe
+    oculaire ISOLÉ en un seul objet + un seul matériau — remplace l'empilement de 3
+    disques (sclère/iris/pupille plaqués) sur un matériau émissif plat par un
+    gradient NODAL calculé directement sur la sphère (Texture Coordinate 'Object' :
+    coordonnées locales d'un blob unitaire, cf. `bx.organic.head` — convention X local
+    = normale de la calotte/axe de vue, Y = horizontal du visage, Z = vertical).
+    `pupil_width` (0..1, plus petit = plus fin) compresse l'axe Y avant de calculer la
+    distance au centre -> ellipse verticale (fente de reptile) au lieu d'un disque.
+    `iris_r` (0..1) = rayon où l'iris cède la place à la sclère. ColorRamp à arrêts
+    RAPPROCHÉS aux frontières (pupille/iris, iris/sclère) -> transitions nettes sans
+    changer le mode d'interpolation (reste LINEAR, pas de flou de bord constant).
+    Très spéculaire (`rough` bas, défaut proche du mouillé) + `clearcoat` -> le globe
+    ACCROCHE la lumière (reflet net) au lieu du flat-color mort de l'ancien matériau
+    uniforme ; `glow` (défaut faible, PAS l'ancien plein-émissif ~2.0) ajoute une once
+    de vie sans revenir à un œil qui a l'air de briller de l'intérieur."""
+    mat, nt, bsdf = _new(name)
+    n, lk = nt.nodes, nt.links
+    tc = n.new('ShaderNodeTexCoord')
+    sep = n.new('ShaderNodeSeparateXYZ')
+    lk.new(tc.outputs['Object'], sep.inputs['Vector'])
+    ydiv = n.new('ShaderNodeMath')
+    ydiv.operation = 'DIVIDE'
+    ydiv.inputs[1].default_value = max(0.02, pupil_width)
+    lk.new(sep.outputs['Y'], ydiv.inputs[0])
+    y2 = n.new('ShaderNodeMath')
+    y2.operation = 'MULTIPLY'
+    lk.new(ydiv.outputs['Value'], y2.inputs[0])
+    lk.new(ydiv.outputs['Value'], y2.inputs[1])
+    z2 = n.new('ShaderNodeMath')
+    z2.operation = 'MULTIPLY'
+    lk.new(sep.outputs['Z'], z2.inputs[0])
+    lk.new(sep.outputs['Z'], z2.inputs[1])
+    dsum = n.new('ShaderNodeMath')
+    dsum.operation = 'ADD'
+    lk.new(y2.outputs['Value'], dsum.inputs[0])
+    lk.new(z2.outputs['Value'], dsum.inputs[1])
+    dist = n.new('ShaderNodeMath')
+    dist.operation = 'SQRT'
+    lk.new(dsum.outputs['Value'], dist.inputs[0])
+    ramp = n.new('ShaderNodeValToRGB')
+    els = ramp.color_ramp.elements
+    while len(els) > 1:
+        els.remove(els[-1])
+    els[0].position, els[0].color = 0.0, (*pupil_color, 1)
+
+    def stop(pos, color):
+        e = els.new(max(0.0, min(1.0, pos)))
+        e.color = (*color, 1)
+
+    amber_hi = tuple(min(1.0, c * 1.5 + 0.05) for c in iris_color)
+    stop(0.15, pupil_color)               # bord net pupille
+    stop(0.18, amber_hi)                  # liseré clair (catch-light iris/pupille)
+    stop(0.26, iris_color)
+    stop(max(0.30, iris_r), iris_color)    # iris plein jusqu'au rayon réglable
+    stop(min(0.97, iris_r + 0.05), sclera_color)  # bord net iris/sclère
+    stop(1.0, sclera_color)
+    ramp.color_ramp.interpolation = 'LINEAR'
+    lk.new(dist.outputs['Value'], ramp.inputs['Fac'])
+    lk.new(ramp.outputs['Color'], bsdf.inputs['Base Color'])
+    _set(bsdf, 'Roughness', rough)
+    _set(bsdf, 'Coat Weight', clearcoat)
+    _set(bsdf, 'Clearcoat', clearcoat)
+    _set(bsdf, 'Coat Roughness', 0.03)
+    _set(bsdf, 'Clearcoat Roughness', 0.03)
+    _set(bsdf, 'Emission Color', (*iris_color, 1))
+    _set(bsdf, 'Emission Strength', glow)
+    return mat
+
+
 def rock(name='rock', color=(0.07, 0.055, 0.042), scale=3.0, bump=1.2,
          burnt=(0.012, 0.008, 0.006), ember=(0.28, 0.08, 0.02)):
     """pattern.rock v2 : sol cendré brun-gris chaud, zones brûlées sombres par noise
