@@ -62,6 +62,55 @@ def spine(part, mats):
     return out
 
 
+def _apply_horn_growth(pts_local, radii, ring_p=None, curl=0.0, curl_power=1.6,
+                       root_len=0.0, root_bulge=1.0):
+    """Post-traitement générique d'un profil de pointe kératineuse (n points locaux +
+    n rayons) : anneaux de croissance (`ring_p` = {depth,freq,sharp}, `growth.keratin_rings`),
+    légère courbure de pointe (`curl`, décalage hors-plan croissant base->pointe sur
+    l'axe X local, `growth.tip_curl`) et bourrelet d'implantation (`root_len` prolonge
+    la base en arrière -vers l'intérieur du support porteur-, `root_bulge` l'élargit)
+    -> remplace un cône/tube lisse planté par une base fondue avec anneaux/torsion.
+    Partagé par les cornes maîtresses (profil en spirale GVL) et les pointes
+    secondaires (arcade/joue, profil droit) : aucune valeur dragon, tout vient de la
+    spec (défauts neutres -> comportement inchangé si absent)."""
+    n = len(pts_local)
+    pts_local = list(pts_local)
+    radii = list(radii)
+    if ring_p and ring_p.get('depth', 0.0):
+        mod = laws.growth_rings(n, depth=ring_p.get('depth', 0.14),
+                                freq=ring_p.get('freq', 4.0), sharp=ring_p.get('sharp', 3.0))
+        radii = [r * m for r, m in zip(radii, mod)]
+    if curl:
+        off = laws.curl_offset(n, amount=curl, power=curl_power)
+        pts_local = [(p[0] + o, p[1], p[2]) for p, o in zip(pts_local, off)]
+    if root_len > 0:
+        tang = Vector(pts_local[1]) - Vector(pts_local[0])
+        tang = tang.normalized() if tang.length > 1e-6 else Vector((0, 0, -1))
+        root_pt = Vector(pts_local[0]) - tang * root_len
+        pts_local = [tuple(root_pt)] + pts_local
+        radii = [radii[0] * root_bulge] + radii
+    return pts_local, radii
+
+
+def _kera_spike(name, base_world, height, r0, rot_deg, mat, ring_p=None, curl=0.0,
+                curl_power=1.6, root_len=0.0, root_bulge=1.0, taper=1.3, rmin_frac=0.12, n=6):
+    """Pointe kératineuse générique (arcade, joue...) : petit tube profilé avec anneaux/
+    courbure/base fondue optionnels, remplace un cône lisse `ops.spike` planté sur le
+    crâne. Même convention de placement que `ops.spike` : `base_world` est le CENTRE
+    de la pointe (axe local Z, -height/2..+height/2), pas sa base."""
+    pts_local = [(0.0, 0.0, -height / 2 + height * i / (n - 1)) for i in range(n)]
+    radii = laws.power_taper(n, r0, taper, r0 * rmin_frac)
+    pts_local, radii = _apply_horn_growth(pts_local, radii, ring_p, curl, curl_power,
+                                          root_len, root_bulge)
+    pts = ops.transform_pts(pts_local, loc=base_world, rot_deg=rot_deg)
+    # résolution réduite (budget sommets) : un profil à N points de contrôle porte
+    # déjà assez de détail pour les anneaux, pas besoin de la résolution NURBS/bevel
+    # par défaut (pensée pour des tubes à 2-3 points).
+    h = ops.tube(name, pts, radii, resolution_u=6, bevel_resolution=6)
+    materials.assign(h, mat)
+    return h
+
+
 @builder('head')
 def head(part, mats):
     """Tête loftée par sections superellipse (GVL) : crâne→museau continu, mâchoire
@@ -135,7 +184,11 @@ def head(part, mats):
     materials.assign(jw, skin)
     out.append(jw)
 
-    # --- dents : tubes effilés courbes le long des bords de gueule.
+    # --- dents : tubes effilés courbes le long des bords de gueule, VARIÉS (pas des
+    # cônes identiques étirés) : le rayon suit désormais la longueur de chaque dent
+    # (`rscale`, racine carrée -> proportions coniques naturelles) au lieu d'être
+    # constant pour toute la rangée, `fang_girth_*` épaissit les crocs en plus de les
+    # allonger (`fang_scale_*`), un second harmonique de jitter casse la régularité.
     # `tooth_scale` grossit longueur ET rayon ; les rangées suivent la longueur du
     # museau via tooth_span_* (y début/fin) — une gueule agrandie garde ses dents
     # réparties jusqu'au bout du museau au lieu de s'arrêter à mi-chemin. ---
@@ -144,34 +197,52 @@ def head(part, mats):
     nu = part.get('teeth_upper', 6)
     fu_idx = set(part.get('fang_idx_upper', ()))
     fu_scale = part.get('fang_scale_upper', 1.0)
+    fu_girth = part.get('fang_girth_upper', 1.3)
+    lu_ref = ts * (0.07 + 0.012 * (nu - 1) * 0.5)
     for i in range(nu):
         y = su[0] + i * (su[1] - su[0]) / max(1, nu - 1)
         w = interp_w(upper, y) * 0.78
-        l = (0.07 + 0.012 * i) * (1 + 0.15 * math.sin(i * 9.1)) * ts
-        if i in fu_idx:
+        jit_l = 1 + 0.15 * math.sin(i * 9.1) + 0.05 * math.sin(i * 3.3 + 0.6)
+        is_fang = i in fu_idx
+        l = (0.07 + 0.012 * i) * ts * jit_l
+        if is_fang:
             l *= fu_scale
+        rscale = max(0.55, min(1.9, (l / max(lu_ref, 1e-4)) ** 0.5))
+        if is_fang:
+            rscale *= fu_girth
+        jit_r = 1 + 0.08 * math.sin(i * 6.1 + 1.1)
+        radii = [0.021 * ts * rscale * jit_r, 0.0125 * ts * rscale * jit_r, 0.0032 * ts]
         for s, tag in ((1, 'l'), (-1, 'r')):
             x = s * w
             t = ops.tube(f'tooth_u{tag}{i}',
                          [W((x, y, -0.005)), W((x * 0.97, y + 0.015, -l * 0.55)), W((x * 0.92, y + 0.03, -l))],
-                         [0.020 * ts, 0.012 * ts, 0.003])
+                         radii)
             materials.assign(t, tooth_m)
             out.append(t)
     sl = part.get('tooth_span_lower', (0.35, 0.99))
     nl = part.get('teeth_lower', 5)
     fl_idx = set(part.get('fang_idx_lower', ()))
     fl_scale = part.get('fang_scale_lower', 1.0)
+    fl_girth = part.get('fang_girth_lower', 1.3)
+    ll_ref = ts * (0.06 + 0.010 * (nl - 1) * 0.5)
     for i in range(nl):
         y = sl[0] + i * (sl[1] - sl[0]) / max(1, nl - 1)
         w = interp_w(lower, y) * 0.75
-        l = (0.06 + 0.010 * i) * (1 + 0.15 * math.sin(i * 7.7 + 1.3)) * ts
-        if i in fl_idx:
+        jit_l = 1 + 0.15 * math.sin(i * 7.7 + 1.3) + 0.05 * math.sin(i * 3.1 + 0.2)
+        is_fang = i in fl_idx
+        l = (0.06 + 0.010 * i) * ts * jit_l
+        if is_fang:
             l *= fl_scale
+        rscale = max(0.55, min(1.9, (l / max(ll_ref, 1e-4)) ** 0.5))
+        if is_fang:
+            rscale *= fl_girth
+        jit_r = 1 + 0.08 * math.sin(i * 5.3 + 0.4)
+        radii = [0.019 * ts * rscale * jit_r, 0.011 * ts * rscale * jit_r, 0.0032 * ts]
         for s, tag in ((1, 'l'), (-1, 'r')):
             x = s * w
             t = ops.tube(f'tooth_l{tag}{i}',
                          [WJ((x, y, 0.005)), WJ((x * 0.97, y + 0.015, l * 0.55)), WJ((x * 0.92, y + 0.03, l))],
-                         [0.018 * ts, 0.011 * ts, 0.003])
+                         radii)
             materials.assign(t, tooth_m)
             out.append(t)
 
@@ -262,10 +333,26 @@ def head(part, mats):
     for k in range(pairs):
         bump = math.exp(-((k - master_k) / master_w) ** 2)
         sizes.append(size_min + size_bump * bump)
+    # `n` (rétro-compat défaut 16, comme avant) : densité de points de contrôle du
+    # profil de corne. Les anneaux de croissance modulent le rayon PAR POINT sur une
+    # NURBS cubique qui LISSE fortement un profil trop clairsemé (un anneau isolé sur
+    # 1 seul point voisin de valeurs plates est quasi entièrement absorbé) -> avec
+    # `rings`, on veut plus de points pour que chaque anneau couvre 3-4 points de
+    # contrôle et reste visible après lissage.
+    n_horn = hp.get('n', 16)
     raw = apply_law(hp.get('vocab', 'growth.horn_spiral'),
-                    n=16, a=hp.get('a', 0.10), b=hp.get('b', 0.30),
+                    n=n_horn, a=hp.get('a', 0.10), b=hp.get('b', 0.30),
                     turns=hp.get('turns', 0.6), rise=hp.get('rise', 0.55))
-    base_radii = laws.power_taper(16, hp.get('r0', 0.075), 1.15, 0.008)
+    base_radii = laws.power_taper(n_horn, hp.get('r0', 0.075), 1.15, 0.008)
+    # relief kératine générique (rétro-compat : neutre si `rings`/`curl`/`root_len`
+    # absents de la spec) : anneaux de croissance + légère torsion de pointe + base
+    # élargie fondue dans le crâne (prolonge la base vers l'intérieur, cf. doctrine
+    # « mound enfoncé aux 2/3 » déjà utilisée pour les naseaux) au lieu d'un cône nu
+    # planté sur la surface.
+    raw, base_radii = _apply_horn_growth(
+        raw, base_radii, ring_p=hp.get('rings'),
+        curl=hp.get('curl', 0.0), curl_power=hp.get('curl_power', 1.6),
+        root_len=hp.get('root_len', 0.0), root_bulge=hp.get('root_bulge', 1.0))
     # ancrages : lerp base_from -> base_to (repère local tête, x=côté y=avant z=haut)
     # + éventail yaw0..yaw0+yaw_spread. « 2 maîtresses arrière » = master_w étroit,
     # size_bump fort, pitch très négatif (couchées vers la nuque), yaw_spread faible.
@@ -284,20 +371,34 @@ def head(part, mats):
             pts = ops.transform_pts(raw, loc=W((s * base[0], base[1], base[2])),
                                     rot_deg=(pitch + hpitch, 0, s * (yaw + 6 * jit)),
                                     scale=sc * hp.get('scale', 1.0))
-            h = ops.tube(f'horn_{tag}{k}', pts, radii)
+            # résolution réduite (budget sommets) : `n_horn` points de contrôle portent
+            # déjà le détail (anneaux), la résolution NURBS/bevel par défaut (pensée
+            # pour des tubes à peu de points, ex. dents/crêtes) est inutilement dense.
+            h = ops.tube(f'horn_{tag}{k}', pts, radii, resolution_u=6, bevel_resolution=6)
             materials.assign(h, bone_m)
             out.append(h)
     # petites cornes d'arcade + pointes de joue (ancrées sur l'os, base large) ;
-    # feature_scale suit l'agrandissement du crâne (positions ET tailles locales)
+    # feature_scale suit l'agrandissement du crâne (positions ET tailles locales).
+    # `secondary` (sous-dict de `horns`, rétro-compat neutre si absent) : mêmes
+    # anneaux/courbure/base fondue que les cornes maîtresses mais plus discrets —
+    # remplace le cône `ops.spike` planté par une petite pointe kératineuse profilée.
     hk = part.get('feature_scale', 1.0)
+    sec = hp.get('secondary', {})
+    sec_ring = sec.get('rings')
+    sec_curl = sec.get('curl', 0.0)
+    sec_root_len = sec.get('root_len', 0.0) * hk
+    sec_root_bulge = sec.get('root_bulge', 1.0)
+    sec_n = sec.get('n', 6)
     for s, tag in ((1, 'l'), (-1, 'r')):
-        b = ops.spike(f'horn_brow_{tag}', W((s * 0.22 * hk, 0.38 * hk, 0.26 * hk)),
-                      0.14 * hk, 0.038 * hk, (pitch - 35, 0, s * 15))
-        materials.assign(b, bone_m)
+        b = _kera_spike(f'horn_brow_{tag}', W((s * 0.22 * hk, 0.38 * hk, 0.26 * hk)),
+                        0.14 * hk, 0.038 * hk, (pitch - 35, 0, s * 15), bone_m,
+                        ring_p=sec_ring, curl=sec_curl, root_len=sec_root_len,
+                        root_bulge=sec_root_bulge, n=sec_n)
         out.append(b)
-        c = ops.spike(f'horn_cheek_{tag}', W((s * 0.30 * hk, 0.12 * hk, -0.02 * hk)),
-                      0.16 * hk, 0.048 * hk, (pitch + 95, 0, s * 55))
-        materials.assign(c, bone_m)
+        c = _kera_spike(f'horn_cheek_{tag}', W((s * 0.30 * hk, 0.12 * hk, -0.02 * hk)),
+                        0.16 * hk, 0.048 * hk, (pitch + 95, 0, s * 55), bone_m,
+                        ring_p=sec_ring, curl=sec_curl, root_len=sec_root_len,
+                        root_bulge=sec_root_bulge, n=sec_n)
         out.append(c)
     # --- picots de remplissage : densifient la couronne entre/autour des cornes
     # principales, petites tailles variées, ancrés dans les plaques crâniennes ---

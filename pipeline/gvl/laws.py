@@ -92,6 +92,34 @@ def superellipse(w=1.0, h=1.0, exp=2.0, n=28):
     return pts
 
 
+def growth_rings(n, depth=0.14, freq=5.0, sharp=3.0):
+    """Anneaux de croissance kératine (cornes/griffes/becs) : bourrelets périodiques
+    ISOLÉS le long d'un axe (t=0..1 sur n points), pas une onde continue -> chaque
+    anneau lit comme un renflement net plutôt qu'une ondulation lisse. Retourne n
+    multiplicateurs de rayon >=1 (1.0 entre les anneaux, 1+depth au pic). `freq` =
+    nb d'anneaux sur toute la longueur, `sharp` (>1) resserre chaque anneau. Phase en
+    SINUS (pas cosinus) : nul en t=0 ET t=1 -> aucun anneau ne coïncide avec la toute
+    base (qui reçoit déjà son propre bourrelet d'implantation, cf. `root_bulge`) ni la
+    pointe fine, évite qu'un anneau ne s'y additionne et gonfle démesurément."""
+    n = max(1, n)
+    out = []
+    for i in range(n):
+        t = i / (n - 1) if n > 1 else 0.0
+        bump = max(0.0, math.sin(math.pi * freq * t)) ** sharp
+        out.append(1.0 + depth * bump)
+    return out
+
+
+def curl_offset(n, amount=0.0, power=1.6):
+    """Courbure/torsion progressive de pointe (cornes qui s'enroulent, griffes,
+    queues) : décalage latéral croissant de 0 (base) à `amount` (pointe), le long
+    d'un axe perpendiculaire au tracé principal -> à ajouter à une coordonnée hors
+    plan des points d'une loi de forme (ex. `log_spiral`). `power` >1 concentre la
+    courbure vers la pointe plutôt qu'un arc régulier."""
+    n = max(1, n)
+    return [amount * (i / (n - 1)) ** power if n > 1 else 0.0 for i in range(n)]
+
+
 def lsystem(axiom, rules, depth):
     """L-système symbolique (ramifications : bois de cerf, veines). Retourne la chaîne."""
     s = axiom

@@ -8,8 +8,13 @@ from mathutils import Euler, Matrix, Vector
 from . import core
 
 
-def tube(name, pts, radii, caps=True, order=4):
-    """Tube organique : courbe NURBS avec rayon par point (corps, membres, cornes)."""
+def tube(name, pts, radii, caps=True, order=4, resolution_u=12, bevel_resolution=8):
+    """Tube organique : courbe NURBS avec rayon par point (corps, membres, cornes).
+    `resolution_u`/`bevel_resolution` (défauts = valeurs Blender historiques, rétro-
+    compat) : baisser les deux pour un profil à beaucoup de points de contrôle (ex.
+    cornes à anneaux) SANS faire exploser le nombre de sommets — un tube à N points
+    de contrôle a de toute façon assez de segments pour rester lisse avec une
+    résolution plus basse que le tube générique (corps/membres, peu de points)."""
     cu = bpy.data.curves.new(name, 'CURVE')
     cu.dimensions = '3D'
     sp = cu.splines.new('NURBS')
@@ -19,8 +24,9 @@ def tube(name, pts, radii, caps=True, order=4):
         p.radius = r
     sp.use_endpoint_u = True
     sp.order_u = min(order, len(pts))
+    cu.resolution_u = resolution_u
     cu.bevel_depth = 1.0
-    cu.bevel_resolution = 8
+    cu.bevel_resolution = bevel_resolution
     cu.use_fill_caps = caps
     return core.link(bpy.data.objects.new(name, cu))
 
