@@ -6,8 +6,8 @@
    "builder": "reptile_scales",
    "p": {
     "scale": 15,
-    "scale2": 40,
-    "bump": 0.6,
+    "scale2": 48,
+    "bump": 0.78,
     "base": [
      0.05,
      0.044,
@@ -20,25 +20,62 @@
     ],
     "rough": 0.58,
     "sss": 0.22,
-    "micro": 0.5
+    "micro": 0.65,
+    "edge_copper": 0.36,
+    "patina_color": [
+     0.15,
+     0.32,
+     0.24
+    ],
+    "patina_gold": [
+     0.5,
+     0.32,
+     0.11
+    ],
+    "patina_amount": 0.55
    }
   },
   "membrane": {
    "builder": "membrane",
    "p": {
     "color": [
-     0.045,
-     0.008,
-     0.007
+     0.05,
+     0.012,
+     0.014
+    ],
+    "edge_color": [
+     0.17,
+     0.09,
+     0.03
     ],
     "rough": 0.72,
     "transmission": 0.0,
-    "sss": 0.04
+    "sss": 0.08,
+    "vein_scale": 11,
+    "vein_strength": 0.4,
+    "vein_dark": [
+     0.02,
+     0.004,
+     0.006
+    ],
+    "wrinkle_scale": 45,
+    "wrinkle_strength": 0.12
    }
   },
   "bone": {
-   "builder": "bone",
-   "p": {}
+   "builder": "horn",
+   "p": {
+    "color": [
+     0.065,
+     0.045,
+     0.025
+    ],
+    "rough": 0.28,
+    "stripe_scale": 30,
+    "stripe_strength": 0.22,
+    "aniso": 0.4,
+    "var": 0.16
+   }
   },
   "mouth": {
    "builder": "bone",
@@ -1106,16 +1143,26 @@
  "scene": {
   "world": {
    "color": [
-    0.45,
-    0.24,
-    0.07
+    0.32,
+    0.16,
+    0.05
    ],
    "color_top": [
-    0.1,
-    0.055,
-    0.025
+    0.07,
+    0.038,
+    0.018
    ],
-   "strength": 0.4,
+   "strength": 0.24,
+   "variation": {
+    "scale": 2.2,
+    "detail": 4.0,
+    "strength": 0.65,
+    "color": [
+     0.58,
+     0.27,
+     0.06
+    ]
+   },
    "volume": {
     "density": 0.0014,
     "anisotropy": 0.3,
@@ -1123,7 +1170,9 @@
      1.0,
      0.78,
      0.5
-    ]
+    ],
+    "noise_scale": 3.5,
+    "noise_strength": 0.55
    }
   },
   "sun": {
@@ -1189,7 +1238,7 @@
      -0.5,
      4.0
     ],
-    "energy": 3500,
+    "energy": 2600,
     "size": 8,
     "color": [
      1.0,
@@ -1208,12 +1257,31 @@
      1,
      4.2
     ],
-    "energy": 250,
+    "energy": 200,
     "size": 14,
     "color": [
      0.9,
      0.75,
      0.6
+    ]
+   },
+   {
+    "loc": [
+     -6,
+     3,
+     5
+    ],
+    "target": [
+     0,
+     -1,
+     3.8
+    ],
+    "energy": 550,
+    "size": 6,
+    "color": [
+     0.55,
+     0.68,
+     0.92
     ]
    }
   ],

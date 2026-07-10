@@ -4,27 +4,31 @@ Reprise (conteneur neuf) : `bash pipeline/bootstrap.sh` → claude.md → ce fic
 l'utilisateur dit « continue », exécuter le contrat ci-dessous sans reposer de question.
 
 ## Où on en est
-Boucle 13 BUILD TERMINÉ, **EN ATTENTE DE FEEDBACK utilisateur** sur le HQ **step_141**
-(comparer à step_133 = jalon précédent rejeté « deltaplane »). Jalons de la boucle :
-planche sheet4 **step_134**, gros plan aile **step_136**, gros plan pieds **step_138**.
-Fait (commits 35fde85+) :
-- Aile organique anti-deltaplane, builder `wing` étendu GÉNÉRIQUEMENT : `finger_bow` (doigts
-  en arcs divergents, colonnes membrane collées), `panel_billow` (chair par panneau),
-  `finger_taper`, feston normalisé par corde de panneau. Spec : festoon .12→.55, finger_r0
-  .22, bow .9, billow .35, root_curve resserrée (y .6→0.0, reste d'aile-nageoire réduit).
-- Pieds massifs : foot length .5→.9, toe_r0 .15→.28, claw_len .32, pad ×~2.
-- Item 3 (fuse_groups head/hindleg) REPORTÉ — blocage documenté dans NEXT.md item 2
-  (armor cible les groupes par id ; fusion = régression du fix boucle 12).
-Métriques step_140 (compare vs drogon_body_flight) : bords .21 vs cible .35, cuivre .63
-vs .46 — le chantier look/densité reste ouvert (NEXT item 5, hors contrat boucle 13).
+Boucle 14 close, **EN ATTENTE DE FEEDBACK** : l'utilisateur rend en LOCAL (bpy) — un
+`python3 pipeline/run.py forge specs/dragon_got.json` (sans --fast) sort désormais les
+3 PNG HQ (hero / head / legs). Jalons fast de la boucle : **step_159_hero**,
+**step_158_head**, **step_158_legs** (anciens jalons rejetés gardés : 133 deltaplane,
+141 bras-en-lignes/nageoire ; fixes : 148 gros plan main, 151 vue).
+Fait en boucle 14 (le feedback step_141 intégral est dans session.json) :
+- Aile continuité (organic.py, générique) : `knuckle_spread` (doigts échelonnés + masse
+  carpienne hand_ fusionnée SDF), `batten_start`, `root_follow_arm` (membrane sous le bras,
+  fini la nageoire au flanc à z décalé).
+- Multi-shots (run.py+feedback.py, générique) : `scene.shots` → 1 PNG/prise, cadrage AUTO
+  bbox par pièce (`frame_part`/`dir`/`margin`/`lens`), `--shot <id>` pour isoler.
+- Look (materials.py+core.py, générique, défauts rétro-compat) : patine cavité/arête sur
+  reptile_scales (`patina_*`, `edge_copper`), veines+micro-plis membrane (`vein_*`,
+  `wrinkle_*`, transmission bornée ≤.05 en dur), builder `horn` kératine (clé mat `bone`),
+  fond monde `variation` + volume bruité (poussière). Métriques : cuivre .63→.471 (cible
+  .45-.50 ✓), bords .21→.233 (cible finale .35 = géométrie fine à venir).
 
-## Contrat boucle 14 (à cadrer APRÈS le feedback sur step_141)
-Pas de contrat tant que l'utilisateur n'a pas jugé ailes (éventail/feston/chair) et pieds.
-Consigner son feedback dans `pipeline/state/session.json` + réécrire ce fichier. Candidats
-selon verdict : amplitudes finger_bow/panel_billow à recaler en HQ (doute agent boucle 13),
-micro-plis membrane (NEXT 1), œil gros plan (NEXT 3), densité de détail/look (NEXT 5).
+## Contrat boucle 15 (à recadrer selon feedback sur les rendus HQ locaux)
+Roadmap utilisateur restante = NEXT.md item 0 : (a) écailles par zones + plis articulations
+`fold_rings`, (b) tête fine (iris fente, narines, gencives/dents, rides), (c) micro-plis
+membrane niveau 2, (d) cicatrices, (e) environnement caverne/canyon détaillé. Prioriser la
+DENSITÉ DE BORDS (gap .233→.35) = géométrie détail, via agents Sonnet + mécanismes génériques.
 
 ## Restes connus hors contrat
-Œil composite jamais validé en gros plan couleur ; look couleur/atmosphère à recaler ;
-caméra HQ = plongée d'origine (angles bas testés et rejetés) ; feston `chord_scale` =
-approximation par largeur de panneau (à revoir si wing très asymétrique).
+fuse_groups head/hindleg bloqué (NEXT item 2, prérequis armure spatiale) ; œil composite
+jamais validé en gros plan couleur (le shot head le cadre désormais — vérifier au feedback) ;
+scene.blend s'ouvre avec la caméra du DERNIER shot rendu (legs) ; `front_extent=0.5` de
+root_follow_arm en dur dans le builder (à exposer si autre gabarit d'aile).

@@ -36,10 +36,10 @@ Cibles réf : couleur moy (0.33,0.27,0.26) · cuivre 0.42 · bords 0.36. La PRIO
 
 ## Cmds
 `bash pipeline/bootstrap.sh` (conteneur neuf) puis `python3 pipeline/run.py` :
-`forge <spec> [--fast|--clay|--sheet]` · `clayhero <spec> [--fast]` (géométrie, cadrage macro) · `compare <spec> <ref.png> [--fast]` (réf|rendu + deltas) · `validate <spec>` (BVH sans rendu) · `sheet <spec>`.
+`forge <spec> [--fast|--clay|--sheet|--shot <id>]` (si `scene.shots` : 1 PNG par prise, cadrage auto par pièce) · `clayhero <spec> [--fast]` (géométrie, cadrage macro) · `compare <spec> <ref.png> [--fast]` (réf|rendu + deltas) · `validate <spec>` (BVH sans rendu) · `sheet <spec>`.
 
 ## Modules bx
-core (clay, rim_setup, camera, realize_to_mesh) · ops (tube, blob, spike, grid_surface, ring_loft, boolean_diff) · organic (builders spine/head lofts superellipse/wing/limb/dewlap/armure via `_apply_armor`) · detail (keeled_scale, armor_scales, displace_layers, scales) · fuse (voxel_fuse défaut) · validate (BVH) · feedback (compare_sheet, contact_sheet, iou) · materials (reptile_scales SSS ; ignorés en clay). GVL : `pipeline/gvl/` (lois + vocabulary.json).
+core (clay, rim_setup, camera, world variation+volume, realize_to_mesh) · ops (tube, blob, spike, grid_surface, ring_loft, boolean_diff) · organic (builders spine/head lofts superellipse/wing knuckle_spread+root_follow_arm/limb/dewlap/armure via `_apply_armor`) · detail (keeled_scale, armor_scales, displace_layers, scales) · fuse (voxel_fuse défaut, sdf_fuse+fuse_groups) · validate (BVH) · feedback (compare_sheet, contact_sheet, sheet4, part_bbox, iou) · materials (reptile_scales patine cavité, membrane veines transmission≤.05, horn kératine ; ignorés en clay). GVL : `pipeline/gvl/` (lois + vocabulary.json).
 
 ## Git
 Toutes les branches `claude/*` = UNE lignée : `git fetch --prune`, travailler sur la plus

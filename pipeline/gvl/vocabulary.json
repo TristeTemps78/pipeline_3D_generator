@@ -7,8 +7,9 @@
   "growth.scale_pack": {"law": "phyllotaxis", "p": {}, "use": "placement écailles/pointes"},
   "growth.spike_decay": {"law": "decay_series", "p": {"ratio": 0.85}, "use": "crêtes dorsales décroissantes"},
   "growth.branching": {"law": "lsystem", "p": {"axiom": "F", "rules": {"F": "F[+F]F[-F]"}, "depth": 3}, "use": "bois, veines de membrane (futur)"},
-  "pattern.reptile_scales": {"shader": "voronoi_edge_x2", "p": {"scale": 5, "scale2": 16, "bump": 1.2, "warp": 0.3}, "use": "peau écailleuse v2: 2 voronoi distance-to-edge (plaques+micro) sur coords Object monde distordues par noise (échelle = cellules/unité), arêtes cuivrées à roughness basse"},
-  "pattern.membrane_skin": {"shader": "membrane", "p": {"veins": 12, "transmission": 0.3}, "use": "peau fine translucide, lueur à contre-jour"},
+  "pattern.reptile_scales": {"shader": "voronoi_edge_x2", "p": {"scale": 5, "scale2": 16, "bump": 1.2, "warp": 0.3, "patina_amount": 0.0}, "use": "peau écailleuse v3: 2 voronoi distance-to-edge (plaques+micro) sur coords Object monde distordues par noise (échelle = cellules/unité), arêtes cuivrées à roughness basse ; patine métal usé optionnelle (Geometry Pointiness -> vert-de-gris en creux, or chaud sur arêtes convexes)"},
+  "pattern.membrane_skin": {"shader": "membrane", "p": {"vein_scale": 0.0, "wrinkle_scale": 0.0, "transmission": 0.0}, "use": "peau fine vascularisée v2 : réseau de veines voronoi (bump+assombrissement), gradient racine->bord, micro-plis anisotropes ; transmission bornée 0.05 (piège taches blanches), translucidité simulée par sss/glow"},
+  "pattern.horn": {"shader": "horn", "p": {"stripe_scale": 28, "aniso": 0.4}, "use": "kératine striée générique (cornes/griffes/épines) : bandes Wave le long de l'axe Z objet + bump, reflet anisotrope fibreux, légère variation cellule à cellule"},
   "pattern.rock": {"shader": "noise_bump_burnt", "p": {"scale": 3, "bump": 1.2}, "use": "sols cendrés: micro-relief fort + zones brûlées par noise large + pointe de braise"},
   "math.phi": 1.618033988749895,
   "math.golden_angle_deg": 137.507764

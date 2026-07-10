@@ -100,15 +100,22 @@ def camera(loc, target=(0, 0, 2), lens=45):
     return ob
 
 
-def world(color=(0.03, 0.04, 0.06), strength=0.4, color_top=None, volume=None):
+def world(color=(0.03, 0.04, 0.06), strength=0.4, color_top=None, volume=None, variation=None):
     """Fond monde. Rétro-compatible : color/strength seuls = fond uni.
     color_top : dégradé horizon→zénith (horizon = `color`).
-    volume : {'density', 'anisotropy', 'color'} → brume par volume scatter mondial."""
+    volume : {'density', 'anisotropy', 'color', 'noise_scale', 'noise_strength'} → brume
+    par volume scatter mondial ; noise_scale>0 (défaut 0 = densité constante, rétro-
+    compat) module la densité par un bruit 3D (« poussière d'or » patchy plutôt qu'un
+    brouillard uniforme).
+    variation : {'scale', 'strength', 'color', 'detail'} → fond non-uni générique (bruit
+    Noise sur coords Generated, mixé par-dessus le dégradé/couleur de base) — casse le
+    fond plat façon canyon/paroi rocheuse, aucune valeur dragon en dur."""
     w = bpy.data.worlds.new('world')
     w.use_nodes = True
     nt = w.node_tree
     bg = nt.nodes['Background']
     bg.inputs[1].default_value = strength
+    base_socket = None
     if color_top:
         tc = nt.nodes.new('ShaderNodeTexCoord')
         sep = nt.nodes.new('ShaderNodeSeparateXYZ')
@@ -122,12 +129,58 @@ def world(color=(0.03, 0.04, 0.06), strength=0.4, color_top=None, volume=None):
         nt.links.new(tc.outputs['Generated'], sep.inputs['Vector'])
         nt.links.new(sep.outputs['Z'], mr.inputs['Value'])
         nt.links.new(mr.outputs['Result'], mix.inputs['Factor'])
-        nt.links.new(mix.outputs['Result'], bg.inputs[0])
+        base_socket = mix.outputs['Result']
     else:
         bg.inputs[0].default_value = (*color, 1)
+    if variation:
+        vtc = nt.nodes.new('ShaderNodeTexCoord')
+        vn = nt.nodes.new('ShaderNodeTexNoise')
+        vn.inputs['Scale'].default_value = variation.get('scale', 2.5)
+        vn.inputs['Detail'].default_value = variation.get('detail', 4.0)
+        nt.links.new(vtc.outputs['Generated'], vn.inputs['Vector'])
+        vramp = nt.nodes.new('ShaderNodeValToRGB')
+        vramp.color_ramp.elements[0].position = 0.35
+        vramp.color_ramp.elements[1].position = 0.65
+        nt.links.new(vn.outputs['Fac'], vramp.inputs['Fac'])
+        vfac = nt.nodes.new('ShaderNodeMath')
+        vfac.operation = 'MULTIPLY'
+        vfac.inputs[1].default_value = variation.get('strength', 0.5)
+        nt.links.new(vramp.outputs['Color'], vfac.inputs[0])
+        vmix = nt.nodes.new('ShaderNodeMix')
+        vmix.data_type = 'RGBA'
+        vmix.inputs['B'].default_value = (*variation.get('color', (0.6, 0.3, 0.08)), 1)
+        if base_socket is not None:
+            nt.links.new(base_socket, vmix.inputs['A'])
+        else:
+            vmix.inputs['A'].default_value = (*color, 1)
+        nt.links.new(vfac.outputs['Value'], vmix.inputs['Factor'])
+        nt.links.new(vmix.outputs['Result'], bg.inputs[0])
+    elif base_socket is not None:
+        nt.links.new(base_socket, bg.inputs[0])
     if volume:
         vs = nt.nodes.new('ShaderNodeVolumeScatter')
-        vs.inputs['Density'].default_value = volume.get('density', 0.01)
+        base_density = volume.get('density', 0.01)
+        noise_scale = volume.get('noise_scale', 0.0)
+        if noise_scale > 0:
+            ntc = nt.nodes.new('ShaderNodeTexCoord')
+            nz = nt.nodes.new('ShaderNodeTexNoise')
+            nz.inputs['Scale'].default_value = noise_scale
+            nz.inputs['Detail'].default_value = volume.get('noise_detail', 3.0)
+            nt.links.new(ntc.outputs['Object'], nz.inputs['Vector'])
+            nstr = volume.get('noise_strength', 0.6)
+            nr = nt.nodes.new('ShaderNodeMapRange')
+            nr.inputs['From Min'].default_value = 0.3
+            nr.inputs['From Max'].default_value = 0.7
+            nr.inputs['To Min'].default_value = max(0.0, 1.0 - nstr)
+            nr.inputs['To Max'].default_value = 1.0 + nstr
+            nt.links.new(nz.outputs['Fac'], nr.inputs['Value'])
+            dmul = nt.nodes.new('ShaderNodeMath')
+            dmul.operation = 'MULTIPLY'
+            dmul.inputs[1].default_value = base_density
+            nt.links.new(nr.outputs['Result'], dmul.inputs[0])
+            nt.links.new(dmul.outputs['Value'], vs.inputs['Density'])
+        else:
+            vs.inputs['Density'].default_value = base_density
         vs.inputs['Anisotropy'].default_value = volume.get('anisotropy', 0.4)
         vs.inputs['Color'].default_value = (*volume.get('color', (1.0, 0.8, 0.55)), 1)
         nt.links.new(vs.outputs['Volume'], nt.nodes['World Output'].inputs['Volume'])
