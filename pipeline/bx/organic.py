@@ -179,13 +179,20 @@ def head(part, mats):
     narines, couronne de cornes en spirale log."""
     L = Vector(part['loc'])
     pitch = part.get('pitch', -8.0)
+    # head_yaw (T17 CR2, défaut 0 = rétro-compat ; nommé à part de `yaw` local à la
+    # couronne de cornes plus bas pour éviter toute collision de nom) : rotation de la
+    # tête ENTIÈRE autour de l'axe vertical local (Z) -> tête légèrement tournée vers
+    # la caméra sans toucher au `pitch` (nez haut/bas) ni dupliquer le builder. Comme
+    # tout est placé en coordonnées LOCALES relatives à `L`/`Rp` (yeux, cornes, dents,
+    # crêtes...), une seule rotation ici entraîne l'ensemble de la tête de façon rigide.
+    head_yaw = part.get('yaw', 0.0)
     gape = part.get('gape', 26.0)
     exp = part.get('exp', 1.7)
     skin = _mat(mats, part.get('mat', 'scales'))
     hp = part.get('horns', {})
     bone_m = _mat(mats, hp.get('mat', 'bone'))
     tooth_m = _mat(mats, 'teeth') or bone_m
-    Rp = Euler((math.radians(pitch), 0, 0)).to_matrix()
+    Rp = Euler((math.radians(pitch), 0, math.radians(head_yaw))).to_matrix()
     Rj = Euler((math.radians(-gape), 0, 0)).to_matrix()
     out = []
 
@@ -600,7 +607,7 @@ def wing(part, mats):
     `arm_order`, `thickness_root/edge`, `battens_per_panel`, `finger_r0/rmin`...)."""
     out = []
     sides = [1, -1] if part.get('side', 'both') == 'both' else [1]
-    sag = part.get('sag', 0.55)
+    base_sag = part.get('sag', 0.55)
     nt = part.get('samples', 9)
     sub = part.get('columns_between', 4)
     arm_radii = part.get('arm_radii', [0.22, 0.16, 0.12])
@@ -621,29 +628,51 @@ def wing(part, mats):
     # d'une surface réglée plate facettée. festoon : bord de fuite légèrement festonné
     # entre les doigts (tiré vers le poignet au milieu de chaque panneau, nul aux
     # doigts) -> silhouette membraneuse au lieu d'un polygone droit entre les pointes.
-    camber = part.get('camber', 0.0)
-    festoon = part.get('festoon', 0.0)
+    base_camber = part.get('camber', 0.0)
+    base_festoon = part.get('festoon', 0.0)
     finger_lift = part.get('finger_lift', batten_lift)
     # finger_bow (anti-parapluie) : les doigts (et les colonnes de membrane collées
     # dessus) ne sont plus des rayons rectilignes W->tip mais des arcs -> flèche
     # perpendiculaire à la direction du doigt, nulle aux 2 bouts (poignet/pointe),
     # maximale à mi-longueur, dans le plan horizontal de la membrane, du côté du
     # bord de fuite (repéré via `anchor`, générique -> aucune valeur dragon en dur).
-    finger_bow = part.get('finger_bow', 0.0)
+    base_finger_bow = part.get('finger_bow', 0.0)
     finger_taper = part.get('finger_taper', 1.1)
     # panel_billow : bombé/creux charnu par panneau (entre 2 doigts), fonction du
     # u_local du panneau (0 aux doigts, max au milieu) et du t le long de la corde
     # -> remplace le plan réglé par une membrane qui gonfle/s'affaisse localement.
-    panel_billow = part.get('panel_billow', 0.0)
+    base_panel_billow = part.get('panel_billow', 0.0)
     for s in sides:
         tag = 'L' if s > 0 else 'R'
+        # pose (T17 CR2, pose dynamique) : override PAR CÔTÉ, appliqué APRÈS le
+        # miroir -> battement asymétrique générique (virage banqué : une aile haute
+        # tendue, l'autre basse en appui) sans dupliquer le builder. `shoulder`/
+        # `anchor`/`root_curve` restent FIXES (attache torse/hanche, doctrine
+        # "nageoire") : seuls le bras (coude/poignet, `elbow_dz`/`wrist_dz`) et les
+        # pointes (`tips_dz`/`tips_dy`) bougent, plus des multiplicateurs de relief
+        # (`sag_mult`/`camber_mult`/`panel_billow_mult`/`finger_bow_mult`/
+        # `festoon_mult`) -> la membrane se redrape depuis une racine ancrée, pas de
+        # décollement. Rétro-compat totale : sans `pose` dans la spec, `pov={}` ->
+        # tous les multiplicateurs valent 1.0 et les deltas 0.0, comportement inchangé.
+        pov = (part.get('pose') or {}).get(tag, {})
+        sag = base_sag * pov.get('sag_mult', 1.0)
+        camber = base_camber * pov.get('camber_mult', 1.0)
+        panel_billow = base_panel_billow * pov.get('panel_billow_mult', 1.0)
+        finger_bow = base_finger_bow * pov.get('finger_bow_mult', 1.0)
+        festoon = base_festoon * pov.get('festoon_mult', 1.0)
         sh = (s * part['shoulder'][0], part['shoulder'][1], part['shoulder'][2])
-        el = (s * part['elbow'][0], part['elbow'][1], part['elbow'][2])
-        wr = (s * part['wrist'][0], part['wrist'][1], part['wrist'][2])
+        el = (s * part['elbow'][0], part['elbow'][1], part['elbow'][2] + pov.get('elbow_dz', 0.0))
+        wr = (s * part['wrist'][0], part['wrist'][1], part['wrist'][2] + pov.get('wrist_dz', 0.0))
         arm = ops.tube(f'arm_{tag}', [sh, el, wr], arm_radii, order=arm_order)
         materials.assign(arm, _mat(mats, bone_mat_key))
         out.append(arm)
         rays = [tuple((s * p[0], p[1], p[2])) for p in part['tips']]
+        tips_dz = pov.get('tips_dz')
+        tips_dy = pov.get('tips_dy')
+        if tips_dz or tips_dy:
+            rays = [(r[0], r[1] + (tips_dy[i] if tips_dy and i < len(tips_dy) else 0.0),
+                    r[2] + (tips_dz[i] if tips_dz and i < len(tips_dz) else 0.0))
+                    for i, r in enumerate(rays)]
         anchor = (s * part['anchor'][0], part['anchor'][1], part['anchor'][2])
         W = Vector(wr)
 

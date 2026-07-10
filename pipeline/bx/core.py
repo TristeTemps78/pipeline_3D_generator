@@ -2,7 +2,7 @@
 import math
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 
 def reset():
@@ -89,13 +89,20 @@ def aim(ob, target):
     return ob
 
 
-def camera(loc, target=(0, 0, 2), lens=45):
+def camera(loc, target=(0, 0, 2), lens=45, roll=0.0):
+    """`roll` (degrés, défaut 0 = rétro-compat) : rotation autour de l'axe de visée
+    (local -Z), appliquée APRÈS `aim` — incline l'horizon sans changer le cadrage
+    (position/cible), utile pour une prise dynamique (virage banqué) sans retoucher
+    loc/target. Mécanisme générique, aucune valeur dragon en dur."""
     cam = bpy.data.cameras.new('cam')
     cam.lens = lens
     ob = bpy.data.objects.new('cam', cam)
     link(ob)
     ob.location = loc
     aim(ob, target)
+    if roll:
+        ob.rotation_euler = (ob.rotation_euler.to_matrix()
+                             @ Matrix.Rotation(math.radians(roll), 3, 'Z')).to_euler()
     bpy.context.scene.camera = ob
     return ob
 

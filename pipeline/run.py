@@ -76,9 +76,13 @@ def _shot_camera(spec, shot, res):
     base_loc = tuple(cam.get('loc', (9, -11, 3.5)))
     base_tgt = tuple(cam.get('target', (0, 0, 2)))
     lens = shot.get('lens', cam.get('lens', 45))
+    # roll (générique, T17 pose dynamique) : par shot d'abord, sinon défaut caméra de
+    # scène (0 = rétro-compat) — un shot précis (ex. hero) peut s'incliner sans que les
+    # autres prises (head/legs, cadrage auto sur bbox) n'héritent d'un horizon penché.
+    roll = shot.get('roll', cam.get('roll', 0.0))
     part = shot.get('frame_part')
     if not part:
-        core.camera(base_loc, target=base_tgt, lens=lens)
+        core.camera(base_loc, target=base_tgt, lens=lens, roll=roll)
         return
     bb = feedback.part_bbox(spec, part)
     if bb is None:
@@ -92,7 +96,7 @@ def _shot_camera(spec, shot, res):
     tan_v = tan_h * (res[1] / res[0])
     dist = radius * shot.get('margin', 1.3) / min(tan_h, tan_v)
     tgt = tuple(center[i] + shot.get('target_offset', (0, 0, 0))[i] for i in range(3))
-    core.camera(tuple(tgt[i] + d[i] * dist for i in range(3)), target=tgt, lens=lens)
+    core.camera(tuple(tgt[i] + d[i] * dist for i in range(3)), target=tgt, lens=lens, roll=roll)
 
 
 def forge(spec_path, fast=False):
