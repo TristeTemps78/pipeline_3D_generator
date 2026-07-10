@@ -12,6 +12,10 @@
                                                   AUCUN rendu (axe 5)
   clayhero <spec.json> [--fast]                  clay + caméra hero (géométrie seule, cadrage macro)
   compare <spec.json> <ref.png> [--fast]         réf | rendu rim-lit + deltas couleur/bords (I2)
+  bake <spec.json> [--fast]                      étage HIGH->LOW générique (bx.bake) : shell
+                                                  voxel temporaire + couches détail -> bake
+                                                  Cycles normal/AO/courbure -> maps/*.png
+                                                  (--fast = maps 512/256, ao_samples réduits)
 Construit la scène depuis la spec, met à jour l'état de session.
 Étapes fuse/detail (fusion voxel + displace + écailles) pilotées par la spec — cf.
 research/convergence.md (solutions convergentes des deux docs, testées dans research/tests/)."""
@@ -223,6 +227,21 @@ def do_sheet4(spec_path, fast=False):
     print(json.dumps({'legend': legend, 'id_colors': colors}, indent=1))
 
 
+def do_bake(spec_path, fast=False):
+    """Étage HIGH->LOW générique (bx.bake, boucle 16) : construit la scène (l'UV auto du
+    LOW-poly est câblée dans organic.build lui-même, cf. `_apply_bake_uv`, pour rester
+    identique au rendu final), bake normal/AO/courbure par groupe `spec['bake']`,
+    imprime timings + chemins."""
+    import time
+    spec = _load(spec_path)
+    organic.build(spec)
+    from bx import bake as _bake
+    t0 = time.time()
+    rep = _bake.run(spec, fast=fast)
+    rep['total_s'] = round(time.time() - t0, 2)
+    print(json.dumps(rep, indent=1))
+
+
 def do_inspect(spec_path):
     """Axe 5 doctrine : introspection scène sans dépenser un rendu. JSON par pièce de
     spec (nb objets, bbox, dimensions) + compteurs globaux, sur stdout."""
@@ -251,5 +270,7 @@ if __name__ == '__main__':
         do_clayhero(sys.argv[2], fast=fast)
     elif cmd == 'compare':
         do_compare(sys.argv[2], sys.argv[3], fast=fast)
+    elif cmd == 'bake':
+        do_bake(sys.argv[2], fast=fast)
     else:
         sys.exit(f"commande inconnue: {cmd}")

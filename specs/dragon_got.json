@@ -35,6 +35,29 @@
     "patina_amount": 0.55
    }
   },
+  "scales_body": {
+   "builder": "reptile_scales",
+   "p": {
+    "scale": 15,
+    "scale2": 48,
+    "bump": 0.78,
+    "base": [0.05, 0.044, 0.041],
+    "tint": [0.3, 0.12, 0.065],
+    "rough": 0.58,
+    "sss": 0.22,
+    "micro": 0.65,
+    "edge_copper": 0.36,
+    "patina_color": [0.15, 0.32, 0.24],
+    "patina_gold": [0.5, 0.32, 0.11],
+    "patina_amount": 0.55,
+    "normal_map": "maps/dragon_got_body_normal.png",
+    "normal_map_strength": 1.35,
+    "ao_map": "maps/dragon_got_body_ao.png",
+    "ao_strength": 0.4,
+    "curvature_map": "maps/dragon_got_body_curvature.png",
+    "curvature_mix": 0.75
+   }
+  },
   "membrane": {
    "builder": "membrane",
    "p": {
@@ -1388,6 +1411,39 @@
    }
   ]
  },
+ "bake": [
+  {
+   "id": "body",
+   "parts": ["body"],
+   "exclude_like": ["dorsal_"],
+   "target_tris": 1800000,
+   "maps": {"normal": 2048, "ao": 1024, "curvature": 1024},
+   "margin_px": 4,
+   "cage_extrusion": 0.05,
+   "ao_samples": 24,
+   "surface": {
+    "layers": [
+     {
+      "type": "scales", "kind": "VORONOI", "scale": 0.07, "strength": 0.034,
+      "mask": {"axis": "nz", "range": [-0.5, 0.6], "to": [0.25, 1.0]}
+     },
+     {
+      "type": "scales", "kind": "VORONOI", "scale": 0.15, "strength": 0.022,
+      "mask": {"axis": "nz", "range": [-0.5, 0.6], "to": [1.0, 0.3]}
+     },
+     {
+      "type": "wrinkles",
+      "zones": [
+       {"loc": [0, 3.3, 3.85], "radius": 0.9, "scale": 0.045, "strength": 0.048, "dir": [0, 1, 0.15]},
+       {"loc": [0.5, 0.3, 3.35], "radius": 0.6, "scale": 0.035, "strength": 0.05, "dir": [1, 0, 0.2], "mirror": true},
+       {"loc": [0.7, -3.0, 3.3], "radius": 0.65, "scale": 0.035, "strength": 0.048, "dir": [1, 0, -0.15], "mirror": true}
+      ]
+     },
+     {"type": "micro", "kind": "STUCCI", "scale": 0.02, "strength": 0.011}
+    ]
+   }
+  }
+ ],
  "fuse_groups": [
   {
    "id": "torso_wings",
@@ -1410,7 +1466,7 @@
    ],
    "voxel": 0.05,
    "fillet": 0.25,
-   "mat": "scales"
+   "mat": "scales_body"
   }
  ],
  "scene": {

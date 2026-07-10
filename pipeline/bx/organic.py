@@ -924,6 +924,17 @@ def _apply_fuse_groups(spec, groups):
                                fillet=fg.get('fillet', 0.25),
                                name=primary)
         if fg.get('mat'):
+            # BUG corrigé (boucle 16) : sdf_fuse() (Mesh to SDF Grid -> Grid to Mesh)
+            # ne préserve pas les assignations de matériau de la géométrie source, mais
+            # LAISSE un slot 0 vide (None) sur le mesh évalué -> `materials.assign`
+            # (qui APPEND) empilait le vrai matériau en slot 1 pendant que 100% des
+            # faces pointaient encore sur le slot 0 (None) = rendu au matériau PAR
+            # DÉFAUT de Blender (gris plastique plat, SANS bump/patine) sur toute la
+            # peau NUE du corps fusionné entre les plaques d'armure instanciées —
+            # exactement le défaut « surface lisse sous les écailles » signalé en
+            # feedback. `clear()` avant `append()` : le nouveau matériau retombe en
+            # slot 0, déjà référencé par toutes les faces.
+            fused.data.materials.clear()
             materials.assign(fused, spec.get('_mats', {}).get(fg['mat']))
         # purge partout (pas seulement `parts`) : `objects_like` peut avoir tiré des
         # objets d'un groupe non listé (ex. futures racines de patte).
@@ -1008,6 +1019,32 @@ def _apply_armor(spec, groups):
                 name=f'armor_{idx}_{ob.name}')
 
 
+def _apply_bake_uv(spec, groups):
+    """UV auto (bx.bake) sur le LOW-poly des groupes `spec['bake']` — DOIT tourner à
+    CHAQUE construction de scène (forge/bake/validate/...), pas seulement la commande
+    `bake` : le mesh fusionné est déterministe pour une spec donnée (même topologie à
+    chaque `build()`), donc rejouer exactement le même smart_project/pack_islands
+    reproduit la MÊME UV sans rien persister sur disque — condition nécessaire pour que
+    les maps bakées (chemins branchés dans `materials.py`) restent alignées au rendu.
+    Rétro-compat totale : pas de `spec['bake']` -> aucun appel, comportement inchangé."""
+    entries = spec.get('bake', [])
+    if not entries:
+        return
+    from . import bake as _bake
+    for g in entries:
+        exclude = g.get('exclude_like', [])
+        seen, objs = set(), []
+        for pid in g.get('parts', []):
+            for o in groups.get(pid, []):
+                if o.type != 'MESH' or o.name in seen or any(x in o.name for x in exclude):
+                    continue
+                seen.add(o.name)
+                objs.append(o)
+        for ob in objs:
+            _bake.uv_unwrap(ob, margin_px=g.get('margin_px', 4),
+                            resolution=g.get('maps', {}).get('normal', 2048))
+
+
 def build(spec):
     """Point d'entrée : spec dict → scène complète. Retourne le nombre d'objets."""
     core.reset()
@@ -1025,6 +1062,7 @@ def build(spec):
     _apply_fuse_groups(spec, groups)
     _apply_displace(spec, groups)
     _apply_armor(spec, groups)
+    _apply_bake_uv(spec, groups)
     sc = spec.get('scene', {})
     core.world(**sc.get('world', {}))
     core.sun(**sc.get('sun', {}))

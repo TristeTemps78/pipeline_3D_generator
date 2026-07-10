@@ -1,5 +1,31 @@
 """bx.materials — shaders procéduraux paramétrés par le vocabulaire GVL."""
+import os
+
 import bpy
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _resolve(path):
+    """Chemins de maps bakées (`normal_map`/`ao_map`/`curvature_map`) relatifs à la
+    RACINE du dépôt (convention `maps/<spec>_<group>_<map>.png` de bx.bake) — marche
+    quel que soit le cwd d'où `run.py` est invoqué, pas seulement depuis la racine."""
+    return path if os.path.isabs(path) else os.path.join(ROOT, path)
+
+
+def _load_data_image(path):
+    """Charge une map bakée en colorspace Non-Color. Tolère l'ABSENCE du fichier
+    (retourne None, avertit sur stderr) : la commande `bake` construit la scène (donc
+    les matériaux, donc ces chemins) AVANT que les maps existent au premier lancement
+    sur un dépôt neuf -> sans ce filet, `run.py bake` ne pourrait jamais bootstrapper.
+    Rétro-compat : chemin absent/introuvable = comportement procédural pur (v2)."""
+    full = _resolve(path)
+    if not os.path.exists(full):
+        print(f"materials: map bakée introuvable ({full}), ignorée (procédural pur)")
+        return None
+    img = bpy.data.images.load(full)
+    img.colorspace_settings.name = 'Non-Color'
+    return img
 
 
 def _new(name):
@@ -25,7 +51,10 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
                    scale=5, scale2=16, bump=1.2, rough=0.5, warp=0.3,
                    sss=0.0, sss_radius=(0.32, 0.11, 0.06), micro=0.0,
                    edge_copper=0.68, patina_color=(0.15, 0.32, 0.24),
-                   patina_gold=(0.6, 0.38, 0.13), patina_amount=0.0):
+                   patina_gold=(0.6, 0.38, 0.13), patina_amount=0.0,
+                   normal_map=None, normal_map_strength=1.0,
+                   ao_map=None, ao_strength=0.35,
+                   curvature_map=None, curvature_mix=0.6):
     """pattern.reptile_scales v2 : 2 voronoi distance-to-edge superposés (plaques + micro-
     écailles) sur coordonnées Object distordues par noise (casse la grille ; Object car les
     curves n'ont pas de Generated fiable) ; arêtes cuivre rouge, roughness basse aux bords.
@@ -34,7 +63,15 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     type Instancer, écrit par detail.armor_scales store_seed) → chaque écaille instanciée
     décale l'origine du voronoi micro (v2 en 4D, W par seed) et éclaircit sa base de
     `micro`×seed — variation unique par plaque SANS réaliser les instances. Sur une
-    géométrie non instanciée l'attribut vaut 0 → matériau inchangé."""
+    géométrie non instanciée l'attribut vaut 0 → matériau inchangé.
+    `normal_map`/`ao_map`/`curvature_map` (boucle 16, bx.bake) : chemins PNG optionnels
+    vers des maps bakées HIGH->LOW (peau continue à écailles imbriquées + plis
+    d'articulation) — None (défaut) = comportement v2 inchangé (rétro-compat totale).
+    `normal_map` est CHAÎNÉ en amont du Bump procédural existant (macro bakée + micro
+    shader empilés, pas un remplacement) ; `ao_map` multiplie légèrement la base color
+    (creux baked plus sombres) ; `curvature_map` se MÉLANGE (`curvature_mix`) à la
+    Pointiness géométrique live pour moduler la patine cavité — moins uniforme qu'une
+    Pointiness seule sur un low-poly lissé après le shell de bake."""
     mat, nt, bsdf = _new(name)
     n, lk = nt.nodes, nt.links
     # --- coordonnées distordues : Object + (noise-0.5)*warp ---
@@ -93,6 +130,18 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     bmp = n.new('ShaderNodeBump')
     bmp.inputs['Strength'].default_value = bump
     lk.new(hsum.outputs['Value'], bmp.inputs['Height'])
+    normal_img = _load_data_image(normal_map) if normal_map else None
+    if normal_img:
+        # macro bakée (peau continue + plis, bx.bake) CHAÎNÉE en amont : le Bump
+        # procédural (micro shader) perturbe ensuite CE normal plutôt que le normal
+        # de shading brut -> les deux échelles de détail s'additionnent au lieu de
+        # s'écraser l'une l'autre.
+        nm_img = n.new('ShaderNodeTexImage')
+        nm_img.image = normal_img
+        nmap = n.new('ShaderNodeNormalMap')
+        nmap.inputs['Strength'].default_value = normal_map_strength
+        lk.new(nm_img.outputs['Color'], nmap.inputs['Color'])
+        lk.new(nmap.outputs['Normal'], bmp.inputs['Normal'])
     lk.new(bmp.outputs['Normal'], bsdf.inputs['Normal'])
     # --- facteur arête : distance faible = bord de plaque → 1 (resserré : ne couvre
     # que le sillon réel entre écailles, pas toute la plaque — tempère le cuivre I2) ---
@@ -156,12 +205,27 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     # combat). `patina_amount` 0 (défaut) = comportement v2 inchangé (rétro-compat). ---
     if patina_amount > 0:
         geo = n.new('ShaderNodeNewGeometry')
+        cavity_src = geo.outputs['Pointiness']
+        curvature_img = _load_data_image(curvature_map) if curvature_map else None
+        if curvature_img:
+            # courbure bakée (bx.bake, shell HIGH-poly) MÉLANGÉE à la Pointiness live du
+            # low-poly : capte les plis/imbrications d'écailles du shell détruit après
+            # bake, que la Pointiness seule (mesh lissé par le remesh voxel) ne voit
+            # plus -> patine moins uniforme qu'avec la seule géométrie basse résolution.
+            curv_img = n.new('ShaderNodeTexImage')
+            curv_img.image = curvature_img
+            curv_mix = n.new('ShaderNodeMix')
+            curv_mix.data_type = 'FLOAT'
+            curv_mix.inputs['Factor'].default_value = curvature_mix
+            lk.new(cavity_src, curv_mix.inputs['A'])
+            lk.new(curv_img.outputs['Color'], curv_mix.inputs['B'])
+            cavity_src = curv_mix.outputs['Result']
         cav = n.new('ShaderNodeMapRange')
         cav.inputs['From Min'].default_value = 0.55
         cav.inputs['From Max'].default_value = 0.22
         cav.inputs['To Min'].default_value = 0.0
         cav.inputs['To Max'].default_value = 1.0
-        lk.new(geo.outputs['Pointiness'], cav.inputs['Value'])
+        lk.new(cavity_src, cav.inputs['Value'])
         cavf = n.new('ShaderNodeMath')
         cavf.operation = 'MULTIPLY'
         cavf.inputs[1].default_value = patina_amount
@@ -177,7 +241,7 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
         edg.inputs['From Max'].default_value = 0.92
         edg.inputs['To Min'].default_value = 0.0
         edg.inputs['To Max'].default_value = 1.0
-        lk.new(geo.outputs['Pointiness'], edg.inputs['Value'])
+        lk.new(cavity_src, edg.inputs['Value'])
         edgf = n.new('ShaderNodeMath')
         edgf.operation = 'MULTIPLY'
         edgf.inputs[1].default_value = patina_amount
@@ -194,6 +258,25 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
         lk.new(rough_out, rough_gold.inputs['A'])
         lk.new(edgf.outputs['Value'], rough_gold.inputs['Factor'])
         rough_out = rough_gold.outputs['Result']
+    ao_img_data = _load_data_image(ao_map) if ao_map else None
+    if ao_img_data:
+        # AO bakée (bx.bake) assombrit LÉGÈREMENT la base color dans les creux d'auto-
+        # occlusion (racines d'écailles, plis) -> `ao_strength` borne l'effet (jamais un
+        # noir plat, juste une variation supplémentaire que la Pointiness seule ne capte
+        # pas sur un mesh low-poly lissé).
+        ao_img = n.new('ShaderNodeTexImage')
+        ao_img.image = ao_img_data
+        ao_range = n.new('ShaderNodeMapRange')
+        ao_range.inputs['To Min'].default_value = 1.0 - ao_strength
+        ao_range.inputs['To Max'].default_value = 1.0
+        lk.new(ao_img.outputs['Color'], ao_range.inputs['Value'])
+        ao_mul = n.new('ShaderNodeMix')
+        ao_mul.data_type = 'RGBA'
+        ao_mul.blend_type = 'MULTIPLY'
+        ao_mul.inputs['Factor'].default_value = 1.0
+        lk.new(color_out, ao_mul.inputs['A'])
+        lk.new(ao_range.outputs['Result'], ao_mul.inputs['B'])
+        color_out = ao_mul.outputs['Result']
     lk.new(color_out, bsdf.inputs['Base Color'])
     lk.new(rough_out, bsdf.inputs['Roughness'])
     _set(bsdf, 'Roughness', rough)

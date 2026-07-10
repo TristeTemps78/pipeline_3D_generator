@@ -4,36 +4,35 @@ Reprise (conteneur neuf) : `bash pipeline/bootstrap.sh` → claude.md → ce fic
 l'utilisateur dit « continue », exécuter le contrat ci-dessous sans reposer de question.
 
 ## Où on en est
-Boucle 15 close (SANS rendu HQ, à la demande), **EN ATTENTE DE FEEDBACK** sur les shots
-fast **step_172_hero/head/legs** (+ clay tête step_168, hero post-volume step_161).
-Feedback step_160 intégral dans session.json (critique visuelle + « 2h → minutes »).
-Fait en boucle 15 (tout générique, défauts rétro-compatibles) :
-- PERF : `scene.render` (device AUTO GPU→CPU, samples/denoise/adaptive/bounces/clamp/
-  res_scale/fast_sss Burley) câblé au rendu final ; brume VOLUMÉTRIQUE RETIRÉE = LE poste
-  des 2h locales (HQ hero : >20 min → **38 s** ici, piège consigné dans claude.md) ;
-  lumières 5→4 bornées size 6. Le rendu HQ local de l'utilisateur doit passer à ~1-3 min
-  CPU, secondes avec GPU (AUTO le prend tout seul).
-- TÊTE : lois `growth_rings`/`curl_offset` (laws+GVL), cornes annelées base fondue
-  (`_apply_horn_growth`, `_kera_spike`, tube res paramétrable), dents variées
-  (`rscale`, `fang_girth_*`), gencives+lèvre (ridges), charnière/couronne fondues
-  (face_blobs aplatis). Tête 75.9k verts (-4 %).
-- ÉCAILLES : `_axis_factor` accepte les axes NORMALE `nx/ny/nz` → `mask_radial`
-  (ventre plaques larges lisses / dos carènes serrées / flancs mix) + `scale_noise`
-  (patchs macro). Bords **0.233 → 0.3002** (cible réf .35) à qualité complète.
-- MEMBRANE : 2e génération de nervures ramifiées (`vein_branches` etc., suivent
-  sag/camber/billow) ; displace membrane subdiv 2. Scène 279k verts (plafond 400k).
-- Bugs corrigés au passage : veines avalées par la fusion SDF (exclude_like),
-  classification wing sans hand_/vein_ (PART_TYPE_HINTS).
+Boucle 16 close, **EN ATTENTE DE FEEDBACK** sur les shots HQ **step_182_hero/head/legs**
+(jalons précédents : 172_* boucle 15, 161 post-volume). Doctrine :
+`research/doctrine_bake_v1.md` (synthèse des 2 réponses externes).
+Fait en boucle 16 :
+- **Étage BAKE générique** (`bx/bake.py`, cmd `run.py bake <spec> [--fast]`) : shell
+  high-poly TEMPORAIRE (voxel remesh ~1.3M tris) + couches `surface.layers`
+  (scales/wrinkles/micro, masques numpy axe/normale, `wrinkle_zones` aux ancres) →
+  UV auto low-poly (smart_project+pack, câblé dans build) → bake Cycles
+  selected_to_active NORMAL 2048 / AO 1024 / COURBURE 1024 (Pointiness→EMIT) →
+  `maps/<spec>_<groupe>_*.png` versionnées. **Bake total 45 s**, rendu inchangé ~39 s.
+- Matériaux : `reptile_scales` accepte normal_map/ao_map/curvature_map (+strengths),
+  mixés aux nœuds procéduraux ; patine modulée par courbure BAKÉE. Nouveau matériau
+  `scales_body` sur le mesh fusionné.
+- **BUG MAJEUR corrigé** : le mesh fusionné SDF gardait un slot matériau None → le corps
+  rendait avec le matériau PAR DÉFAUT de Blender entre les plaques depuis la boucle 11
+  (fix générique dans _apply_fuse_groups : materials.clear() avant assign).
+- Métriques pleine qualité vs réf : cuivre .455 (réf .458 ✓), bords .2988 (réf .348) —
+  la normal map bakée agit (crops A/B validés) mais le cadrage hero est dominé par
+  l'armure instanciée/membrane, hors scope bake v1 (corps seul).
 
-## Contrat boucle 16 (à recadrer selon feedback sur step_172_*)
-Candidats (NEXT item 0 restant + doutes agents) : (a) BAKE générique sculpt→normal/
-displacement maps + textures image (2e étage perf demandé par l'utilisateur, gros
-chantier) ; (b) œil/iris reptilien gros plan (jamais validé) ; (c) plis de peau aux
-articulations `fold_rings` ; (d) environnement caverne/canyon détaillé + cicatrices ;
-(e) câbler mask_radial/scale_noise sur hindleg, veines mat membrane vs bone à valider ;
-(f) gum/lip ridges codés en dur → resynchroniser si les dents bougent (doute agent tête).
+## Contrat boucle 17 (à recadrer selon feedback sur step_182_*)
+1. Étendre le bake aux groupes `head` et `hindleg` (le gap bords est là : la peau bakée
+   n'est visible que sur le corps nu) + tuning lisibilité des wrinkle_zones (doute agent).
+2. Selon verdict couleur : recaler le look (le corps est plus PÂLE depuis le fix matériau
+   None — c'était un gris sombre par défaut avant ; scales_body base/patina à foncer ?).
+3. Restants NEXT item 0 : œil/iris gros plan, environnement caverne/canyon, cicatrices.
 
 ## Restes connus hors contrat
-fuse_groups head/hindleg bloqué (NEXT 2, prérequis armure spatiale) ; scene.blend s'ouvre
-sur la caméra du dernier shot ; `front_extent=0.5` de root_follow_arm en dur ; le compare
---fast sous-estime les bords (denoise lisse) — toujours juger la métrique en qualité pleine.
+fuse_groups head/hindleg (armure spatiale prérequis) ; compare --fast sous-estime les
+bords (denoise) — métrique toujours en pleine qualité ; `noise_scale` textures legacy :
+plus PETIT = motif plus FIN (piège, documenté dans bake.py) ; scene.blend s'ouvre sur la
+caméra du dernier shot ; front_extent root_follow_arm en dur.
