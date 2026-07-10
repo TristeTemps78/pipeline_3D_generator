@@ -22,7 +22,9 @@ transform objet ; couronne : angle X POSITIF = bascule arrière ; transmission s
 fine + lumières fortes = taches blanches transmises (mettre 0 ou masquer) ; _axis_factor
 (masks/grads armure) travaille en coordonnées locales == monde seulement si l'objet est
 à l'origine ; détail tête : plaques trop grosses/soulevées = « gravier » qui noie la
-sculpture (scale ~.02-.05 à l'échelle d'un crâne de 2u).
+sculpture (scale ~.02-.05 à l'échelle d'un crâne de 2u) ; VOLUME SCATTER mondial
+(brume/poussière) = rendu ×30-100 sur CPU (2h chez l'utilisateur, >20 min HQ ici vs 38 s
+sans) — atmosphère par dégradé+variation du fond, volume réservé GPU et jamais par défaut.
 
 ## Métriques (normalisées h=512 — `run.py compare`)
 Cibles réf : couleur moy (0.33,0.27,0.26) · cuivre 0.42 · bords 0.36. La PRIORITÉ utilisateur est la densité de détail (bords), pas la couleur.
