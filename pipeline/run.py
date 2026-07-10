@@ -106,6 +106,9 @@ def forge(spec_path, fast=False):
         if '--clay' in sys.argv:
             core.clay()
         res, samples = ((640, 480), 16) if fast else ((1152, 864), 48)
+        # scene.render (perf générique) : appliqué au rendu FINAL seulement — en
+        # --fast on garde les réglages d'itération (déjà minimaux).
+        rset = None if fast else spec.get('scene', {}).get('render')
         shots = spec.get('scene', {}).get('shots')
         only = None
         if '--shot' in sys.argv:
@@ -118,11 +121,11 @@ def forge(spec_path, fast=False):
                     continue
                 _shot_camera(spec, shot, res)
                 o = out.replace('.png', f'_{sid}.png')
-                core.render(o, res=res, samples=samples)
+                core.render(o, res=res, samples=samples, settings=rset)
                 outs.append(o)
             out = outs[0] if outs else out
         else:
-            core.render(out, res=res, samples=samples)
+            core.render(out, res=res, samples=samples, settings=rset)
     _save_scene()
     st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
     save_state(st)

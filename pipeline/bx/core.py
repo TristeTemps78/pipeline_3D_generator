@@ -239,19 +239,45 @@ def rim_setup(key=(6, -8, 5), rim=(-7, 7, 4), target=(0, 0, 1.5),
         area_light(rim2, target=target, energy=rim2_energy, size=rim2_size, color=rim2_color)
 
 
-def render(path, res=(1152, 864), samples=48, throttle=True):
-    """`throttle` (T14, research/logs/t14_cycles_throttle.json) : bounces bornés,
-    caustiques off, adaptive sampling, BVH persistant — diff pixel 0.001 vs réglages
-    larges sur la scène complète ; le gain vient surtout des rendus multiples d'un
-    même process (contact_sheet 4 vues, boucles internes) et bornera le coût quand
-    les instances ×35k arriveront."""
+def _gpu_available():
+    """Active le meilleur backend GPU Cycles dispo (OptiX/CUDA/HIP/Metal/oneAPI) et
+    retourne True si au moins un device GPU est utilisable. Sans GPU : False (CPU)."""
+    try:
+        prefs = bpy.context.preferences.addons['cycles'].preferences
+        for backend in ('OPTIX', 'CUDA', 'HIP', 'METAL', 'ONEAPI'):
+            try:
+                prefs.compute_device_type = backend
+            except TypeError:
+                continue
+            prefs.get_devices()
+            if any(d.type != 'CPU' for d in prefs.devices):
+                for d in prefs.devices:
+                    d.use = d.type != 'CPU'
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def render(path, res=(1152, 864), samples=48, throttle=True, settings=None):
+    """`throttle` (T14) : bounces bornés, caustiques off, adaptive sampling, BVH
+    persistant — diff pixel 0.001 vs réglages larges. `settings` (= spec
+    `scene.render`, mécanisme générique perf, feedback step_160 « 2h → minutes »)
+    surcharge tout : device ('AUTO' = GPU si dispo sinon CPU — un GPU local divise
+    le temps par 10-50x), samples, denoise, adaptive_threshold, max_bounces/
+    diffuse_bounces/glossy_bounces/volume_bounces, clamp_indirect, volume_step_rate/
+    volume_max_steps (la brume volumétrique est le poste le plus cher), res_scale
+    (0.5 = quart de pixels), fast_sss (force SSS Burley, ~2-3x moins cher que le
+    random walk par défaut, différence visuelle minime sur écailles)."""
+    rs = settings or {}
     sc = bpy.context.scene
     sc.render.engine = 'CYCLES'
-    sc.cycles.samples = samples
-    sc.cycles.use_denoising = True
-    sc.cycles.device = 'CPU'
+    cy = sc.cycles
+    cy.samples = int(rs.get('samples', samples))
+    cy.use_denoising = bool(rs.get('denoise', True))
+    device = rs.get('device', 'AUTO')
+    cy.device = 'GPU' if (device in ('AUTO', 'GPU') and _gpu_available()) else 'CPU'
     if throttle:
-        cy = sc.cycles
         cy.max_bounces = 6
         cy.diffuse_bounces = 2
         cy.glossy_bounces = 3
@@ -259,7 +285,28 @@ def render(path, res=(1152, 864), samples=48, throttle=True):
         cy.use_adaptive_sampling = True
         cy.adaptive_threshold = 0.03
         sc.render.use_persistent_data = True
-    sc.render.resolution_x, sc.render.resolution_y = res
+    cy.max_bounces = int(rs.get('max_bounces', cy.max_bounces))
+    cy.diffuse_bounces = int(rs.get('diffuse_bounces', cy.diffuse_bounces))
+    cy.glossy_bounces = int(rs.get('glossy_bounces', cy.glossy_bounces))
+    cy.volume_bounces = int(rs.get('volume_bounces', 0))
+    cy.volume_step_rate = float(rs.get('volume_step_rate', 2.0))
+    cy.volume_max_steps = int(rs.get('volume_max_steps', 256))
+    cy.sample_clamp_indirect = float(rs.get('clamp_indirect', 4.0))
+    if 'adaptive_threshold' in rs:
+        cy.use_adaptive_sampling = True
+        cy.adaptive_threshold = float(rs['adaptive_threshold'])
+    if rs.get('fast_sss', True):
+        for m in bpy.data.materials:
+            if m.use_nodes:
+                for n in m.node_tree.nodes:
+                    if n.type == 'BSDF_PRINCIPLED':
+                        try:
+                            n.subsurface_method = 'BURLEY'
+                        except TypeError:
+                            pass
+    scale = float(rs.get('res_scale', 1.0))
+    sc.render.resolution_x = int(res[0] * scale)
+    sc.render.resolution_y = int(res[1] * scale)
     sc.render.filepath = path
     bpy.ops.render.render(write_still=True)
     return path
