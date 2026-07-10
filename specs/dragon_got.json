@@ -1152,27 +1152,16 @@
     0.038,
     0.018
    ],
-   "strength": 0.24,
+   "strength": 0.13,
    "variation": {
     "scale": 2.2,
     "detail": 4.0,
-    "strength": 0.65,
+    "strength": 0.5,
     "color": [
      0.58,
      0.27,
      0.06
     ]
-   },
-   "volume": {
-    "density": 0.0014,
-    "anisotropy": 0.3,
-    "color": [
-     1.0,
-     0.78,
-     0.5
-    ],
-    "noise_scale": 3.5,
-    "noise_strength": 0.55
    }
   },
   "sun": {
