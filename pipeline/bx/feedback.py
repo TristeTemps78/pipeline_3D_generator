@@ -225,7 +225,7 @@ PART_TYPE_HINTS = {
     # quand le nom de l'objet ne commence pas directement par l'id de la part.
     'spine': ['dorsal'],
     'head': ['skull', 'jaw', 'tooth', 'eye', 'lid', 'nostril', 'nose', 'ridge', 'face', 'horn'],
-    'wing': ['arm', 'membrane', 'batten', 'finger', 'wclaw'],
+    'wing': ['arm', 'hand', 'membrane', 'batten', 'finger', 'wclaw', 'vein'],
     'limb': ['footpad', 'toe', 'claw', 'leg'],
     'dewlap': ['dewlap'],
 }

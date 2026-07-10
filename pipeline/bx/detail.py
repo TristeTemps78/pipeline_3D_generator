@@ -86,28 +86,41 @@ def scales(ob, instance_ob, density=60.0, scale=(0.06, 0.14), seed=0,
 
 
 def _axis_factor(ng, axis, frm, to, clamp=True):
-    """Position (Object space, == monde ici car objets à l'origine) -> composante
-    d'axe choisie -> Map Range clampé [frm]->[to]. Retourne la sortie 'Result'.
-    Sert à moduler densité/taille d'écaille le long d'une région (cou vs museau)."""
-    pos = ng.nodes.new('GeometryNodeInputPosition')
+    """Position OU normale (Object space, == monde ici car objets à l'origine) ->
+    composante d'axe choisie -> Map Range clampé [frm]->[to]. Retourne la sortie
+    'Result'. Axes 'x'/'y'/'z' : le long d'une région (cou vs museau, cranio-caudal).
+    Axes 'nx'/'ny'/'nz' (RADIAL, générique) : composante de la NORMALE de surface —
+    'nz' proche de +1 = face qui regarde le haut (dos), proche de -1 = regarde le bas
+    (ventre). Ne dépend PAS de la position le long de la pièce ni d'un centre de tube
+    à calculer : marche sur n'importe quelle section (corps, cou, queue) sans
+    connaître la courbe de la spine — c'est la façon la moins chère d'obtenir une
+    variation dorsale/ventrale cohérente sur un tube organique."""
+    axis = axis.lower()
+    if axis.startswith('n'):
+        src = ng.nodes.new('GeometryNodeInputNormal')
+        out_socket = src.outputs['Normal']
+        idx = {'x': 0, 'y': 1, 'z': 2}[axis[1]]
+    else:
+        src = ng.nodes.new('GeometryNodeInputPosition')
+        out_socket = src.outputs['Position']
+        idx = {'x': 0, 'y': 1, 'z': 2}[axis]
     sep = ng.nodes.new('ShaderNodeSeparateXYZ')
-    ng.links.new(pos.outputs['Position'], sep.inputs['Vector'])
+    ng.links.new(out_socket, sep.inputs['Vector'])
     mr = ng.nodes.new('ShaderNodeMapRange')
     mr.clamp = clamp
     mr.inputs['From Min'].default_value = frm[0]
     mr.inputs['From Max'].default_value = frm[1]
     mr.inputs['To Min'].default_value = to[0]
     mr.inputs['To Max'].default_value = to[1]
-    idx = {'x': 0, 'y': 1, 'z': 2}[axis.lower()]
     ng.links.new(sep.outputs[idx], mr.inputs['Value'])
     return mr.outputs['Result']
 
 
 def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
                  caudal=(0, -1, 0), curvature=True, realize=True, name='armor',
-                 mask=None, scale_grad=None, distance_min=0.0,
+                 mask=None, mask_radial=None, scale_grad=None, distance_min=0.0,
                  index_grad=None, index_noise=(3.0, 1.4), rot_jitter=0.0,
-                 store_seed=False):
+                 store_seed=False, scale_noise=None):
     """Écailles-armure chevauchantes (inversion I1). Différence clé avec `scales` :
     densité élevée pour que les plaques se TOUCHENT/chevauchent, et orientation COHÉRENTE
     — Z aligné à la normale de surface puis Y aligné à la direction caudale `caudal`
@@ -117,8 +130,18 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
     `mask` optionnel = {'axis','range','to'} : masque positionnel (0..1 clampé) qui
     multiplie la densité — restreint les écailles à une région (ex: cou) sans toucher
     au reste du maillage (évite de dupliquer la géométrie du corps).
+    `mask_radial` optionnel = même forme que `mask` mais `axis` peut être 'nx'/'ny'/'nz'
+    (composante de la NORMALE, cf. `_axis_factor`) : variation DORSALE/VENTRALE générique
+    sans connaître le centre local du tube — se MULTIPLIE avec `mask` (combinable, zones
+    cranio-caudales × dorsal/ventral). Typiquement `{'axis':'nz','range':(-0.5,0.6),
+    'to':(0,1)}` : dos (nz haut) dense, ventre (nz bas) clairsemé, ou l'inverse selon `to`.
     `scale_grad` optionnel = {'axis','range','scale_lo','scale_hi'} : fait varier la
-    taille d'écaille en continu le long d'un axe (ex: grandes au cou, fines au museau).
+    taille d'écaille en continu le long d'un axe (ex: grandes au cou, fines au museau) ;
+    `axis` accepte aussi 'nz' pour opposer grandes plaques ventrales / petites carènes
+    dorsales sans zone explicite.
+    `scale_noise` optionnel = (échelle_basse_freq, amplitude 0..1) : bruit multiplicatif
+    sur la taille finale de l'instance (indépendant de `scale_grad`) — casse l'uniformité
+    en patchs organiques d'écailles plus grosses/petites (pas de bande nette, une texture).
     `distance_min` : espacement Poisson minimal entre écailles — le vrai contrôle du
     chevauchement ordonné (viser ~0.4-0.6x la longueur de plaque) ; `density` reste un
     plafond haut, sans lui `Distance Min` seul suffit à éviter les paquets chaotiques.
@@ -233,8 +256,10 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
         mr.inputs['To Max'].default_value = density
         lk(ang.outputs['Signed Angle'], mr.inputs['Value'])
         dens_factor = mr.outputs['Result']
-    if mask:
-        mfac = _axis_factor(ng, mask['axis'], mask['range'], mask.get('to', (0.0, 1.0)))
+    for m in (mask, mask_radial):
+        if not m:
+            continue
+        mfac = _axis_factor(ng, m['axis'], m['range'], m.get('to', (0.0, 1.0)))
         if dens_factor is not None:
             mul = ng.nodes.new('ShaderNodeMath')
             mul.operation = 'MULTIPLY'
@@ -253,7 +278,23 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
     lk(caud.outputs['Vector'], alignY.inputs['Vector'])
     lk(dist.outputs['Points'], inst.inputs['Points'])
     lk(alignY.outputs['Rotation'], inst.inputs['Rotation'])
-    lk(rnd.outputs['Value'], inst.inputs['Scale'])
+    scale_out = rnd.outputs['Value']
+    if scale_noise:
+        freq, amp = scale_noise
+        noise = ng.nodes.new('ShaderNodeTexNoise')
+        noise.inputs['Scale'].default_value = freq
+        nmr = ng.nodes.new('ShaderNodeMapRange')
+        nmr.inputs['From Min'].default_value = 0.0
+        nmr.inputs['From Max'].default_value = 1.0
+        nmr.inputs['To Min'].default_value = 1.0 - amp
+        nmr.inputs['To Max'].default_value = 1.0 + amp
+        lk(noise.outputs['Fac'], nmr.inputs['Value'])
+        nmul = ng.nodes.new('ShaderNodeMath')
+        nmul.operation = 'MULTIPLY'
+        lk(scale_out, nmul.inputs[0])
+        lk(nmr.outputs['Result'], nmul.inputs[1])
+        scale_out = nmul.outputs['Value']
+    lk(scale_out, inst.inputs['Scale'])
     lk(n_in.outputs['Geometry'], join.inputs['Geometry'])
     tail = inst.outputs['Instances']
     if rot_jitter:

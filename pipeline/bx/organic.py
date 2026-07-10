@@ -689,6 +689,52 @@ def wing(part, mats):
                     batt = ops.tube(f'batten_{tag}{j}_{bi}', bpts, batten_radii)
                     materials.assign(batt, _mat(mats, bone_mat_key))
                     out.append(batt)
+        # veines secondaires (vein_branches, défaut 0 → rétro-compat) : 2e GÉNÉRATION
+        # de nervures, fines, qui partent de chaque doigt (pas de la racine) et
+        # rayonnent en biais vers le bord de fuite du panneau voisin — anatomie de
+        # membrane (cf. réf. drogon_wing_membrane : nervures ramifiées en Y depuis les
+        # doigts), par opposition aux lattes primaires qui sont rectilignes racine->
+        # bord. Suivent le même relief (sag/camber/panel_billow) que les colonnes de
+        # membrane -> restent COLLÉES à la surface plutôt que de flotter au-dessus ;
+        # rayon ~1/3 d'une latte (`vein_branch_r0`), tube très bas poly (ornemental).
+        vein_branches = part.get('vein_branches', 0)
+        if vein_branches:
+            vein_r0 = part.get('vein_branch_r0', batten_r0 / 3.0)
+            vein_rmin = part.get('vein_branch_rmin', vein_r0 * 0.3)
+
+            def finger_pt(j, t):
+                v = knuckles[j].lerp(Vector(rays[j]), t)
+                if finger_bow:
+                    v = v + finger_dirs[j] * (finger_bow * math.sin(math.pi * t))
+                return Vector((v.x, v.y, v.z + finger_lift))
+
+            def panel_pt(j, u, t):
+                a, b = Vector(ends[j]), Vector(ends[j + 1])
+                fest = festoon if j < len(ends) - 2 else 0.0
+                width = (b - a).length
+                chord_scale = (width / ref_width) if (fest and ref_width > 1e-6) else 1.0
+                e = edge_pt(a, b, u, fest, chord_scale)
+                root = root_at(global_u(j, u))
+                v = root.lerp(e, t)
+                v.z -= sag * math.sin(math.pi * u) * t
+                v.z += camber * math.sin(math.pi * t)
+                v.z -= panel_billow * math.sin(math.pi * u) * math.sin(math.pi * t)
+                return v
+
+            for j in range(len(ends) - 1):
+                for bi in range(vein_branches):
+                    frac = (bi + 1) / (vein_branches + 1)
+                    t_start = 0.18 + 0.12 * bi   # démarre au tiers proximal du doigt
+                    t_end = 0.92 - 0.08 * bi     # s'approche du bord libre sans l'atteindre
+                    u_end = 0.22 + 0.5 * frac    # s'écarte du doigt vers le panneau voisin
+                    p0 = finger_pt(j, t_start)
+                    p1 = panel_pt(j, u_end, t_end)
+                    pmid = p0.lerp(p1, 0.5)
+                    vr = laws.power_taper(3, vein_r0, 1.1, vein_rmin)
+                    vtube = ops.tube(f'vein_{tag}{j}_{bi}', [tuple(p0), tuple(pmid), tuple(p1)],
+                                     vr, resolution_u=4, bevel_resolution=3)
+                    materials.assign(vtube, _mat(mats, bone_mat_key))
+                    out.append(vtube)
         # doigts osseux : bourrelets SAILLANTS posés SUR la membrane (relief), pas des
         # tiges flottantes séparées -> soulevés de `finger_lift` le long de z (même
         # convention que les lattes) pour lire comme une arête en relief sur la surface.
@@ -950,11 +996,13 @@ def _apply_armor(spec, groups):
                 seed=e.get('seed', 1) + j,
                 caudal=tuple(e.get('caudal', (0, -1, 0))),
                 curvature=e.get('curvature', True),
-                mask=e.get('mask'), scale_grad=e.get('scale_grad'),
+                mask=e.get('mask'), mask_radial=e.get('mask_radial'),
+                scale_grad=e.get('scale_grad'),
                 distance_min=e.get('distance_min', 0.0),
                 index_grad=e.get('index_grad'),
                 index_noise=tuple(e.get('index_noise', (3.0, 1.4))),
                 rot_jitter=e.get('rot_jitter', 0.0),
+                scale_noise=tuple(e['scale_noise']) if e.get('scale_noise') else None,
                 realize=realize,
                 store_seed=e.get('store_seed', not realize),
                 name=f'armor_{idx}_{ob.name}')

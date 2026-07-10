@@ -4,31 +4,36 @@ Reprise (conteneur neuf) : `bash pipeline/bootstrap.sh` → claude.md → ce fic
 l'utilisateur dit « continue », exécuter le contrat ci-dessous sans reposer de question.
 
 ## Où on en est
-Boucle 14 close, **EN ATTENTE DE FEEDBACK** : l'utilisateur rend en LOCAL (bpy) — un
-`python3 pipeline/run.py forge specs/dragon_got.json` (sans --fast) sort désormais les
-3 PNG HQ (hero / head / legs). Jalons fast de la boucle : **step_159_hero**,
-**step_158_head**, **step_158_legs** (anciens jalons rejetés gardés : 133 deltaplane,
-141 bras-en-lignes/nageoire ; fixes : 148 gros plan main, 151 vue).
-Fait en boucle 14 (le feedback step_141 intégral est dans session.json) :
-- Aile continuité (organic.py, générique) : `knuckle_spread` (doigts échelonnés + masse
-  carpienne hand_ fusionnée SDF), `batten_start`, `root_follow_arm` (membrane sous le bras,
-  fini la nageoire au flanc à z décalé).
-- Multi-shots (run.py+feedback.py, générique) : `scene.shots` → 1 PNG/prise, cadrage AUTO
-  bbox par pièce (`frame_part`/`dir`/`margin`/`lens`), `--shot <id>` pour isoler.
-- Look (materials.py+core.py, générique, défauts rétro-compat) : patine cavité/arête sur
-  reptile_scales (`patina_*`, `edge_copper`), veines+micro-plis membrane (`vein_*`,
-  `wrinkle_*`, transmission bornée ≤.05 en dur), builder `horn` kératine (clé mat `bone`),
-  fond monde `variation` + volume bruité (poussière). Métriques : cuivre .63→.471 (cible
-  .45-.50 ✓), bords .21→.233 (cible finale .35 = géométrie fine à venir).
+Boucle 15 close (SANS rendu HQ, à la demande), **EN ATTENTE DE FEEDBACK** sur les shots
+fast **step_172_hero/head/legs** (+ clay tête step_168, hero post-volume step_161).
+Feedback step_160 intégral dans session.json (critique visuelle + « 2h → minutes »).
+Fait en boucle 15 (tout générique, défauts rétro-compatibles) :
+- PERF : `scene.render` (device AUTO GPU→CPU, samples/denoise/adaptive/bounces/clamp/
+  res_scale/fast_sss Burley) câblé au rendu final ; brume VOLUMÉTRIQUE RETIRÉE = LE poste
+  des 2h locales (HQ hero : >20 min → **38 s** ici, piège consigné dans claude.md) ;
+  lumières 5→4 bornées size 6. Le rendu HQ local de l'utilisateur doit passer à ~1-3 min
+  CPU, secondes avec GPU (AUTO le prend tout seul).
+- TÊTE : lois `growth_rings`/`curl_offset` (laws+GVL), cornes annelées base fondue
+  (`_apply_horn_growth`, `_kera_spike`, tube res paramétrable), dents variées
+  (`rscale`, `fang_girth_*`), gencives+lèvre (ridges), charnière/couronne fondues
+  (face_blobs aplatis). Tête 75.9k verts (-4 %).
+- ÉCAILLES : `_axis_factor` accepte les axes NORMALE `nx/ny/nz` → `mask_radial`
+  (ventre plaques larges lisses / dos carènes serrées / flancs mix) + `scale_noise`
+  (patchs macro). Bords **0.233 → 0.3002** (cible réf .35) à qualité complète.
+- MEMBRANE : 2e génération de nervures ramifiées (`vein_branches` etc., suivent
+  sag/camber/billow) ; displace membrane subdiv 2. Scène 279k verts (plafond 400k).
+- Bugs corrigés au passage : veines avalées par la fusion SDF (exclude_like),
+  classification wing sans hand_/vein_ (PART_TYPE_HINTS).
 
-## Contrat boucle 15 (à recadrer selon feedback sur les rendus HQ locaux)
-Roadmap utilisateur restante = NEXT.md item 0 : (a) écailles par zones + plis articulations
-`fold_rings`, (b) tête fine (iris fente, narines, gencives/dents, rides), (c) micro-plis
-membrane niveau 2, (d) cicatrices, (e) environnement caverne/canyon détaillé. Prioriser la
-DENSITÉ DE BORDS (gap .233→.35) = géométrie détail, via agents Sonnet + mécanismes génériques.
+## Contrat boucle 16 (à recadrer selon feedback sur step_172_*)
+Candidats (NEXT item 0 restant + doutes agents) : (a) BAKE générique sculpt→normal/
+displacement maps + textures image (2e étage perf demandé par l'utilisateur, gros
+chantier) ; (b) œil/iris reptilien gros plan (jamais validé) ; (c) plis de peau aux
+articulations `fold_rings` ; (d) environnement caverne/canyon détaillé + cicatrices ;
+(e) câbler mask_radial/scale_noise sur hindleg, veines mat membrane vs bone à valider ;
+(f) gum/lip ridges codés en dur → resynchroniser si les dents bougent (doute agent tête).
 
 ## Restes connus hors contrat
-fuse_groups head/hindleg bloqué (NEXT item 2, prérequis armure spatiale) ; œil composite
-jamais validé en gros plan couleur (le shot head le cadre désormais — vérifier au feedback) ;
-scene.blend s'ouvre avec la caméra du DERNIER shot rendu (legs) ; `front_extent=0.5` de
-root_follow_arm en dur dans le builder (à exposer si autre gabarit d'aile).
+fuse_groups head/hindleg bloqué (NEXT 2, prérequis armure spatiale) ; scene.blend s'ouvre
+sur la caméra du dernier shot ; `front_extent=0.5` de root_follow_arm en dur ; le compare
+--fast sous-estime les bords (denoise lisse) — toujours juger la métrique en qualité pleine.
