@@ -152,17 +152,28 @@ def edge_density(rgb, mask=None):
 
 
 def color_stats(rgb, mask=None):
-    """Couleur linéaire moyenne du sujet + part de pixels cuivrés (r>1.25×g,b).
-    Comparable aux ancres mesurées sur la réf (research/inversions.md)."""
+    """Couleur linéaire moyenne du sujet + part de pixels cuivrés (r>1.25×g,b), + (CR5,
+    audit boucle 17) percentiles de LUMINANCE p5/p50/p95 (Rec.709) sur le sujet SEUL :
+    la moyenne cuivrée peut coller à la réf alors que la DISTRIBUTION diverge (fond clair
+    + lumière plate vs noir charbon + contrastes durs) — p5 capte les creux/l'ombre
+    (doit être quasi-noir sur une réf 'charbon'), p95 les spéculaires/highlights de rim,
+    p50 le niveau global. C'est le juge du contraste que cuivre/couleur moyenne ne voient
+    pas. Comparable aux ancres mesurées sur la réf (research/inversions.md)."""
     if mask is None:
         mask = rgb[..., :3].mean(-1) > 0.02
     subj = rgb[..., :3][mask]
     if len(subj) == 0:
-        return {'mean': [0, 0, 0], 'copper_fraction': 0.0}
+        return {'mean': [0, 0, 0], 'copper_fraction': 0.0,
+                'luminance_p5': 0.0, 'luminance_p50': 0.0, 'luminance_p95': 0.0}
     copper = subj[(subj[:, 0] > subj[:, 1] * 1.25) & (subj[:, 0] > subj[:, 2] * 1.25)]
+    lum = subj @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)  # Rec.709 luma
+    p5, p50, p95 = np.percentile(lum, [5, 50, 95])
     return {'mean': [round(float(x), 3) for x in subj.mean(0)],
             'copper_fraction': round(len(copper) / len(subj), 3),
-            'copper_mean': [round(float(x), 3) for x in copper.mean(0)] if len(copper) else None}
+            'copper_mean': [round(float(x), 3) for x in copper.mean(0)] if len(copper) else None,
+            'luminance_p5': round(float(p5), 4),
+            'luminance_p50': round(float(p50), 4),
+            'luminance_p95': round(float(p95), 4)}
 
 
 def _resize_h(arr, target_h):

@@ -48,17 +48,34 @@ def assign(ob, mat):
 
 
 def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 0.02),
-                   scale=5, scale2=16, bump=1.2, rough=0.5, warp=0.3,
+                   scale=5, scale2=16, bump=1.2, rough=0.5, rough_edge=0.1, warp=0.3,
                    sss=0.0, sss_radius=(0.32, 0.11, 0.06), micro=0.0,
-                   edge_copper=0.68, patina_color=(0.15, 0.32, 0.24),
+                   edge_copper=0.68, edge_width=0.045, instance_variation=0.0,
+                   patina_color=(0.15, 0.32, 0.24),
                    patina_gold=(0.6, 0.38, 0.13), patina_amount=0.0,
                    normal_map=None, normal_map_strength=1.0,
                    ao_map=None, ao_strength=0.35,
                    curvature_map=None, curvature_mix=0.6):
-    """pattern.reptile_scales v2 : 2 voronoi distance-to-edge superposés (plaques + micro-
-    écailles) sur coordonnées Object distordues par noise (casse la grille ; Object car les
-    curves n'ont pas de Generated fiable) ; arêtes cuivre rouge, roughness basse aux bords.
-    Échelles en cellules par unité monde (~scale 5 → plaques de 20 cm).
+    """pattern.reptile_scales v3 (audit boucle 17, CR1 « charbon/rouge ») : 2 voronoi
+    distance-to-edge superposés (plaques + micro-écailles) sur coordonnées Object
+    distordues par noise (casse la grille ; Object car les curves n'ont pas de Generated
+    fiable) ; `base` (creux, quasi-noir) → `tint` (arêtes, rouge-cuivre saturé) via le
+    masque de cavité `edge` (Distance to Edge du voronoi macro : 0 au centre de plaque,
+    1 sur le sillon) — c'est CE mélange qui doit lire « charbon + rouge », pas une teinte
+    globale. Échelles en cellules par unité monde (~scale 5 → plaques de 20 cm).
+    `rough_edge` : roughness sur l'arête/carène (bas = spéculaire, capte le rim dur) ;
+    `rough` reste la roughness des creux (haut = mat). Contraste fort entre les deux =
+    « pointes highlights » sous rim, sans bruit shader ajouté.
+    `instance_variation` (0..1, défaut 0 = inchangé) : variation TEINTE/VALEUR/ROUGHNESS
+    par écaille — chantier CR1 (« aucune écaille visible » car uniforme). Priorité à un
+    vrai attribut d'instance si la géométrie en fournit un (`micro`>0 + `store_seed` côté
+    detail.armor_scales, cf. ci-dessous) ; à défaut repli GÉNÉRIQUE sur le hash pseudo-
+    aléatoire par cellule du voronoi macro déjà calculé (`cell`, même grille que les
+    plaques) — fonctionne même quand les écailles sont RÉALISÉES en un seul mesh joint
+    (cas actuel de `detail.armor_scales`, `realize=True` par défaut), donc sans dépendre
+    d'un flag géométrie. Assombrit/éclaircit chaque écaille (valeur), élargit l'écart de
+    roughness plaque à plaque (certaines plus mates, d'autres plus polies) : lu comme
+    « chaque écaille est différente » à distance, condition posée par l'audit CR1.
     `micro` > 0 (T12, couche MICRO) : lit l'attribut d'instance 'scale_seed' (Attribute
     type Instancer, écrit par detail.armor_scales store_seed) → chaque écaille instanciée
     décale l'origine du voronoi micro (v2 en 4D, W par seed) et éclaircit sa base de
@@ -144,10 +161,14 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
         lk.new(nmap.outputs['Normal'], bmp.inputs['Normal'])
     lk.new(bmp.outputs['Normal'], bsdf.inputs['Normal'])
     # --- facteur arête : distance faible = bord de plaque → 1 (resserré : ne couvre
-    # que le sillon réel entre écailles, pas toute la plaque — tempère le cuivre I2) ---
+    # que le sillon réel entre écailles, pas toute la plaque — tempère le cuivre I2).
+    # `edge_width` (CR1, boucle 17) : PLUS ÉTROIT que 0.045 = le rouge-cuivre ne mord
+    # que sur la vraie carène/sillon (fraction cuivre proche de la réf, ~0.45 mesuré)
+    # au lieu de laver toute la plaque (0.9 mesuré à edge_width=0.045 + edge_copper
+    # élevé) ; PLUS LARGE = plaques presque entièrement cuivrées (look métal patiné). ---
     edge = n.new('ShaderNodeMapRange')
     edge.inputs['From Min'].default_value = 0.0
-    edge.inputs['From Max'].default_value = 0.045
+    edge.inputs['From Max'].default_value = edge_width
     edge.inputs['To Min'].default_value = 1.0
     edge.inputs['To Max'].default_value = 0.0
     lk.new(v1.outputs['Distance'], edge.inputs['Value'])
@@ -195,9 +216,42 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     rrange.inputs['From Min'].default_value = 0.0
     rrange.inputs['From Max'].default_value = 1.0
     rrange.inputs['To Min'].default_value = rough
-    rrange.inputs['To Max'].default_value = 0.1
+    rrange.inputs['To Max'].default_value = rough_edge
     lk.new(edge.outputs['Result'], rrange.inputs['Value'])
     rough_out = rrange.outputs['Result']
+    # --- variation par écaille (CR1) : teinte/valeur déjà en place ci-dessus (mix1 via
+    # `cell`) ; ici on ajoute VALEUR (multiplie color_out par un gris par-cellule) et
+    # ROUGHNESS (ajoute un offset par-cellule, clampé) — même source `cell` (aucun noeud
+    # nouveau de bruit), gated à 0 = pas de changement pour les autres appelants. ---
+    if instance_variation > 0:
+        vrange = n.new('ShaderNodeMapRange')
+        vrange.inputs['To Min'].default_value = 1.0 - instance_variation * 0.6
+        vrange.inputs['To Max'].default_value = 1.0 + instance_variation * 0.35
+        lk.new(cell.outputs['Color'], vrange.inputs['Value'])
+        vgrey = n.new('ShaderNodeCombineColor')
+        lk.new(vrange.outputs['Result'], vgrey.inputs['Red'])
+        lk.new(vrange.outputs['Result'], vgrey.inputs['Green'])
+        lk.new(vrange.outputs['Result'], vgrey.inputs['Blue'])
+        vmul = n.new('ShaderNodeMix')
+        vmul.data_type = 'RGBA'
+        vmul.blend_type = 'MULTIPLY'
+        vmul.inputs['Factor'].default_value = 1.0
+        lk.new(color_out, vmul.inputs['A'])
+        lk.new(vgrey.outputs['Color'], vmul.inputs['B'])
+        color_out = vmul.outputs['Result']
+        rvrange = n.new('ShaderNodeMapRange')
+        rvrange.inputs['To Min'].default_value = -instance_variation * 0.18
+        rvrange.inputs['To Max'].default_value = instance_variation * 0.18
+        lk.new(cell.outputs['Color'], rvrange.inputs['Value'])
+        radd = n.new('ShaderNodeMath')
+        radd.operation = 'ADD'
+        lk.new(rough_out, radd.inputs[0])
+        lk.new(rvrange.outputs['Result'], radd.inputs[1])
+        rclamp = n.new('ShaderNodeClamp')
+        rclamp.inputs['Min'].default_value = 0.04
+        rclamp.inputs['Max'].default_value = 0.95
+        lk.new(radd.outputs['Value'], rclamp.inputs['Value'])
+        rough_out = rclamp.outputs['Result']
     # --- patine métal usé (I14) : masque de cavité via Geometry Pointiness (0 = creux
     # concave, 1 = arête convexe) — pas de valeur dragon en dur, marche sur n'importe
     # quelle géométrie carénée. Creux -> vert-de-gris frotté sombre ; arêtes exposées ->
