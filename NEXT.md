@@ -17,6 +17,9 @@ Priorisé, à recadrer à chaque feedback. Le « fait » vit dans git log + HAND
       cicatrices subtiles.
    e. Environnement : fond détaillé flou (caverne trésor / canyon), lumières d'appoint
       dorées, volumétriques (brume, poussière d'or) — builders scène génériques.
+0bis. RESTES boucle 19 (détail dans HANDOFF) : veines membrane organiques au hero, bake
+   consommant axis_uv (edge_density .19→.348), pad/toes pâles (registre groups), folds via
+   displace, anatomie bras d'aile vs fuse SDF.
 1. Membrane organique niveau 2 (après boucle 13) : micro-plis dynamiques, translucidité
    contrôlée sans taches (cf. pièges claude.md), déchirures/cicatrices héros.
 2. fuse_groups : étendre à head (couture crâne/cou) et hindleg (hanche) — BLOQUÉ tel quel
