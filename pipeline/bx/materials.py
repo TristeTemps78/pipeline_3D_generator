@@ -348,6 +348,7 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
 def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough=0.55,
             transmission=0.3, sss=0.35, sss_radius=(0.25, 0.05, 0.03),
             vein_scale=0.0, vein_strength=0.35, vein_dark=(0.02, 0.004, 0.006),
+            vein_width=0.05, vein_bump=None,
             wrinkle_scale=0.0, wrinkle_strength=0.12, glow=0.0):
     """pattern.membrane_skin v2 : peau fine vascularisée. Réseau de veines procédural
     (2 Voronoi distance-to-edge superposés, coords Object) -> bump fin + assombrissement
@@ -355,6 +356,13 @@ def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough
     (`edge_color`, translucide chaud) via la distance au coin proche de la bbox objet
     (Texture Coordinate Generated, 0..1 par objet — proxy générique attache->bord libre,
     aucune valeur dragon en dur) ; micro-plis via bruit étiré anisotrope (bump).
+    `vein_width` (T18, largeur de la bande de sillon en position de ColorRamp, défaut
+    0.05 = comportement historique) et `vein_bump` (T18, force du Bump dédiée au réseau
+    de veines, défaut None -> `vein_strength*0.5` comme avant, rétro-compat) DÉCOUPLENT
+    la lisibilité géométrique (relief qui accroche même sous forte lumière/rim) de la
+    lisibilité colorimétrique (`vein_strength`, assombrissement) — un plafond membrane
+    lisse malgré des veines contrastées en couleur venait d'un bump trop faible pour
+    créer une ombre propre sous les lumières dures existantes (aucun changement de scène).
     `vein_scale`/`wrinkle_scale` à 0 (défaut) = géométrie shader v1 inchangée (rétro-
     compat). Transmission BORNÉE à 0.05 (piège : coque fine + lumières fortes = taches
     blanches transmises, cf. claude.md) -> simuler la translucidité via `sss`/`glow`."""
@@ -393,7 +401,7 @@ def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough
         lk.new(v2.outputs['Distance'], vmin.inputs[1])
         vramp = n.new('ShaderNodeValToRGB')
         vramp.color_ramp.elements[0].position = 0.0
-        vramp.color_ramp.elements[1].position = 0.05
+        vramp.color_ramp.elements[1].position = max(0.001, vein_width)
         lk.new(vmin.outputs['Value'], vramp.inputs['Fac'])
         veinfac = n.new('ShaderNodeMath')
         veinfac.operation = 'MULTIPLY'
@@ -406,7 +414,7 @@ def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough
         lk.new(veinfac.outputs['Value'], mixv.inputs['Factor'])
         color_out = mixv.outputs['Result']
         bmpv = n.new('ShaderNodeBump')
-        bmpv.inputs['Strength'].default_value = vein_strength * 0.5
+        bmpv.inputs['Strength'].default_value = vein_bump if vein_bump is not None else vein_strength * 0.5
         lk.new(vramp.outputs['Color'], bmpv.inputs['Height'])
         normal_out = bmpv.outputs['Normal']
     if wrinkle_scale > 0:
@@ -443,13 +451,17 @@ def bone(name='bone', color=(0.06, 0.05, 0.045), rough=0.35):
 
 
 def horn(name='horn', color=(0.07, 0.045, 0.025), rough=0.3, stripe_scale=28,
-         stripe_strength=0.22, aniso=0.4, var=0.14):
+         stripe_strength=0.22, aniso=0.4, var=0.14, spec_level=0.6):
     """pattern.horn v1 : kératine striée générique (cornes/griffes/épines osseuses) —
     bandes fines (Wave texture le long de l'axe local Z, cornes/griffes/pointes étant
     des tubes/cônes effilés le long de cet axe en coordonnées Object) en bump, reflet
     anisotrope (fibres de kératine) + légère variation cellule à cellule (Voronoi) qui
     casse l'uniformité plastique du `bone` plat. Aucune valeur dragon en dur : marche
-    sur n'importe quelle géométrie tube/cône effilée."""
+    sur n'importe quelle géométrie tube/cône effilée.
+    `spec_level` (T18, défaut 0.6 = valeur historique) : Specular IOR Level — sur un
+    doigt d'aile fin sous les lumières de bord (rim ~5200) 0.6 sature en un reflet
+    métal/chrome qui écrase la couleur kératine ; baissable depuis la spec sans
+    toucher aux lumières."""
     mat, nt, bsdf = _new(name)
     n, lk = nt.nodes, nt.links
     tc = n.new('ShaderNodeTexCoord')
@@ -479,7 +491,7 @@ def horn(name='horn', color=(0.07, 0.045, 0.025), rough=0.3, stripe_scale=28,
     _set(bsdf, 'Roughness', rough)
     _set(bsdf, 'Anisotropic', aniso)
     _set(bsdf, 'Anisotropic Rotation', 0.05)
-    _set(bsdf, 'Specular IOR Level', 0.6)
+    _set(bsdf, 'Specular IOR Level', spec_level)
     return mat
 
 

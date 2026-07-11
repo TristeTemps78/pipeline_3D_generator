@@ -44,8 +44,16 @@
     "scale": 15,
     "scale2": 48,
     "bump": 0.9,
-    "base": [0.022, 0.019, 0.017],
-    "tint": [0.55, 0.05, 0.018],
+    "base": [
+     0.022,
+     0.019,
+     0.017
+    ],
+    "tint": [
+     0.55,
+     0.05,
+     0.018
+    ],
     "rough": 0.82,
     "rough_edge": 0.24,
     "sss": 0.15,
@@ -53,8 +61,16 @@
     "edge_copper": 0.7,
     "edge_width": 0.02,
     "instance_variation": 0.4,
-    "patina_color": [0.15, 0.32, 0.24],
-    "patina_gold": [0.5, 0.32, 0.11],
+    "patina_color": [
+     0.15,
+     0.32,
+     0.24
+    ],
+    "patina_gold": [
+     0.5,
+     0.32,
+     0.11
+    ],
     "patina_amount": 0.0,
     "normal_map": "maps/dragon_got_body_normal.png",
     "normal_map_strength": 1.35,
@@ -77,18 +93,25 @@
      0.15,
      0.05
     ],
-    "rough": 0.68,
+    "rough": 0.72,
     "transmission": 0.04,
-    "sss": 0.12,
-    "vein_scale": 11,
-    "vein_strength": 0.45,
+    "sss": 0.08,
+    "sss_radius": [
+     0.1,
+     0.03,
+     0.018
+    ],
+    "vein_scale": 8,
+    "vein_strength": 0.85,
+    "vein_width": 0.09,
+    "vein_bump": 1.0,
     "vein_dark": [
-     0.014,
-     0.003,
-     0.004
+     0.012,
+     0.002,
+     0.0025
     ],
     "wrinkle_scale": 45,
-    "wrinkle_strength": 0.12
+    "wrinkle_strength": 0.22
    }
   },
   "bone": {
@@ -104,6 +127,22 @@
     "stripe_strength": 0.22,
     "aniso": 0.4,
     "var": 0.16
+   }
+  },
+  "wing_bone": {
+   "builder": "horn",
+   "p": {
+    "color": [
+     0.05,
+     0.032,
+     0.02
+    ],
+    "rough": 0.5,
+    "stripe_scale": 24,
+    "stripe_strength": 0.32,
+    "aniso": 0.15,
+    "var": 0.22,
+    "spec_level": 0.3
    }
   },
   "mouth": {
@@ -131,9 +170,21 @@
   "eye": {
    "builder": "eye_globe",
    "p": {
-    "sclera_color": [0.05, 0.024, 0.017],
-    "iris_color": [0.6, 0.24, 0.04],
-    "pupil_color": [0.012, 0.009, 0.007],
+    "sclera_color": [
+     0.05,
+     0.024,
+     0.017
+    ],
+    "iris_color": [
+     0.6,
+     0.24,
+     0.04
+    ],
+    "pupil_color": [
+     0.012,
+     0.009,
+     0.007
+    ],
     "pupil_width": 0.15,
     "iris_r": 0.5,
     "rough": 0.08,
@@ -252,7 +303,7 @@
     ],
     [
      0,
-     3.40,
+     3.4,
      3.65
     ],
     [
@@ -623,9 +674,9 @@
    ],
    "eye": {
     "pos": [
-     0.40,
-     0.40,
-     0.30
+     0.4,
+     0.4,
+     0.3
     ],
     "socket_r": 0.115,
     "globe_r": 0.09
@@ -660,7 +711,7 @@
    "id": "wing",
    "side": "both",
    "mat": "membrane",
-   "bone_mat": "scales",
+   "bone_mat": "wing_bone",
    "shoulder": [
     0.5,
     0.3,
@@ -750,10 +801,36 @@
    "vein_branches": 3,
    "vein_branch_r0": 0.013,
    "vein_branch_rmin": 0.004,
+   "knuckles_per_finger": 3,
+   "knuckle_bulge": 0.55,
+   "knuckle_width": 0.1,
+   "wclaw_len": 0.42,
+   "wclaw_r": 0.065,
+   "alula": {
+    "tip": [
+     3.3,
+     0.9,
+     5.1
+    ],
+    "r0": 0.11,
+    "rmin": 0.035,
+    "claw": 0.22,
+    "root_frac": 0.55
+   },
    "pose": {
     "L": {
-     "tips_dz": [0.65, 0.5, 0.3, 0.1],
-     "tips_dy": [-0.2, -0.12, -0.03, 0.03],
+     "tips_dz": [
+      0.65,
+      0.5,
+      0.3,
+      0.1
+     ],
+     "tips_dy": [
+      -0.2,
+      -0.12,
+      -0.03,
+      0.03
+     ],
      "elbow_dz": 0.22,
      "wrist_dz": 0.35,
      "sag_mult": 0.75,
@@ -761,15 +838,30 @@
      "festoon_mult": 0.9
     },
     "R": {
-     "tips_dz": [-0.45, -0.65, -0.75, -0.45],
-     "tips_dy": [0.08, 0.1, 0.03, -0.06],
+     "tips_dz": [
+      -0.45,
+      -0.65,
+      -0.75,
+      -0.45
+     ],
+     "tips_dy": [
+      0.08,
+      0.1,
+      0.03,
+      -0.06
+     ],
      "elbow_dz": -0.18,
      "wrist_dz": -0.3,
      "sag_mult": 1.15,
      "camber_mult": 0.85,
      "finger_bow_mult": 1.0
     }
-   }
+   },
+   "wclaw_rot": [
+    125,
+    0,
+    25
+   ]
   },
   {
    "type": "limb",
@@ -1298,32 +1390,115 @@
  "bake": [
   {
    "id": "body",
-   "parts": ["body"],
-   "exclude_like": ["dorsal_"],
+   "parts": [
+    "body"
+   ],
+   "exclude_like": [
+    "dorsal_"
+   ],
    "target_tris": 1800000,
-   "maps": {"normal": 2048, "ao": 1024, "curvature": 1024},
+   "maps": {
+    "normal": 2048,
+    "ao": 1024,
+    "curvature": 1024
+   },
    "margin_px": 4,
    "cage_extrusion": 0.05,
    "ao_samples": 24,
    "surface": {
     "layers": [
      {
-      "type": "scales", "kind": "VORONOI", "scale": 0.07, "strength": 0.034,
-      "mask": {"axis": "nz", "range": [-0.5, 0.6], "to": [0.25, 1.0]}
+      "type": "scales",
+      "kind": "VORONOI",
+      "scale": 0.07,
+      "strength": 0.034,
+      "mask": {
+       "axis": "nz",
+       "range": [
+        -0.5,
+        0.6
+       ],
+       "to": [
+        0.25,
+        1.0
+       ]
+      }
      },
      {
-      "type": "scales", "kind": "VORONOI", "scale": 0.15, "strength": 0.022,
-      "mask": {"axis": "nz", "range": [-0.5, 0.6], "to": [1.0, 0.3]}
+      "type": "scales",
+      "kind": "VORONOI",
+      "scale": 0.15,
+      "strength": 0.022,
+      "mask": {
+       "axis": "nz",
+       "range": [
+        -0.5,
+        0.6
+       ],
+       "to": [
+        1.0,
+        0.3
+       ]
+      }
      },
      {
       "type": "wrinkles",
       "zones": [
-       {"loc": [0, 3.55, 4.05], "radius": 0.9, "scale": 0.045, "strength": 0.048, "dir": [0, 1, 0.15]},
-       {"loc": [0.5, 0.3, 3.35], "radius": 0.6, "scale": 0.035, "strength": 0.05, "dir": [1, 0, 0.2], "mirror": true},
-       {"loc": [0.7, -3.0, 3.3], "radius": 0.65, "scale": 0.035, "strength": 0.048, "dir": [1, 0, -0.15], "mirror": true}
+       {
+        "loc": [
+         0,
+         3.55,
+         4.05
+        ],
+        "radius": 0.9,
+        "scale": 0.045,
+        "strength": 0.048,
+        "dir": [
+         0,
+         1,
+         0.15
+        ]
+       },
+       {
+        "loc": [
+         0.5,
+         0.3,
+         3.35
+        ],
+        "radius": 0.6,
+        "scale": 0.035,
+        "strength": 0.05,
+        "dir": [
+         1,
+         0,
+         0.2
+        ],
+        "mirror": true
+       },
+       {
+        "loc": [
+         0.7,
+         -3.0,
+         3.3
+        ],
+        "radius": 0.65,
+        "scale": 0.035,
+        "strength": 0.048,
+        "dir": [
+         1,
+         0,
+         -0.15
+        ],
+        "mirror": true
+       }
       ]
      },
-     {"type": "micro", "kind": "STUCCI", "scale": 0.02, "strength": 0.011}
+     {
+      "type": "micro",
+      "kind": "STUCCI",
+      "scale": 0.02,
+      "strength": 0.011
+     }
     ]
    }
   }
@@ -1346,7 +1521,9 @@
     "vein_",
     "wclaw_",
     "spike_",
-    "dorsal_"
+    "dorsal_",
+    "alula_",
+    "aclaw_"
    ],
    "voxel": 0.05,
    "fillet": 0.25,

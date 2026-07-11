@@ -642,6 +642,38 @@ def wing(part, mats):
     # u_local du panneau (0 aux doigts, max au milieu) et du t le long de la corde
     # -> remplace le plan réglé par une membrane qui gonfle/s'affaisse localement.
     base_panel_billow = part.get('panel_billow', 0.0)
+    # knuckles_per_finger (T18, défaut 0 -> rétro-compat) : articulations le long de
+    # chaque doigt — renflements du rayon du tube à N positions régulières entre le
+    # poignet/knuckle et la pointe, comme des phalanges. Générique : dérivé de `fr`
+    # (rayon déjà calculé par doigt), aucune valeur dragon en dur.
+    knuckles_per_finger = int(part.get('knuckles_per_finger', 0))
+    knuckle_bulge = part.get('knuckle_bulge', 0.4)
+    knuckle_width = max(0.01, part.get('knuckle_width', 0.07))
+
+    def apply_knuckles(radii):
+        if knuckles_per_finger <= 0:
+            return radii
+        n = len(radii)
+        out = list(radii)
+        for k in range(1, knuckles_per_finger + 1):
+            frac = k / (knuckles_per_finger + 1)
+            for i in range(n):
+                t = i / (n - 1) if n > 1 else 0.0
+                d = (t - frac) / knuckle_width
+                out[i] *= 1.0 + knuckle_bulge * math.exp(-0.5 * d * d)
+        return out
+
+    # wclaw_len/wclaw_r/wclaw_rot (T18, rétro-compat sur les défauts historiques) :
+    # dimensionne/oriente la griffe de bout de doigt depuis la spec au lieu d'une
+    # valeur figée dans le code.
+    wclaw_len = part.get('wclaw_len', 0.22)
+    wclaw_r = part.get('wclaw_r', 0.05)
+    wclaw_rot = tuple(part.get('wclaw_rot', (150, 0, 0)))
+    # claw_mat (défaut = bone_mat, rétro-compat via 'bone' historique quand bone_mat
+    # vaut 'scales' -> _mat retombe sur le comportement d'avant si non précisé) :
+    # les griffes de doigt/alula suivent le matériau OS de l'aile (dédié, n'affecte
+    # pas les griffes de patte/dorsales qui restent câblées sur 'bone').
+    claw_mat_key = part.get('claw_mat', bone_mat_key)
     for s in sides:
         tag = 'L' if s > 0 else 'R'
         # pose (T17 CR2, pose dynamique) : override PAR CÔTÉ, appliqué APRÈS le
@@ -911,8 +943,8 @@ def wing(part, mats):
         # tiges flottantes séparées -> soulevés de `finger_lift` le long de z (même
         # convention que les lattes) pour lire comme une arête en relief sur la surface.
         # Arqués (finger_bow) en éventail au lieu de rayons rectilignes W->tip.
-        fr = laws.power_taper(nt, part.get('finger_r0', 0.085), finger_taper,
-                              part.get('finger_rmin', 0.015))
+        fr = apply_knuckles(laws.power_taper(nt, part.get('finger_r0', 0.085), finger_taper,
+                              part.get('finger_rmin', 0.015)))
         for j, tip in enumerate(rays):
             perp = finger_dirs[j]
             knuckle = knuckles[j]
@@ -927,9 +959,43 @@ def wing(part, mats):
             materials.assign(f, _mat(mats, bone_mat_key))
             out.append(f)
             claw = ops.spike(f'wclaw_{tag}{j}', (tip[0], tip[1], tip[2] + finger_lift),
-                             0.22, 0.05, (150, 0, 0))
-            materials.assign(claw, _mat(mats, 'bone'))
+                             wclaw_len, wclaw_r, wclaw_rot)
+            materials.assign(claw, _mat(mats, claw_mat_key))
             out.append(claw)
+
+        # alula (T18, défaut None -> rétro-compat) : petit "pouce" court partant du
+        # poignet vers l'avant/haut (repère générique : côté opposé au bord de fuite,
+        # cf. `finger_dirs`/`ref` déjà calculés plus haut), avec sa griffe et sa micro-
+        # membrane triangulaire — réutilise EXACTEMENT la machinerie fingers/membrane
+        # (col_pts, power_taper, ops.tube/spike/grid_surface), aucune géométrie neuve.
+        alula = part.get('alula')
+        if alula:
+            a_tip_spec = alula['tip']
+            a_tip = (s * a_tip_spec[0], a_tip_spec[1], a_tip_spec[2])
+            a_r0 = alula.get('r0', part.get('finger_r0', 0.085) * 0.45)
+            a_rmin = alula.get('rmin', a_r0 * 0.3)
+            a_claw = alula.get('claw', 0.12)
+            a_radii = laws.power_taper(nt, a_r0, finger_taper, a_rmin)
+            a_pts = [(v.x, v.y, v.z + finger_lift)
+                     for v in [W.lerp(Vector(a_tip), i / (nt - 1)) for i in range(nt)]]
+            afin = ops.tube(f'alula_{tag}', a_pts, a_radii)
+            materials.assign(afin, _mat(mats, bone_mat_key))
+            out.append(afin)
+            aclaw = ops.spike(f'aclaw_{tag}', (a_tip[0], a_tip[1], a_tip[2] + finger_lift),
+                              a_claw, a_claw * 0.4, wclaw_rot)
+            materials.assign(aclaw, _mat(mats, claw_mat_key))
+            out.append(aclaw)
+            # micro-membrane triangulaire : colonne racine (le long de l'avant-bras,
+            # entre coude et poignet, sur sa portion proche du poignet) + colonne du
+            # doigt (poignet -> pointe alula) -> 2 colonnes, même fonction `col_pts`
+            # que la membrane principale (sag/camber nuls car u=0/1 -> juste le camber).
+            arm_base = Vector(el).lerp(W, alula.get('root_frac', 0.65))
+            arm_col = [tuple(v) for v in col_pts(arm_base, W, 0.0)]
+            tip_col = [tuple(v) for v in col_pts(W, Vector(a_tip), 1.0)]
+            a_mem = ops.grid_surface(f'alula_mem_{tag}', [arm_col, tip_col],
+                                     thickness=[t * 0.55 for t in thickness_rows])
+            materials.assign(a_mem, _mat(mats, part.get('mat', 'membrane')))
+            out.append(a_mem)
     return out
 
 
