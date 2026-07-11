@@ -10,9 +10,13 @@ Boucle : **GROUND → BUILD → RENDER → CRITIQUE → FEEDBACK utilisateur →
 3. **LOOK** (agent `look-dev`) : matériaux, lumières, caméra — sections `materials`/`scene` de la spec.
 4. **RENDER** : `python3 pipeline/run.py forge <spec> --fast` pour itérer, sans `--fast` pour présenter.
 5. **CRITIQUE** : d'abord MESURÉE — `python3 pipeline/run.py compare <spec> <ref.png>`
-   (planche réf|rendu + deltas `color_stats`/`edge_density`). L'agent `render-critic` ne sert
-   qu'à interpréter ce que les métriques ne captent pas (anatomie, lisibilité). Max 3 itérations
-   internes en --fast, puis rendu HQ.
+   (planche réf|rendu + deltas `color_stats`/`edge_density`). Puis OBLIGATOIRE (auto-audit
+   boucle 19, faute F2) : agent `render-critic` SÉPARÉ (œil neuf, jamais celui qui a
+   implémenté) sur les shots HQ de présentation, prompt = critères de l'évaluateur
+   utilisateur ; ses défauts bloquants font continuer la boucle au lieu de s'arrêter.
+   Un correctif n'est « fait » que s'il LIT dans le shot de présentation (faute F1) —
+   les rapports distinguent « implémenté » de « lit à l'écran » (faute F5). Max 3
+   itérations internes en --fast, puis rendu HQ.
 6. **FEEDBACK** : STOP obligatoire — présenter le rendu HQ à l'utilisateur et attendre
    ses retours précis avant toute suite. Consigner le feedback dans `pipeline/state/session.json`
    et les décisions actionnables dans `NEXT.md` (contrat de la boucle suivante, avec cibles chiffrées).

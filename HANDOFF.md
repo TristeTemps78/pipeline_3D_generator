@@ -22,13 +22,17 @@ Fait en boucle 18 (2 agents Sonnet, feedback step_218 dans session.json) :
   spec_level .28 + base élargie + growth_rings.
 - Scène 288k verts stable, tête 66.5k.
 
-## Contrat boucle 19 (à recadrer selon feedback step_231)
-Restes du feedback step_218 non traités : TORSION du corps entier (pose plus complexe —
-spine ne supporte pas le twist axial, mécanisme à créer) + tension musculaire des pattes ;
-CR4 de l'audit (plaques héros épaules/dos, couche muscles bake, bake étendu head/hindleg
-avec exclude eye_/lid_) ; NEXT 0 : environnement caverne/canyon, cicatrices.
-Doutes agents : piques encore « lames rétroéclairées » (contrainte lumières), alula fondue
-dans le panneau (edge_color dédié ?), gradient enamel suppose racine→pointe.
+## Contrat boucle 19 (AUTO-AUDIT fait : research/audit_orchestrateur_boucle19.md —
+## plan EN ATTENTE DE VALIDATION utilisateur avant exécution)
+Feedback step_231 sévère (consigné) : les mêmes critiques reviennent depuis step_182 car
+le process jugeait à la mauvaise échelle (F1), sans critique indépendante (F2 — render-
+critic jamais utilisé, désormais OBLIGATOIRE dans orchestrator.md), anatomie toujours
+reportée (F3), bruits isotropes vendus comme organiques (F4), rapports confondant
+« implémenté » et « lit à l'écran » (F5). Plan proposé : 1) ANATOMIE d'abord (muscles
+fusiformes limb/wing, articulations, plis aux plis) ; 2) champs de texture PILOTÉS par
+l'anatomie (écailles en rangées le long des axes, veines en arbre depuis les doigts —
+fini le Voronoï nu) ; 3) dents/cornes irrégulières par seed à échelle VISIBLE + cadrage
+œil dédié ; 4) render-critic avant tout stop + shots de vérification par feature.
 
 ## Restes connus hors contrat
 copper_fraction peu fiable (juger via luminance p5/p50/p95, réf .082/.185/.715) ;
