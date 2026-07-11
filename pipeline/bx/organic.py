@@ -188,11 +188,25 @@ def _lip_bourrelet(prefix, secs, y_span, Wf, mat, out, n=16, thickness=0.03,
         out.append(tube)
 
 
+def _tooth_offsets(n, tilt_amt, curve_amt, twist_amt, power=1.7):
+    """Décalages latéraux d'un profil de dent COURBE (boucle 19 chantier C, feedback
+    « dents = cônes parfaits sans irrégularité ») : `laws.curl_offset` (déjà utilisée
+    pour la courbure de pointe des cornes) réutilisée pour un axe avant/arrière
+    (`lean`, tilt de base historique + `curve_amt` proportionnel à la longueur pour
+    un vrai crochet visible) et un axe latéral (`twist`) — tous deux croissants de
+    façon NON-LINÉAIRE base->pointe (`power`>1 concentre la courbure vers la pointe,
+    pas un cône droit à 2 segments quasi alignés)."""
+    lean_off = laws.curl_offset(n, amount=tilt_amt + curve_amt, power=power)
+    twist_off = laws.curl_offset(n, amount=twist_amt, power=power)
+    return lean_off, twist_off
+
+
 @builder('head')
 def head(part, mats):
     """Tête loftée par sections superellipse (GVL) : crâne→museau continu, mâchoire
     inférieure articulée ouverte de `gape`°, dents courbes, yeux sous arcades,
     narines, couronne de cornes en spirale log."""
+    from . import detail as _detail
     L = Vector(part['loc'])
     pitch = part.get('pitch', -8.0)
     # head_yaw (T17 CR2, défaut 0 = rétro-compat ; nommé à part de `yaw` local à la
@@ -303,84 +317,119 @@ def head(part, mats):
     # dents -> une seule valeur spec fait "rejouer" un autre jeu de dents irrégulières.
     ts = part.get('tooth_scale', 1.0)
     tooth_seed = part.get('tooth_seed', 0.0)
-    gp = part.get('gum', {})
-    gum_scale = gp.get('scale', 1.0)
-    gum_flat = gp.get('flatten', 0.42)
-    gum_seg = gp.get('seg', 10)
+    # gencive : bourrelet CONTINU (pas des blobs isolés par dent, feedback boucle 19
+    # chantier C) -- `gum_mat` (matériau chair humide dédié `materials.gum`, replié sur
+    # la peau si absent de la spec) + `gum_ridge` (sous-dict optionnel, mêmes clés que
+    # `lip_profile`) pilote le bourrelet posé après les deux rangées de dents.
+    gum_mat = _mat(mats, part.get('gum_mat', 'gum')) or skin
+    gr_spec = part.get('gum_ridge', {})
     su = part.get('tooth_span_upper', (0.42, 1.07))
     nu = part.get('teeth_upper', 6)
     fu_idx = set(part.get('fang_idx_upper', ()))
     fu_scale = part.get('fang_scale_upper', 1.0)
     fu_girth = part.get('fang_girth_upper', 1.3)
     lu_ref = ts * (0.07 + 0.012 * (nu - 1) * 0.5)
+    # dent ébréchée/usée PAR SEED (feedback : « cônes parfaits sans irrégularité ») :
+    # un index NON-croc choisi déterministe depuis `tooth_seed` -> pointe TRONQUÉE
+    # (pas effilée) + légèrement raccourcie, lit comme une dent cassée/usée à l'usage.
+    chip_u = 1 + int(abs(math.sin(tooth_seed * 1.7 + 0.4)) * max(0, nu - 2)) if nu > 2 else -1
     for i in range(nu):
         y = su[0] + i * (su[1] - su[0]) / max(1, nu - 1)
         w = interp_w(upper, y) * 0.78
         fz = _interp_scalar(ys_u, upper_flex, y)
-        jit_l = 1 + 0.15 * math.sin(i * 9.1 + tooth_seed) + 0.05 * math.sin(i * 3.3 + 0.6 + tooth_seed)
         is_fang = i in fu_idx
-        l = (0.07 + 0.012 * i) * ts * jit_l
-        if is_fang:
-            l *= fu_scale
-        rscale = max(0.55, min(1.9, (l / max(lu_ref, 1e-4)) ** 0.5))
-        if is_fang:
-            rscale *= fu_girth
-        jit_r = 1 + 0.08 * math.sin(i * 6.1 + 1.1 + tooth_seed)
-        radii = [0.021 * ts * rscale * jit_r, 0.0125 * ts * rscale * jit_r, 0.0032 * ts]
-        # inclinaison avant/arrière + léger galbe latéral PAR DENT (`tooth_seed`) : une
-        # rangée de cônes tous parallèles -> variance crédible, occasionnellement une
-        # dent penche vers l'arrière au lieu de toutes pencher pareil vers l'avant.
-        lean = 0.55 + 0.85 * math.sin(i * 3.7 + 1.1 + tooth_seed)
-        twist = 0.05 * w * math.sin(i * 5.9 + 2.3 + tooth_seed)
+        is_chip = (i == chip_u) and not is_fang
         for s, tag in ((1, 'l'), (-1, 'r')):
+            # asymétrie gauche/droite (feedback : dents parfaitement symétriques en
+            # miroir) : déphasage PAR CÔTÉ sur toutes les sinusoïdes de variance —
+            # la dent droite n'est plus le clone-miroir exact de la gauche.
+            ph = tooth_seed + (0.0 if tag == 'l' else 2.35)
+            jit_l = 1 + 0.20 * math.sin(i * 9.1 + ph) + 0.06 * math.sin(i * 3.3 + 0.6 + ph)
+            l = (0.07 + 0.012 * i) * ts * jit_l
+            if is_fang:
+                l *= fu_scale
+            rscale = max(0.55, min(1.9, (l / max(lu_ref, 1e-4)) ** 0.5))
+            if is_fang:
+                rscale *= fu_girth
+            jit_r = 1 + 0.08 * math.sin(i * 6.1 + 1.1 + ph)
+            r_root, r_tip = 0.021 * ts * rscale * jit_r, 0.0032 * ts
+            if is_chip:
+                l *= 0.78
+                r_tip = r_root * 0.42
+            lean = 0.55 + 0.85 * math.sin(i * 3.7 + 1.1 + ph)
+            twist = 0.05 * w * math.sin(i * 5.9 + 2.3 + ph)
+            # courbure PROPORTIONNELLE à la longueur (crochet léger visible à
+            # l'échelle du shot tête, pas un décalage constant noyé dans le bruit) :
+            # `curve_amt` s'ajoute au tilt de base `lean*0.03` (historique).
+            curve_amt = l * (0.22 + 0.16 * math.sin(i * 4.3 + 2.0 + ph))
+            n_pts = 4
+            lean_off, twist_off = _tooth_offsets(n_pts, lean * 0.03, curve_amt, twist)
             x = s * w
-            mid = W((x * 0.97 + s * twist * 0.5, y + 0.015 * lean, fz - l * 0.55))
-            tip = W((x * 0.92 + s * twist, y + 0.03 * lean, fz - l))
-            t = ops.tube(f'tooth_u{tag}{i}', [W((x, y, fz - 0.005)), mid, tip], radii)
+            pts_t = [W((x * (1.0 - 0.08 * (k / (n_pts - 1))) + s * twist_off[k],
+                       y + lean_off[k], fz - 0.005 - l * (k / (n_pts - 1))))
+                     for k in range(n_pts)]
+            radii_t = laws.power_taper(n_pts, r_root, 1.35, r_tip)
+            t = ops.tube(f'tooth_u{tag}{i}', pts_t, radii_t, resolution_u=8, bevel_resolution=6)
             materials.assign(t, tooth_m)
             out.append(t)
-            # volume de gencive à la base (feedback A3) : petit bourrelet APLATI (pas
-            # une sphère), fondu au bourrelet de lèvre (`lip_profile`, même matériau
-            # peau) -> ancre la dent au lieu de la planter nue dans la mâchoire.
-            gr = (0.022 * ts * rscale + 0.006) * gum_scale
-            gb = ops.blob(f'gum_u{tag}{i}', W((x, y - 0.008, fz - 0.004)),
-                         (gr, gr * 1.5, gr * gum_flat), rot_deg=(0, 0, s * 6), seg=gum_seg)
-            materials.assign(gb, skin)
-            out.append(gb)
     sl = part.get('tooth_span_lower', (0.35, 0.99))
     nl = part.get('teeth_lower', 5)
     fl_idx = set(part.get('fang_idx_lower', ()))
     fl_scale = part.get('fang_scale_lower', 1.0)
     fl_girth = part.get('fang_girth_lower', 1.3)
     ll_ref = ts * (0.06 + 0.010 * (nl - 1) * 0.5)
+    chip_l = 1 + int(abs(math.sin(tooth_seed * 2.3 + 1.9)) * max(0, nl - 2)) if nl > 2 else -1
     for i in range(nl):
         y = sl[0] + i * (sl[1] - sl[0]) / max(1, nl - 1)
         w = interp_w(lower, y) * 0.75
         fz = _interp_scalar(ys_l, lower_flex, y)
-        jit_l = 1 + 0.15 * math.sin(i * 7.7 + 1.3 + tooth_seed) + 0.05 * math.sin(i * 3.1 + 0.2 + tooth_seed)
         is_fang = i in fl_idx
-        l = (0.06 + 0.010 * i) * ts * jit_l
-        if is_fang:
-            l *= fl_scale
-        rscale = max(0.55, min(1.9, (l / max(ll_ref, 1e-4)) ** 0.5))
-        if is_fang:
-            rscale *= fl_girth
-        jit_r = 1 + 0.08 * math.sin(i * 5.3 + 0.4 + tooth_seed)
-        radii = [0.019 * ts * rscale * jit_r, 0.011 * ts * rscale * jit_r, 0.0032 * ts]
-        lean = 0.55 + 0.85 * math.sin(i * 4.1 + 2.6 + tooth_seed)
-        twist = 0.05 * w * math.sin(i * 6.7 + 0.4 + tooth_seed)
+        is_chip = (i == chip_l) and not is_fang
         for s, tag in ((1, 'l'), (-1, 'r')):
+            ph = tooth_seed + (0.0 if tag == 'l' else 2.35)
+            jit_l = 1 + 0.20 * math.sin(i * 7.7 + 1.3 + ph) + 0.06 * math.sin(i * 3.1 + 0.2 + ph)
+            l = (0.06 + 0.010 * i) * ts * jit_l
+            if is_fang:
+                l *= fl_scale
+            rscale = max(0.55, min(1.9, (l / max(ll_ref, 1e-4)) ** 0.5))
+            if is_fang:
+                rscale *= fl_girth
+            jit_r = 1 + 0.08 * math.sin(i * 5.3 + 0.4 + ph)
+            r_root, r_tip = 0.019 * ts * rscale * jit_r, 0.0032 * ts
+            if is_chip:
+                l *= 0.78
+                r_tip = r_root * 0.42
+            lean = 0.55 + 0.85 * math.sin(i * 4.1 + 2.6 + ph)
+            twist = 0.05 * w * math.sin(i * 6.7 + 0.4 + ph)
+            curve_amt = l * (0.22 + 0.16 * math.sin(i * 4.9 + 0.5 + ph))
+            n_pts = 4
+            lean_off, twist_off = _tooth_offsets(n_pts, lean * 0.03, curve_amt, twist)
             x = s * w
-            mid = WJ((x * 0.97 + s * twist * 0.5, y + 0.015 * lean, fz + l * 0.55))
-            tip = WJ((x * 0.92 + s * twist, y + 0.03 * lean, fz + l))
-            t = ops.tube(f'tooth_l{tag}{i}', [WJ((x, y, fz + 0.005)), mid, tip], radii)
+            pts_t = [WJ((x * (1.0 - 0.08 * (k / (n_pts - 1))) + s * twist_off[k],
+                        y + lean_off[k], fz + 0.005 + l * (k / (n_pts - 1))))
+                     for k in range(n_pts)]
+            radii_t = laws.power_taper(n_pts, r_root, 1.35, r_tip)
+            t = ops.tube(f'tooth_l{tag}{i}', pts_t, radii_t, resolution_u=8, bevel_resolution=6)
             materials.assign(t, tooth_m)
             out.append(t)
-            gr = (0.020 * ts * rscale + 0.006) * gum_scale
-            gb = ops.blob(f'gum_l{tag}{i}', WJ((x, y - 0.008, fz + 0.004)),
-                         (gr, gr * 1.5, gr * gum_flat), rot_deg=(0, 0, s * 6), seg=gum_seg)
-            materials.assign(gb, skin)
-            out.append(gb)
+    # bourrelet de gencive CONTINU en base des deux rangées (remplace les anciens
+    # blobs isolés par dent) : même mécanisme que `lip_profile` (`_lip_bourrelet`,
+    # suit la largeur/courbure du profil crâne/mâchoire), positionné PRÈS de la
+    # ligne d'attache des dents (`z_frac` proche de 0, pas le bord externe de lèvre)
+    # -> lit comme un bourrelet continu qui ancre chaque dent plutôt qu'un pointillé
+    # d'ellipsoïdes séparés.
+    gru = (max(ys_u[0], su[0] - 0.02), min(ys_u[-1], su[1] + 0.02))
+    grl = (max(ys_l[0], sl[0] - 0.02), min(ys_l[-1], sl[1] + 0.02))
+    _lip_bourrelet('gum_u', upper, gru, W, gum_mat, out, n=gr_spec.get('n', 16),
+                   thickness=gr_spec.get('thickness_upper', 0.026) * ts,
+                   w_frac=gr_spec.get('w_frac_upper', 0.80), z_frac=gr_spec.get('z_frac_upper', -0.10),
+                   flex=upper_flex, ys_flex=ys_u, noise_scale=gr_spec.get('noise_scale', 0.11),
+                   noise_strength=gr_spec.get('noise_strength', 0.32), seed=2.4)
+    _lip_bourrelet('gum_l', lower, grl, WJ, gum_mat, out, n=gr_spec.get('n', 16),
+                   thickness=gr_spec.get('thickness_lower', 0.024) * ts,
+                   w_frac=gr_spec.get('w_frac_lower', 0.77), z_frac=gr_spec.get('z_frac_lower', 0.10),
+                   flex=lower_flex, ys_flex=ys_l, noise_scale=gr_spec.get('noise_scale', 0.11),
+                   noise_strength=gr_spec.get('noise_strength', 0.32), seed=3.9)
 
     # --- bourrelets de lèvre/gencive fondus (feedback A2) : suivent la MÊME courbe
     # que les dents (profil `upper`/`lower` + `snout_curve`/`jaw_curve`) au lieu de
@@ -431,7 +480,30 @@ def head(part, mats):
     lus = eyep.get('lid_upper_scale', (0.30, 0.5, 0.24))
     luz = eyep.get('lid_upper_zfrac', 0.74)
     for s, tag in ((1, 'l'), (-1, 'r')):
-        g = ops.blob(f'eye_{tag}', W((s * ex, ey - 0.006, ez)), (egr, egr, egr))
+        # orientation du globe (feedback boucle 19 chantier C, « iris/pupille non
+        # perçus ») : BUG diagnostiqué -- `ops.blob` sans `rot_deg` laisse l'axe
+        # local du globe (qui porte le gradient iris/pupille, cf. docstring
+        # `materials.eye_globe` : X local = axe de regard) aligné sur les axes
+        # MONDE, PAS sur la direction réelle du regard une fois la tête tournée
+        # (`pitch`/`yaw`, `Rp`) -- la pupille/l'iris se retrouvaient hors-champ,
+        # seule la zone sclère/anneau externe restait visible sous la caméra (lisait
+        # comme une bille de verre opaque). Fix générique : on tourne le globe pour
+        # que son axe local +X pointe vers l'extérieur de l'orbite dans le repère
+        # MONDE de la tête (`Rp @ eye.look_dir`, +Z gardé approx. vertical -> la
+        # fente de pupille reste verticale). `look_dir` (repère local tête, x=côté
+        # y=avant z=haut ; défaut = grossièrement la direction caméra habituelle
+        # d'un plan 3/4 -- PAS une valeur dragon figée, réglable depuis la spec
+        # pour aligner le regard sur la caméra RÉELLE de la scène, cf. `scene.hero`/
+        # `scene.shots` : la tolérance angulaire de la fente est étroite,
+        # `pupil_width` amplifie tout écart hors axe) : marche pour n'importe
+        # quelle tête pitchée/yawée, ce n'est que la direction locale qui change.
+        ld = eyep.get('look_dir', (0.7, 0.45, 0.45))
+        look_dir = Rp @ Vector((s * ld[0], ld[1], ld[2]))
+        if look_dir.length < 1e-6:
+            look_dir = Vector((s, 0.0, 0.0))
+        eye_quat = look_dir.normalized().to_track_quat('X', 'Z')
+        eye_rot = tuple(math.degrees(a) for a in eye_quat.to_euler())
+        g = ops.blob(f'eye_{tag}', W((s * ex, ey - 0.006, ez)), (egr, egr, egr), rot_deg=eye_rot)
         materials.assign(g, eye_m)
         out.append(g)
         lu = ops.blob(f'lid_up_{tag}', W((s * ex * 0.72, ey + 0.02, ez + esr * luz)),
@@ -521,19 +593,29 @@ def head(part, mats):
     # `rings`, on veut plus de points pour que chaque anneau couvre 3-4 points de
     # contrôle et reste visible après lissage.
     n_horn = hp.get('n', 16)
-    raw = apply_law(hp.get('vocab', 'growth.horn_spiral'),
-                    n=n_horn, a=hp.get('a', 0.10), b=hp.get('b', 0.30),
-                    turns=hp.get('turns', 0.6), rise=hp.get('rise', 0.55))
-    base_radii = laws.power_taper(n_horn, hp.get('r0', 0.075), 1.15, 0.008)
-    # relief kératine générique (rétro-compat : neutre si `rings`/`curl`/`root_len`
-    # absents de la spec) : anneaux de croissance + légère torsion de pointe + base
-    # élargie fondue dans le crâne (prolonge la base vers l'intérieur, cf. doctrine
-    # « mound enfoncé aux 2/3 » déjà utilisée pour les naseaux) au lieu d'un cône nu
-    # planté sur la surface.
-    raw, base_radii = _apply_horn_growth(
-        raw, base_radii, ring_p=hp.get('rings'),
-        curl=hp.get('curl', 0.0), curl_power=hp.get('curl_power', 1.6),
-        root_len=hp.get('root_len', 0.0), root_bulge=hp.get('root_bulge', 1.0))
+    # `bone_axis` (rétro-compat : None si absent de la spec -> matériau `bone_m`
+    # inchangé) : variante anisotrope du matériau corne (stries LONGITUDINALES via
+    # l'attribut `axis_uv`, cf. `materials.horn axis_uv` et `detail.write_axis_uv`)
+    # -- corrige le bug diagnostiqué boucle 19 chantier C : le Wave `bone_m` marche
+    # en coordonnées OBJECT, valides seulement si l'axe local Z EST l'axe de la
+    # corne ; ici les tubes-courbes ont un transform identité (points déjà en
+    # MONDE) -> l'axe Z « Object » est en fait l'axe Z MONDE, qui ne coïncide avec
+    # l'axe de la corne QUE si elle pointe pile vers le haut -- une corne balayée
+    # vers l'arrière voit ses stries couper de travers au lieu de courir le long
+    # de sa longueur.
+    bone_axis_m = _mat(mats, hp.get('axis_mat', 'bone_axis'))
+    horn_seed = hp.get('seed', 0.0)
+    # anneaux de croissance ACCENTUÉS (feedback : « cônes lisses sans texture os/
+    # corne rayée ») + irrégularité PAR CORNE (feedback : « cônes parfaits sans
+    # irrégularité ») : `_apply_horn_growth` est maintenant appelé PAR INDEX `k`
+    # (au lieu d'une seule fois pour toute la couronne) avec une courbure/anneaux
+    # légèrement dépendants de `k` (et de `horn_seed`, qui rejoue une autre
+    # combinaison sans changer le nombre/l'arrangement des cornes) -> chaque corne
+    # a un profil légèrement différent au lieu d'être un simple clone mis à
+    # l'échelle de ses voisines. `tip_wear` (0..1, défaut 0 = rétro-compat) émousse
+    # la pointe d'UNE corne sur 3 (usure d'implantation crédible, pas toutes
+    # identiques).
+    tip_wear = hp.get('tip_wear', 0.0)
     # ancrages : lerp base_from -> base_to (repère local tête, x=côté y=avant z=haut)
     # + éventail yaw0..yaw0+yaw_spread. « 2 maîtresses arrière » = master_w étroit,
     # size_bump fort, pitch très négatif (couchées vers la nuque), yaw_spread faible.
@@ -542,14 +624,31 @@ def head(part, mats):
     for k in range(pairs):
         u = k / max(1, pairs - 1)
         sc = sizes[k]
-        radii = [r * (0.45 + 0.55 * sc) for r in base_radii]
+        curl_k = hp.get('curl', 0.0) * (0.7 + 0.6 * (0.5 + 0.5 * math.sin(k * 2.7 + 1.1 + horn_seed)))
+        b_k = hp.get('b', 0.30) * (1.0 + 0.09 * math.sin(k * 3.3 + 0.7 + horn_seed))
+        raw_k = apply_law(hp.get('vocab', 'growth.horn_spiral'),
+                          n=n_horn, a=hp.get('a', 0.10), b=b_k,
+                          turns=hp.get('turns', 0.6), rise=hp.get('rise', 0.55))
+        base_radii_k = laws.power_taper(n_horn, hp.get('r0', 0.075), 1.15, 0.008)
+        ring_p_k = dict(hp['rings']) if hp.get('rings') else None
+        if ring_p_k:
+            ring_p_k['depth'] = ring_p_k.get('depth', 0.14) * (
+                0.8 + 0.4 * (0.5 + 0.5 * math.sin(k * 4.1 + 2.0 + horn_seed)))
+        raw_k, base_radii_k = _apply_horn_growth(
+            raw_k, base_radii_k, ring_p=ring_p_k, curl=curl_k,
+            curl_power=hp.get('curl_power', 1.6),
+            root_len=hp.get('root_len', 0.0), root_bulge=hp.get('root_bulge', 1.0))
+        if tip_wear and k % 3 == 0:  # pointe usée : PAS toutes les cornes identiques
+            base_radii_k[-1] = max(base_radii_k[-1], base_radii_k[-2] * tip_wear)
+            base_radii_k[-2] = max(base_radii_k[-2], base_radii_k[-3] * tip_wear * 0.85)
+        radii = [r * (0.45 + 0.55 * sc) for r in base_radii_k]
         yaw = hp.get('yaw0', 6) + u * hp.get('yaw_spread', 62)
         hpitch = hp.get('pitch', -35) - u * hp.get('pitch_spread', 20)
         jit = 0.05 * math.sin(k * 5.1)
         base = (bf[0] + (bt[0] - bf[0]) * u, bf[1] + (bt[1] - bf[1]) * u,
                 bf[2] + (bt[2] - bf[2]) * u + jit)
         for s, tag in ((1, 'l'), (-1, 'r')):
-            pts = ops.transform_pts(raw, loc=W((s * base[0], base[1], base[2])),
+            pts = ops.transform_pts(raw_k, loc=W((s * base[0], base[1], base[2])),
                                     rot_deg=(pitch + hpitch, 0, s * (yaw + 6 * jit)),
                                     scale=sc * hp.get('scale', 1.0))
             # résolution réduite (budget sommets) : `n_horn` points de contrôle portent
@@ -557,6 +656,14 @@ def head(part, mats):
             # pour des tubes à peu de points, ex. dents/crêtes) est inutilement dense.
             h = ops.tube(f'horn_{tag}{k}', pts, radii, resolution_u=6, bevel_resolution=6)
             materials.assign(h, bone_m)
+            if bone_axis_m:
+                # réalisé en MESH (nécessaire pour porter un attribut vertex,
+                # cf. `detail.write_axis_uv`) -- même schéma que `_apply_fuse_detail`/
+                # `_apply_armor` (bake CURVE->MESH via depsgraph, aucun bpy.ops).
+                h = core.realize_to_mesh(h)
+                _detail.write_axis_uv(h, pts)
+                h.data.materials.clear()
+                h.data.materials.append(bone_axis_m)
             out.append(h)
     # petites cornes d'arcade + pointes de joue (ancrées sur l'os, base large) ;
     # feature_scale suit l'agrandissement du crâne (positions ET tailles locales).
@@ -601,29 +708,61 @@ def head(part, mats):
 
 @builder('dewlap')
 def dewlap(part, mats):
-    """Fanon de gorge : chapelet de masses charnues qui pendent sous la mâchoire/le cou,
-    avec petits plis superposés (chaque maillon = un blob principal + un pli secondaire
-    décalé vers l'avant-bas, silhouette de peau lâche plutôt que tube lisse)."""
+    """Fanon de gorge : chaîne CONTINUE de plis charnus qui pendent sous la mâchoire/
+    le cou (feedback boucle 19 chantier C, diagnostic déjà posé : les points de
+    contrôle de la spec (`pts`) sont souvent plus ESPACÉS (~0.44-0.96u, cf. distance
+    entre points consécutifs) que la longueur d'un maillon (`sizes`*~2.7*2, ~0.26-
+    0.52u) -> un maillon par point de contrôle laisse du vide entre deux blobs, lu
+    comme des ovales FLOTTANTS près de la gorge plutôt qu'une chaîne continue).
+    Fix générique (pas de valeur dragon) : on RE-ÉCHANTILLONNE la polyligne
+    (position ET taille interpolées linéairement) pour qu'aucun segment entre deux
+    centres consécutifs n'excède `(1-overlap) * y_reach * (taille_i + taille_{i+1})`
+    -- exactement la somme des DEMI-longueurs de deux maillons voisins (un maillon de
+    taille r s'étend de `r*y_reach` de chaque côté de son centre) réduite par la
+    fraction de recouvrement cible `overlap` (0..1, défaut 0.3 = un maillon mord de
+    30% sur son voisin). `y_reach` = même facteur d'allongement que le maillon
+    principal historique (2.7). `seg` (résolution des blobs, PLUS BAS que le défaut
+    `ops.blob` 32) : la chaîne comporte maintenant plus de maillons -> réduire leur
+    résolution individuelle tient le budget sommets sans perdre en continuité (un
+    maillon modeste mais bien connecté à ses voisins lit mieux qu'un maillon isolé
+    très lisse)."""
     pts = [tuple(p) for p in part['pts']]
-    sizes = part['sizes']
+    sizes = list(part['sizes'])
     mat = _mat(mats, part.get('mat', 'scales'))
+    overlap = part.get('overlap', 0.3)
+    y_reach = part.get('y_reach', 2.7)
+    seg = part.get('seg', 20)
     out = []
-    n = len(pts)
-    for i, (p, r) in enumerate(zip(pts, sizes)):
-        # masse principale très allongée le long du cou (recouvre le point suivant) :
-        # fond la chaîne en une seule poche continue plutôt qu'un chapelet de perles
-        # étroit en X et très allongé en Y : quille de peau lâche continue le long de
-        # la gorge — des ratios proches de la sphère rendent comme un chapelet d'œufs
-        b = ops.blob(f"dewlap_{part.get('id', 'd')}_{i}", p, (r * 0.5, r * 2.7, r * 0.78))
+    # --- densification adaptative : insère des points intermédiaires (position +
+    # taille interpolées) là où l'espacement dépasse la cible de recouvrement ---
+    dense_pts, dense_sizes = [pts[0]], [sizes[0]]
+    for i in range(len(pts) - 1):
+        p0, p1 = pts[i], pts[i + 1]
+        r0, r1 = sizes[i], sizes[i + 1]
+        d = math.dist(p0, p1)
+        target_gap = max(1e-4, (1.0 - overlap) * y_reach * (r0 + r1))
+        m = max(1, math.ceil(d / target_gap))
+        for k in range(1, m + 1):
+            t = k / m
+            dense_pts.append(tuple(p0[j] + (p1[j] - p0[j]) * t for j in range(3)))
+            dense_sizes.append(r0 + (r1 - r0) * t)
+    n = len(dense_pts)
+    for i, (p, r) in enumerate(zip(dense_pts, dense_sizes)):
+        # masse principale allongée le long du cou (recouvre le(s) point(s) voisin(s)
+        # d'au moins `overlap`) : fond la chaîne en une seule poche continue plutôt
+        # qu'un chapelet de perles — ratios aplatis (pas proches de la sphère, sinon
+        # rendu en chapelet d'œufs).
+        b = ops.blob(f"dewlap_{part.get('id', 'd')}_{i}", p, (r * 0.5, r * y_reach, r * 0.78), seg=seg)
         materials.assign(b, mat)
         out.append(b)
         if i < n - 1:
             # petit pli superposé entre deux maillons, discret (pas une grosse sphère)
-            nxt = pts[i + 1]
+            nxt = dense_pts[i + 1]
             mid = tuple((p[k] + nxt[k]) / 2 for k in range(3))
-            fr = (r + sizes[i + 1]) * 0.30
+            fr = (r + dense_sizes[i + 1]) * 0.30
             fold = (mid[0], mid[1], mid[2] - fr * 0.55)
-            f = ops.blob(f"dewlap_fold_{part.get('id', 'd')}_{i}", fold, (fr * 0.75, fr * 1.3, fr * 0.55))
+            f = ops.blob(f"dewlap_fold_{part.get('id', 'd')}_{i}", fold,
+                        (fr * 0.75, fr * 1.3, fr * 0.55), seg=seg)
             materials.assign(f, mat)
             out.append(f)
     return out

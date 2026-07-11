@@ -1,7 +1,7 @@
 {
- "step": 243,
+ "step": 252,
  "spec": "specs/dragon_got.json",
- "last_render": "renders/step_243_hero.png",
+ "last_render": "renders/step_252_hero.png",
  "feedback": [
   {
    "step": 6,

@@ -514,7 +514,8 @@ def enamel(name='enamel', color=(0.85, 0.82, 0.75), root_color=(0.32, 0.24, 0.17
 
 
 def horn(name='horn', color=(0.07, 0.045, 0.025), rough=0.3, stripe_scale=28,
-         stripe_strength=0.22, aniso=0.4, var=0.14, spec_level=0.6):
+         stripe_strength=0.22, aniso=0.4, var=0.14, spec_level=0.6,
+         axis_uv=False, axis_uv_stripes=22):
     """pattern.horn v1 : kératine striée générique (cornes/griffes/épines osseuses) —
     bandes fines (Wave texture le long de l'axe local Z, cornes/griffes/pointes étant
     des tubes/cônes effilés le long de cet axe en coordonnées Object) en bump, reflet
@@ -524,20 +525,53 @@ def horn(name='horn', color=(0.07, 0.045, 0.025), rough=0.3, stripe_scale=28,
     `spec_level` (T18, défaut 0.6 = valeur historique) : Specular IOR Level — sur un
     doigt d'aile fin sous les lumières de bord (rim ~5200) 0.6 sature en un reflet
     métal/chrome qui écrase la couleur kératine ; baissable depuis la spec sans
-    toucher aux lumières."""
+    toucher aux lumières.
+    `axis_uv` (boucle 19 chantier C, fix diagnostiqué : le Wave ci-dessus utilise les
+    coordonnées OBJECT, valides seulement si l'axe local Z de l'objet EST l'axe de la
+    corne — faux pour `bx.organic.head` où les tubes-courbes sont construits avec des
+    points déjà en MONDE sur un objet à transform identité : l'axe Z « Object » est en
+    réalité l'axe Z MONDE, qui ne coïncide avec l'axe de la corne que si elle pointe
+    pile vers le haut. Une corne inclinée/balayée voit alors ses bandes couper de
+    travers au lieu de courir le long de sa longueur.) Quand True, remplace le Wave
+    par l'attribut mesh `axis_uv` (u=abscisse le long de l'axe RÉEL de la pièce,
+    v=angle autour de la section, écrit par `detail.write_axis_uv` sur la position
+    MONDE réelle des sommets, cf. `bx.organic.head`) : les stries varient avec v
+    (angle, PAS u) -> restent LONGITUDINALES (parallèles à l'axe) quelle que soit
+    l'orientation de la corne dans l'espace. Sans l'attribut sur le mesh, l'Attribute
+    node renvoie (0,0,0) -> rétro-compat totale (défaut False, comportement Wave
+    Object inchangé pour tous les appelants existants, ex. griffes/wing_bone)."""
     mat, nt, bsdf = _new(name)
     n, lk = nt.nodes, nt.links
-    tc = n.new('ShaderNodeTexCoord')
-    wave = n.new('ShaderNodeTexWave')
-    wave.bands_direction = 'Z'
-    wave.inputs['Scale'].default_value = stripe_scale
-    wave.inputs['Distortion'].default_value = 0.8
-    wave.inputs['Detail'].default_value = 2.0
-    lk.new(tc.outputs['Object'], wave.inputs['Vector'])
-    bmp = n.new('ShaderNodeBump')
-    bmp.inputs['Strength'].default_value = stripe_strength
-    lk.new(wave.outputs['Fac'], bmp.inputs['Height'])
-    lk.new(bmp.outputs['Normal'], bsdf.inputs['Normal'])
+    if axis_uv:
+        attr = n.new('ShaderNodeAttribute')
+        attr.attribute_type = 'GEOMETRY'
+        attr.attribute_name = 'axis_uv'
+        sepuv = n.new('ShaderNodeSeparateXYZ')
+        lk.new(attr.outputs['Vector'], sepuv.inputs['Vector'])
+        vmul = n.new('ShaderNodeMath')
+        vmul.operation = 'MULTIPLY'
+        vmul.inputs[1].default_value = axis_uv_stripes
+        lk.new(sepuv.outputs['Y'], vmul.inputs[0])
+        vsin = n.new('ShaderNodeMath')
+        vsin.operation = 'SINE'
+        lk.new(vmul.outputs['Value'], vsin.inputs[0])
+        bmp = n.new('ShaderNodeBump')
+        bmp.inputs['Strength'].default_value = stripe_strength
+        lk.new(vsin.outputs['Value'], bmp.inputs['Height'])
+        lk.new(bmp.outputs['Normal'], bsdf.inputs['Normal'])
+        tc = n.new('ShaderNodeTexCoord')  # coordonnée cellule ci-dessous (variation)
+    else:
+        tc = n.new('ShaderNodeTexCoord')
+        wave = n.new('ShaderNodeTexWave')
+        wave.bands_direction = 'Z'
+        wave.inputs['Scale'].default_value = stripe_scale
+        wave.inputs['Distortion'].default_value = 0.8
+        wave.inputs['Detail'].default_value = 2.0
+        lk.new(tc.outputs['Object'], wave.inputs['Vector'])
+        bmp = n.new('ShaderNodeBump')
+        bmp.inputs['Strength'].default_value = stripe_strength
+        lk.new(wave.outputs['Fac'], bmp.inputs['Height'])
+        lk.new(bmp.outputs['Normal'], bsdf.inputs['Normal'])
     cell = n.new('ShaderNodeTexVoronoi')
     cell.inputs['Scale'].default_value = 6.0
     lk.new(tc.outputs['Object'], cell.inputs['Vector'])
@@ -652,6 +686,29 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     # noire) et ne glow que pupille/iris, sans changer `glow` (force globale).
     lk.new(ramp.outputs['Color'], bsdf.inputs['Emission Color'])
     _set(bsdf, 'Emission Strength', glow)
+    return mat
+
+
+def gum(name='gum', color=(0.32, 0.05, 0.06), rough=0.38, sss=0.22,
+        sss_radius=(0.22, 0.07, 0.05), spec_level=0.7, wet=0.35):
+    """Gencive : chair humide (feedback boucle 19 chantier C, « dents sans gencives
+    crédibles ») — teinte rouge/rose sombre distincte de la peau écailleuse, SSS
+    légère (chair vivante) + spécularité plus haute que la peau + léger coat
+    (`wet`) pour une brillance HUMIDE nette sous les lumières fortes, sans
+    géométrie propre (assigné au bourrelet continu `_lip_bourrelet` en base des
+    dents, cf. `bx.organic.head`)."""
+    mat, nt, bsdf = _new(name)
+    _set(bsdf, 'Base Color', (*color, 1))
+    _set(bsdf, 'Roughness', rough)
+    _set(bsdf, 'Specular IOR Level', spec_level)
+    if sss > 0:
+        _set(bsdf, 'Subsurface Weight', sss)
+        _set(bsdf, 'Subsurface Radius', sss_radius)
+    if wet > 0:
+        _set(bsdf, 'Coat Weight', wet)
+        _set(bsdf, 'Coat Roughness', 0.05)
+        _set(bsdf, 'Clearcoat', wet)
+        _set(bsdf, 'Clearcoat Roughness', 0.05)
     return mat
 
 

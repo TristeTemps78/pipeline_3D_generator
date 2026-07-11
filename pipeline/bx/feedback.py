@@ -235,7 +235,7 @@ PART_TYPE_HINTS = {
     # (vocabulaire générique du builder, pas des noms de dragon) — utilisées en repli
     # quand le nom de l'objet ne commence pas directement par l'id de la part.
     'spine': ['dorsal'],
-    'head': ['skull', 'jaw', 'tooth', 'eye', 'lid', 'nostril', 'nose', 'ridge', 'face', 'horn'],
+    'head': ['skull', 'jaw', 'tooth', 'gum', 'eye', 'lid', 'nostril', 'nose', 'ridge', 'face', 'horn'],
     'wing': ['arm', 'hand', 'membrane', 'batten', 'finger', 'wclaw', 'vein'],
     'limb': ['footpad', 'toe', 'claw', 'leg'],
     'dewlap': ['dewlap'],
@@ -318,6 +318,40 @@ def part_bbox(spec, part_key):
             xs, ys, zs = zip(*coords)
             mins.append((min(xs), min(ys), min(zs)))
             maxs.append((max(xs), max(ys), max(zs)))
+    if not mins:
+        return None
+    bmin = [min(v[i] for v in mins) for i in range(3)]
+    bmax = [max(v[i] for v in maxs) for i in range(3)]
+    center = tuple((bmin[i] + bmax[i]) / 2 for i in range(3))
+    radius = sum((bmax[i] - bmin[i]) ** 2 for i in range(3)) ** 0.5 / 2
+    return center, radius
+
+
+def bbox_by_match(match):
+    """Bbox MONDE de tous les objets MESH/CURVE visibles au rendu dont le nom
+    contient au moins une des sous-chaînes de `match` (str ou liste) — cadrage
+    caméra GÉNÉRIQUE sur un SOUS-ENSEMBLE de pièce (boucle 19 chantier C : shots de
+    VÉRIFICATION FEATURE `eye`/`teeth`, ex. globe + paupières, ou dents + gencives +
+    lèvres) quand `frame_part` (groupe de spec ENTIER, ex. toute la tête) serait trop
+    large pour juger une feature précise à l'échelle où elle doit lire. Complète
+    `part_bbox` (qui ne connaît que les groupes déclarés dans `spec['parts']`) sans
+    dépendre du registre de classification par part -- une simple sous-chaîne de nom
+    d'objet, comme `detail.displace_targets[].match`. Retourne (center, radius) ou
+    None si aucun objet ne matche."""
+    names = [match] if isinstance(match, str) else list(match)
+    deps = bpy.context.evaluated_depsgraph_get()
+    mins, maxs = [], []
+    for ob in bpy.context.scene.objects:
+        if ob.type not in ('MESH', 'CURVE') or ob.hide_render:
+            continue
+        if not any(nm in ob.name for nm in names):
+            continue
+        coords, _ = _obj_world_coords(ob, deps)
+        if not coords:
+            continue
+        xs, ys, zs = zip(*coords)
+        mins.append((min(xs), min(ys), min(zs)))
+        maxs.append((max(xs), max(ys), max(zs)))
     if not mins:
         return None
     bmin = [min(v[i] for v in mins) for i in range(3)]

@@ -66,12 +66,18 @@ def _save_scene():
 
 def _shot_camera(spec, shot, res):
     """Caméra d'un shot (`scene.shots`, mécanisme générique multi-prises) :
-    - sans `frame_part` : caméra par défaut de la scène (cadrage « héros » actuel) ;
+    - sans `frame_part`/`frame_match` : caméra par défaut de la scène (cadrage
+      « héros » actuel) ;
     - avec `frame_part`: cadrage AUTO sur la bbox monde du groupe de pièces (préfixe,
       cf. feedback.part_bbox) — distance déduite de la focale et du rayon bbox, la
       DIRECTION de visée vient de `dir` (vecteur cible→caméra) ou, à défaut, de la
       caméra par défaut (même point de vue, juste recentré/rapproché). `margin`
-      multiplie la distance (1 = bbox tangente au cadre). Zéro constante objet."""
+      multiplie la distance (1 = bbox tangente au cadre). Zéro constante objet ;
+    - avec `frame_match` (boucle 19 chantier C, shots de VÉRIFICATION FEATURE) :
+      même cadrage auto mais sur la bbox d'un SOUS-ENSEMBLE d'objets filtré par
+      sous-chaîne(s) de nom (cf. `feedback.bbox_by_match`), ex. `eye`/`teeth` —
+      un groupe de spec entier (`frame_part: 'head'`) serait trop large pour juger
+      une feature précise à l'échelle où elle doit lire."""
     cam = spec.get('scene', {}).get('camera', {})
     base_loc = tuple(cam.get('loc', (9, -11, 3.5)))
     base_tgt = tuple(cam.get('target', (0, 0, 2)))
@@ -81,12 +87,18 @@ def _shot_camera(spec, shot, res):
     # autres prises (head/legs, cadrage auto sur bbox) n'héritent d'un horizon penché.
     roll = shot.get('roll', cam.get('roll', 0.0))
     part = shot.get('frame_part')
-    if not part:
+    match = shot.get('frame_match')
+    if not part and not match:
         core.camera(base_loc, target=base_tgt, lens=lens, roll=roll)
         return
-    bb = feedback.part_bbox(spec, part)
-    if bb is None:
-        raise SystemExit(f"shot '{shot.get('id')}' : frame_part '{part}' introuvable")
+    if part:
+        bb = feedback.part_bbox(spec, part)
+        if bb is None:
+            raise SystemExit(f"shot '{shot.get('id')}' : frame_part '{part}' introuvable")
+    else:
+        bb = feedback.bbox_by_match(match)
+        if bb is None:
+            raise SystemExit(f"shot '{shot.get('id')}' : frame_match '{match}' introuvable")
     center, radius = bb
     d = shot.get('dir') or [base_loc[i] - base_tgt[i] for i in range(3)]
     norm = sum(c * c for c in d) ** 0.5 or 1.0
