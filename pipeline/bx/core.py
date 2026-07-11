@@ -89,6 +89,17 @@ def aim(ob, target):
     return ob
 
 
+def remove_light(ob):
+    """Supprime un objet lumière temporaire (P0 boucle 19 round 3, mécanisme
+    générique `scene.shots[].fill_lights` de `run.py forge`) : un shot peut ajouter
+    un éclairage dédié SANS l'hériter les shots suivants dans la même passe -- objet
+    + data-block lumière retirés proprement (pas de fuite mémoire entre shots)."""
+    data = ob.data
+    bpy.data.objects.remove(ob, do_unlink=True)
+    if data and data.users == 0:
+        bpy.data.lights.remove(data)
+
+
 def camera(loc, target=(0, 0, 2), lens=45, roll=0.0):
     """`roll` (degrés, défaut 0 = rétro-compat) : rotation autour de l'axe de visée
     (local -Z), appliquée APRÈS `aim` — incline l'horizon sans changer le cadrage

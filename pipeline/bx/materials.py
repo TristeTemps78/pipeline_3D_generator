@@ -421,7 +421,11 @@ def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough
             vein_scale=0.0, vein_strength=0.35, vein_dark=(0.02, 0.004, 0.006),
             vein_width=0.05, vein_bump=None,
             wrinkle_scale=0.0, wrinkle_strength=0.12, glow=0.0,
-            edge_grad_min=0.15, edge_grad_max=1.4):
+            edge_grad_min=0.15, edge_grad_max=1.4,
+            mottle_scale=0.0, mottle_strength=0.0, mottle_dark=None,
+            vein_radial_n=0, vein_radial_strength=0.0, vein_radial_width=0.32,
+            vein_radial_taper=0.5, vein_radial_dark=None, vein_radial_bump=0.35,
+            vein_radial_plane='yz'):
     """pattern.membrane_skin v2 : peau fine vascularisée. Réseau de veines procédural
     (2 Voronoi distance-to-edge superposés, coords Object) -> bump fin + assombrissement
     le long des sillons ; dégradé de couleur racine (`color`, près du corps) -> bord
@@ -445,7 +449,34 @@ def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough
     l'origine est près de l'ÉPAULE (un coin, donc la longueur peut dépasser 1 sur une
     grande diagonale), un `From Max` trop bas fait basculer la PLUPART de la surface
     vers `edge_color` bien avant le bord réel -> voile chaud uniforme au lieu d'un
-    liseré. Augmenter `edge_grad_max` resserre `edge_color` sur le vrai bord libre."""
+    liseré. Augmenter `edge_grad_max` resserre `edge_color` sur le vrai bord libre.
+    `mottle_scale`/`mottle_strength`/`mottle_dark` (P0 boucle 19 round 3, « voile
+    APLAT cuivre/orange uniforme ~40% du cadre ») : bruit à GRANDE échelle (peu de
+    cellules sur toute la voile) qui assombrit/désature par TACHES douces le dégradé
+    racine->bord existant — casse l'aplat sans ajouter de motif géométrique nouveau ;
+    `mottle_scale=0` (défaut) = inchangé (rétro-compat totale).
+    `vein_radial_*` (P0 boucle 19 round 3, « veines invisibles au hero, filaments
+    géométriques isolés ») : réseau de veines DIRECTIONNEL lisible à l'échelle du plan
+    large — contrairement au Voronoi isotrope ci-dessus (cellules abstraites), calcule
+    un ANGLE polaire dans le plan de la voile (deux axes de `Generated`, coordonnée
+    BBOX-NORMALISÉE 0..1 de l'objet -- PAS `Object` : sur un mesh construit en
+    coordonnées MONDE avec un objet à transform identité loin de l'origine, `Object`
+    est un décalage quasi constant sur toute la voile -> angle quasi identique
+    partout, aucune raie visible ; `Generated` reste 0..1 relatif à la bbox propre de
+    CET objet quelle que soit sa position monde, même trick que `edge_grad` ci-
+    dessus) choisis par `vein_radial_plane` (ex. 'yz' — l'axe non listé est
+    l'épaisseur/normale de la membrane, quasi-constant), origine ~racine (coin bbox
+    min, cf. convention `edge_grad_min/max`), puis une onde SINUS périodique de cet
+    angle (`vein_radial_n` = nombre de rayons) -> lignes
+    RADIALES qui rayonnent depuis la racine vers le bord, une par intervalle
+    angulaire, espacées régulièrement sur TOUTE la surface (pas 2-3 taches isolées).
+    Largeur (`vein_radial_width`, position ColorRamp) RÉTRÉCIE progressivement vers
+    le bord via `vein_radial_taper` (0..1, fraction de la largeur conservée au bord
+    le plus éloigné, module par le même `grad` root->tip que le dégradé de couleur) —
+    veines plus larges près du corps, plus fines et nombreuses en apparence vers le
+    bord libre, jamais un balai de traits uniformes. `vein_radial_bump` alimente un
+    Bump dédié (accroche le relief même si `vein_radial_strength` couleur est faible).
+    `vein_radial_n=0` (défaut) = inchangé (rétro-compat totale)."""
     mat, nt, bsdf = _new(name)
     n, lk = nt.nodes, nt.links
     edge_color = edge_color if edge_color is not None else color
@@ -465,6 +496,32 @@ def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough
     mixc.inputs['B'].default_value = (*edge_color, 1)
     lk.new(grad.outputs['Result'], mixc.inputs['Factor'])
     color_out = mixc.outputs['Result']
+    grad_out = grad.outputs['Result']
+    if mottle_scale > 0 and mottle_strength > 0:
+        # taches douces à grande échelle (peu de cellules sur toute la voile) :
+        # contraste renforcé (MapRange resserré autour de 0.5) pour lire comme des
+        # PANNEAUX/plaques de valeur plutôt qu'un bruit fin superposé.
+        mn = n.new('ShaderNodeTexNoise')
+        mn.inputs['Scale'].default_value = mottle_scale
+        mn.inputs['Detail'].default_value = 2.0
+        mn.inputs['Roughness'].default_value = 0.55
+        lk.new(tc.outputs['Generated'], mn.inputs['Vector'])
+        mcontrast = n.new('ShaderNodeMapRange')
+        mcontrast.clamp = True
+        mcontrast.inputs['From Min'].default_value = 0.32
+        mcontrast.inputs['From Max'].default_value = 0.68
+        lk.new(mn.outputs['Fac'], mcontrast.inputs['Value'])
+        mfac = n.new('ShaderNodeMath')
+        mfac.operation = 'MULTIPLY'
+        mfac.inputs[1].default_value = mottle_strength
+        lk.new(mcontrast.outputs['Result'], mfac.inputs[0])
+        mdark = mottle_dark if mottle_dark is not None else tuple(c * 0.4 for c in color)
+        mmix = n.new('ShaderNodeMix')
+        mmix.data_type = 'RGBA'
+        mmix.inputs['B'].default_value = (*mdark, 1)
+        lk.new(color_out, mmix.inputs['A'])
+        lk.new(mfac.outputs['Value'], mmix.inputs['Factor'])
+        color_out = mmix.outputs['Result']
     normal_out = None
     if vein_scale > 0:
         v1 = n.new('ShaderNodeTexVoronoi')
@@ -497,6 +554,60 @@ def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough
         bmpv.inputs['Strength'].default_value = vein_bump if vein_bump is not None else vein_strength * 0.5
         lk.new(vramp.outputs['Color'], bmpv.inputs['Height'])
         normal_out = bmpv.outputs['Normal']
+    if vein_radial_n > 0 and vein_radial_strength > 0:
+        # veines DIRECTIONNELLES (rayons depuis la racine) : angle polaire dans le
+        # plan de la voile (2 des 3 axes Object -- le 3e, quasi constant, est
+        # l'épaisseur/normale) -> onde sinus périodique = N raies régulières sur
+        # TOUTE la surface, largeur RÉTRÉCIE vers le bord via `grad_out` (même
+        # dégradé root->tip que la couleur).
+        sepr = n.new('ShaderNodeSeparateXYZ')
+        lk.new(tc.outputs['Generated'], sepr.inputs['Vector'])
+        axis_out = {'x': sepr.outputs['X'], 'y': sepr.outputs['Y'], 'z': sepr.outputs['Z']}
+        a0 = axis_out[vein_radial_plane[0]]
+        a1 = axis_out[vein_radial_plane[1]]
+        ang = n.new('ShaderNodeMath')
+        ang.operation = 'ARCTAN2'
+        lk.new(a1, ang.inputs[0])
+        lk.new(a0, ang.inputs[1])
+        angmul = n.new('ShaderNodeMath')
+        angmul.operation = 'MULTIPLY'
+        angmul.inputs[1].default_value = vein_radial_n
+        lk.new(ang.outputs['Value'], angmul.inputs[0])
+        angsin = n.new('ShaderNodeMath')
+        angsin.operation = 'SINE'
+        lk.new(angmul.outputs['Value'], angsin.inputs[0])
+        angabs = n.new('ShaderNodeMath')
+        angabs.operation = 'ABSOLUTE'
+        lk.new(angsin.outputs['Value'], angabs.inputs[0])
+        # largeur effective = vein_radial_width au corps -> ×vein_radial_taper au bord
+        wtaper = n.new('ShaderNodeMapRange')
+        wtaper.inputs['To Min'].default_value = max(0.002, vein_radial_width)
+        wtaper.inputs['To Max'].default_value = max(0.002, vein_radial_width * vein_radial_taper)
+        lk.new(grad_out, wtaper.inputs['Value'])
+        rramp = n.new('ShaderNodeMapRange')
+        rramp.clamp = True
+        rramp.inputs['From Min'].default_value = 0.0
+        lk.new(wtaper.outputs['Result'], rramp.inputs['From Max'])
+        rramp.inputs['To Min'].default_value = 1.0
+        rramp.inputs['To Max'].default_value = 0.0
+        lk.new(angabs.outputs['Value'], rramp.inputs['Value'])
+        rfac = n.new('ShaderNodeMath')
+        rfac.operation = 'MULTIPLY'
+        rfac.inputs[1].default_value = vein_radial_strength
+        lk.new(rramp.outputs['Result'], rfac.inputs[0])
+        rdark = vein_radial_dark if vein_radial_dark is not None else vein_dark
+        rmix = n.new('ShaderNodeMix')
+        rmix.data_type = 'RGBA'
+        rmix.inputs['B'].default_value = (*rdark, 1)
+        lk.new(color_out, rmix.inputs['A'])
+        lk.new(rfac.outputs['Value'], rmix.inputs['Factor'])
+        color_out = rmix.outputs['Result']
+        bmpr = n.new('ShaderNodeBump')
+        bmpr.inputs['Strength'].default_value = vein_radial_bump
+        lk.new(rramp.outputs['Result'], bmpr.inputs['Height'])
+        if normal_out is not None:
+            lk.new(normal_out, bmpr.inputs['Normal'])
+        normal_out = bmpr.outputs['Normal']
     if wrinkle_scale > 0:
         mp = n.new('ShaderNodeMapping')
         mp.inputs['Scale'].default_value = (wrinkle_scale, wrinkle_scale * 3.2, wrinkle_scale)

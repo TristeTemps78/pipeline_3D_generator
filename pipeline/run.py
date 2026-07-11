@@ -140,9 +140,18 @@ def forge(spec_path, fast=False):
                 if only and sid != only:
                     continue
                 _shot_camera(spec, shot, res)
+                # `fill_lights` (mécanisme GÉNÉRIQUE, P0 boucle 19 round 3 : shot
+                # legs sous-exposé) : liste de kwargs `core.area_light` ajoutés
+                # SEULEMENT pour ce shot puis retirés juste après le rendu -- un
+                # shot cadré serré sur une pièce mal éclairée par le schéma
+                # key/rim/fill global peut recevoir un complément dédié sans
+                # changer l'éclairage des autres prises ni l'ambiance générale.
+                extra_lights = [core.area_light(**fl) for fl in shot.get('fill_lights', [])]
                 o = out.replace('.png', f'_{sid}.png')
                 core.render(o, res=res, samples=samples, settings=rset)
                 outs.append(o)
+                for lo in extra_lights:
+                    core.remove_light(lo)
             out = outs[0] if outs else out
         else:
             core.render(out, res=res, samples=samples, settings=rset)
