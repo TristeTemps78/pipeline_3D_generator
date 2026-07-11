@@ -2,9 +2,16 @@
 C4 : couches de Displace (macro plis / écailles moyennes / micro rides) sur mesh subdivisé.
 C5 : écailles explicites par Geometry Nodes — Distribute Points on Faces + Instance on
 Points, densité pilotée par la courbure (Edge Angle). Tout est numérique, piloté par la spec."""
-import bpy
+import math
+import random
 
-from . import core
+import bmesh
+import bpy
+import numpy as np
+from mathutils import Matrix, Vector
+from mathutils.bvhtree import BVHTree
+
+from . import core, materials, ops
 
 
 def displace_layers(ob, layers, subdiv=2):
@@ -492,3 +499,213 @@ def scale_plate(name='scale_plate', size=1.0):
     ob = bpy.data.objects.new(name, me)
     core.link(ob)
     return core.shade_smooth(ob)
+
+
+def write_axis_uv(ob, path_world, name='axis_uv', n_samples=40, chunk=20000):
+    """Écrit un attribut vertex `axis_uv` (Vector, domaine POINT) GÉNÉRIQUE
+    (chantier B, boucle 19, faute F4 : « texture appliquée en calque global
+    uniforme au lieu de varier selon l'anatomie ») : u = abscisse curviligne
+    normalisée 0..1 le long de `path_world` (polyligne monde, ex. `pts` de
+    spine/limb), v = angle 0..1 autour de la section locale (repère transporté
+    rotation-minimizing, `ops.sample_path_frames` — même repère que
+    `_anatomical_tube`). Dérivé UNIQUEMENT de la position monde du sommet par
+    rapport à l'échantillon de chemin le plus proche (nearest-neighbour vectorisé
+    numpy) : ne dépend d'AUCUN attribut de construction -> reste valide même après
+    une fusion SDF qui reconstruit entièrement la topologie (`fuse.sdf_fuse`).
+    Exposé aux shaders (Attribute node domaine GEOMETRY, nom 'axis_uv', cf.
+    `materials.reptile_scales axis_uv=True`) pour orienter/étirer le motif
+    d'écailles le long de l'axe anatomique plutôt qu'un bruit isotrope."""
+    if ob.type != 'MESH' or not path_world or len(path_world) < 2:
+        return ob
+    verts = ob.data.vertices
+    n_v = len(verts)
+    if n_v == 0:
+        return ob
+    positions, rights, ups, _, _ = ops.sample_path_frames(path_world, n_samples)
+    samp = np.array([(p.x, p.y, p.z) for p in positions])
+    rmat = np.array([(r.x, r.y, r.z) for r in rights])
+    umat = np.array([(u.x, u.y, u.z) for u in ups])
+    mw = np.array(ob.matrix_world)
+    co = np.empty(n_v * 3, dtype=np.float64)
+    verts.foreach_get('co', co)
+    co = co.reshape(n_v, 3)
+    pos = co @ mw[:3, :3].T + mw[:3, 3]
+    out_uv = np.zeros((n_v, 3), dtype=np.float64)
+    for start in range(0, n_v, chunk):
+        end = min(n_v, start + chunk)
+        blk = pos[start:end]
+        d2 = ((blk[:, None, :] - samp[None, :, :]) ** 2).sum(axis=2)
+        idx = d2.argmin(axis=1)
+        offset = blk - samp[idx]
+        x = (offset * rmat[idx]).sum(axis=1)
+        y = (offset * umat[idx]).sum(axis=1)
+        out_uv[start:end, 0] = idx / max(1, n_samples - 1)
+        out_uv[start:end, 1] = (np.arctan2(y, x) / (2 * np.pi)) % 1.0
+    attr = ob.data.attributes.get(name) or ob.data.attributes.new(name, 'FLOAT_VECTOR', 'POINT')
+    attr.data.foreach_set('vector', out_uv.ravel())
+    ob.data.update()
+    return ob
+
+
+def _lerp_field(pairs, u):
+    """Interpolation linéaire générique le long d'une liste [(u, valeur), ...]
+    triée par u, clampée aux extrémités — champ continu de taille/zone piloté par
+    la spec (`armor_rows` scale_u), sans dépendre de `organic._interp_scalar`
+    (évite un import croisé)."""
+    if not pairs:
+        return 1.0
+    pairs = sorted(pairs, key=lambda p: p[0])
+    if u <= pairs[0][0]:
+        return pairs[0][1]
+    if u >= pairs[-1][0]:
+        return pairs[-1][1]
+    for (u0, v0), (u1, v1) in zip(pairs, pairs[1:]):
+        if u0 <= u <= u1:
+            f = (u - u0) / max(u1 - u0, 1e-9)
+            return v0 + f * (v1 - v0)
+    return pairs[-1][1]
+
+
+def armor_rows(ob, plates, path_world, mat_default, rows=20, cols=10,
+              v_range=(0.08, 0.92), quincunx=0.5, u_range=(0.0, 1.0),
+              scale_u=None, joint_u=None, joint_width=0.06, joint_dip=0.55,
+              flank_falloff=0.45, size=(0.09, 0.14), jitter=0.15,
+              rot_jitter=0.12, search_dist=None, seed=1, name='armor_rows'):
+    """Rangées régulières d'écailles/plaques qui SUIVENT LA COURBURE d'un tube
+    anatomique (spine/limb) — chantier B, boucle 19, faute F4 : remplace le semis
+    Poisson isotrope (`armor_scales`, conservé comme fallback pour les entrées
+    sans `layout`) par un motif ORDONNÉ en rangées, décalées en QUINCONCE une
+    rangée sur deux, tailles en CHAMP CONTINU piloté par zone (grandes/épaisses
+    au dos, petites/resserrées vers le ventre et les articulations) au lieu d'une
+    densité Poisson uniforme.
+
+    Ne dépend PAS d'un attribut Geometry Nodes : chaque rangée est un échantillon
+    de `path_world` (repère transporté rotation-minimizing, `ops.sample_path_frames`
+    — le MÊME repère que `organic._anatomical_tube`), projeté sur la VRAIE surface
+    de `ob` par un raycast (BVH construit sur le mesh de BASE, sans modifiers) le
+    long de la normale locale -> reste correct même après une fusion SDF qui
+    déforme légèrement le rayon nominal du tube d'origine.
+
+    `scale_u` : liste [(u, multiplicateur), ...] interpolée linéairement (`_lerp_field`)
+    -> zone dorsale (u proche du centre du tronc) grande/épaisse, extrémités
+    (queue/cou, ou hanche/cheville) petites. `joint_u` : liste de fractions u où la
+    taille plonge localement (gaussienne `joint_width`/`joint_dip`) -> resserré aux
+    articulations. `flank_falloff` (0..1) réduit la taille en s'éloignant du sommet
+    dorsal (theta=0, haut de `v_range`) vers les bords -> grosses plaques dorsales,
+    plus petites sur le flanc. `v_range` (fraction de tour complet, 0.5=dos) exclut
+    par défaut une bande ventrale étroite (bords proches de 0/1) : le ventre reste
+    lisse/au semis existant, cf. `claude.md` doctrine.
+
+    Les plaques instanciées sont dupliquées/transformées en pur Python et jointes
+    en UN SEUL mesh (budget : ni un objet Blender par plaque, ni un modifier GN
+    Poisson supplémentaire — la géométrie de plaque est réutilisée directement)."""
+    plates = list(plates) if isinstance(plates, (list, tuple)) else [plates]
+    if ob.type != 'MESH' or len(path_world) < 2:
+        return None
+    positions, rights, ups, tangents, _ = ops.sample_path_frames(path_world, max(rows * 3, 64))
+    n_samp = len(positions)
+    # BVH sur le mesh de BASE (ob.data), SANS évaluer les modifiers déjà présents
+    # (ex. d'autres entrées d'armure Poisson ajoutées sur le même objet) — on veut
+    # la vraie surface du corps/membre, pas la géométrie instanciée par-dessus.
+    bm_src = bmesh.new()
+    bm_src.from_mesh(ob.data)
+    bm_src.transform(ob.matrix_world)
+    bvh = BVHTree.FromBMesh(bm_src)
+    bm_src.free()
+    if search_dist is None:
+        bb = [ob.matrix_world @ Vector(v) for v in ob.bound_box]
+        search_dist = max(max(v[k] for v in bb) - min(v[k] for v in bb) for k in range(3)) * 0.6
+    search_dist = max(search_dist, 0.05)
+
+    def sample_at(u):
+        d = u * (n_samp - 1)
+        i = max(0, min(n_samp - 2, int(d)))
+        f = d - i
+        idx = i if f < 0.5 else i + 1
+        return positions[idx], rights[idx], ups[idx], tangents[idx]
+
+    def scale_field(u):
+        m = _lerp_field(scale_u, u) if scale_u else 1.0
+        if joint_u:
+            for ju in joint_u:
+                d = (u - ju) / max(joint_width, 1e-4)
+                m *= 1.0 - joint_dip * math.exp(-0.5 * d * d)
+        return m
+
+    rng = random.Random(seed)
+    bm = bmesh.new()
+    plate_bms = []
+    for p in plates:
+        pb = bmesh.new()
+        pb.from_mesh(p.data)
+        plate_bms.append(pb)
+    u0, u1 = u_range
+    placed = 0
+    for ri in range(rows):
+        u = u0 + (u1 - u0) * (ri / max(1, rows - 1))
+        p0, rgt, up, tan = sample_at(u)
+        offs = 0.5 if (quincunx and ri % 2 == 1) else 0.0
+        for ci in range(cols):
+            frac = ((ci + offs) / cols) % 1.0
+            vfrac = v_range[0] + (v_range[1] - v_range[0]) * frac
+            theta = -math.pi + vfrac * 2 * math.pi
+            dirn = (up * math.cos(theta) + rgt * math.sin(theta))
+            if dirn.length < 1e-6:
+                continue
+            dirn.normalize()
+            origin = p0 + dirn * search_dist
+            loc, hn, _, _ = bvh.ray_cast(origin, -dirn, search_dist * 2.2)
+            if loc is None:
+                continue
+            if hn.dot(dirn) < 0.1:   # bord/jonction quasi tangente -> évite un placement en biseau
+                continue
+            flank = abs(vfrac - 0.5) * 2.0
+            s = size[0] + (size[1] - size[0]) * rng.random()
+            s *= scale_field(u)
+            s *= max(0.15, 1.0 - flank_falloff * flank)
+            s *= 1.0 + jitter * (rng.random() * 2 - 1)
+            tproj = tan - hn * tan.dot(hn)
+            if tproj.length < 1e-6:
+                tproj = rgt - hn * rgt.dot(hn)
+            if tproj.length < 1e-6:
+                continue
+            tproj.normalize()
+            xax = tproj.cross(hn)
+            if xax.length < 1e-6:
+                continue
+            xax.normalize()
+            rot = (rng.random() * 2 - 1) * rot_jitter
+            c, sn = math.cos(rot), math.sin(rot)
+            xax2 = xax * c + tproj * sn
+            yax2 = -xax * sn + tproj * c
+            xfm = Matrix((
+                (xax2.x * s, yax2.x * s, hn.x * s, loc.x),
+                (xax2.y * s, yax2.y * s, hn.y * s, loc.y),
+                (xax2.z * s, yax2.z * s, hn.z * s, loc.z),
+                (0.0, 0.0, 0.0, 1.0)))
+            pk = plate_bms[int(rng.random() * len(plate_bms)) % len(plate_bms)]
+            vmap = {}
+            for v in pk.verts:
+                vmap[v] = bm.verts.new(xfm @ v.co)
+            for f in pk.faces:
+                try:
+                    bm.faces.new([vmap[v] for v in f.verts])
+                except ValueError:
+                    pass
+            placed += 1
+    for pb in plate_bms:
+        pb.free()
+    for p in plates:
+        p.hide_render = True
+    if placed == 0:
+        bm.free()
+        return None
+    bm.normal_update()
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    new_ob = bpy.data.objects.new(name, mesh)
+    core.link(new_ob)
+    core.shade_smooth(new_ob)
+    materials.assign(new_ob, mat_default)
+    return new_ob

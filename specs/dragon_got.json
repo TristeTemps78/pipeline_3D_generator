@@ -77,7 +77,49 @@
     "ao_map": "maps/dragon_got_body_ao.png",
     "ao_strength": 0.4,
     "curvature_map": "maps/dragon_got_body_curvature.png",
-    "curvature_mix": 0.75
+    "curvature_mix": 0.75,
+    "axis_uv": true,
+    "axis_uv_stretch": 4.5
+   }
+  },
+  "scales_head": {
+   "builder": "reptile_scales",
+   "p": {
+    "scale": 15,
+    "scale2": 48,
+    "bump": 0.9,
+    "base": [0.022, 0.019, 0.017],
+    "tint": [0.55, 0.05, 0.018],
+    "rough": 0.82,
+    "rough_edge": 0.24,
+    "sss": 0.15,
+    "micro": 0.65,
+    "edge_copper": 0.7,
+    "edge_width": 0.02,
+    "instance_variation": 0.4,
+    "patina_amount": 0.0,
+    "axis_uv": true,
+    "axis_uv_stretch": 2.2
+   }
+  },
+  "scales_legs": {
+   "builder": "reptile_scales",
+   "p": {
+    "scale": 15,
+    "scale2": 48,
+    "bump": 0.9,
+    "base": [0.022, 0.019, 0.017],
+    "tint": [0.55, 0.05, 0.018],
+    "rough": 0.82,
+    "rough_edge": 0.24,
+    "sss": 0.15,
+    "micro": 0.65,
+    "edge_copper": 0.7,
+    "edge_width": 0.02,
+    "instance_variation": 0.4,
+    "patina_amount": 0.0,
+    "axis_uv": true,
+    "axis_uv_stretch": 3.6
    }
   },
   "membrane": {
@@ -102,9 +144,9 @@
      0.018
     ],
     "vein_scale": 8,
-    "vein_strength": 0.85,
+    "vein_strength": 0.22,
     "vein_width": 0.09,
-    "vein_bump": 1.0,
+    "vein_bump": 0.35,
     "vein_dark": [
      0.012,
      0.002,
@@ -366,6 +408,7 @@
    ],
    "yaw": 9,
    "mat": "scales",
+   "axis_mat": "scales_head",
    "horns": {
     "a": 0.14,
     "b": 0.25,
@@ -833,8 +876,13 @@
    "knuckle_spread": 0.4,
    "root_follow_arm": 0.75,
    "vein_branches": 3,
-   "vein_branch_r0": 0.013,
-   "vein_branch_rmin": 0.004,
+   "vein_branch_r0": 0.021,
+   "vein_branch_rmin": 0.005,
+   "vein_levels": 2,
+   "vein_children": 2,
+   "vein_taper": 0.62,
+   "vein_root_frac": 0.4,
+   "vein_mat": "mouth",
    "knuckles_per_finger": 3,
    "knuckle_bulge": 0.55,
    "knuckle_width": 0.1,
@@ -902,6 +950,7 @@
    "id": "hindleg",
    "side": "both",
    "mat": "scales",
+   "axis_mat": "scales_legs",
    "pts": [
     [
      0.7,
@@ -1502,6 +1551,51 @@
      }
     ],
     "rot_jitter": 0.15
+   },
+   {
+    "target": "body",
+    "exclude": ["dorsal"],
+    "layout": "rows",
+    "rows": 34,
+    "cols": 12,
+    "v_range": [0.06, 0.94],
+    "quincunx": 0.5,
+    "u_range": [0.04, 0.95],
+    "scale_u": [[0.0, 0.45], [0.15, 1.2], [0.55, 1.5], [0.85, 0.8], [1.0, 0.4]],
+    "flank_falloff": 0.55,
+    "scale": [0.1, 0.17],
+    "jitter": 0.15,
+    "rot_jitter": 0.12,
+    "archetypes": [
+     {"kind": "keeled", "size": 1.0, "length": 1.7, "keel": 0.6, "lift": 0.26, "smooth": false},
+     {"kind": "plate", "size": 1.0, "squash": [1.35, 1.0, 0.55]}
+    ],
+    "mat": "scales",
+    "seed": 71
+   },
+   {
+    "target": "hindleg",
+    "exclude": ["footpad", "toe", "claw"],
+    "layout": "rows",
+    "rows": 14,
+    "cols": 9,
+    "v_range": [0.08, 0.92],
+    "quincunx": 0.5,
+    "u_range": [0.0, 0.42],
+    "scale_u": [[0.0, 1.1], [0.2, 1.25], [0.42, 0.7]],
+    "joint_u": [0.42],
+    "joint_width": 0.06,
+    "joint_dip": 0.5,
+    "flank_falloff": 0.45,
+    "scale": [0.07, 0.11],
+    "jitter": 0.15,
+    "rot_jitter": 0.15,
+    "archetypes": [
+     {"kind": "keeled", "size": 1.0, "length": 1.5, "keel": 0.4, "lift": 0.18, "smooth": false},
+     {"kind": "plate", "size": 1.0, "squash": [1.15, 1.0, 0.55]}
+    ],
+    "mat": "scales",
+    "seed": 83
    }
   ],
   "displace_targets": [

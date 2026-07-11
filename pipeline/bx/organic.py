@@ -1,6 +1,7 @@
 """bx.organic — générateurs de parties anatomiques pilotés par spec JSON + lois GVL.
 Chaque builder consomme un dict compact et retourne des objets Blender. Généraliste :
 un dragon, un arbre ou un poisson ne diffèrent que par leur spec."""
+import itertools
 import math
 
 from mathutils import Euler, Quaternion, Vector
@@ -704,6 +705,11 @@ def wing(part, mats):
     # les griffes de doigt/alula suivent le matériau OS de l'aile (dédié, n'affecte
     # pas les griffes de patte/dorsales qui restent câblées sur 'bone').
     claw_mat_key = part.get('claw_mat', bone_mat_key)
+    # vein_mat (chantier B, boucle 19, défaut = bone_mat, rétro-compat) : teinte
+    # DÉDIÉE pour l'arbre de veines, distincte de l'os de l'aile -> contraste
+    # visible contre la membrane rétro-éclairée (feedback : le réseau géométrique
+    # doit se LIRE, pas se fondre avec les lattes/doigts du même ton).
+    vein_mat_key = part.get('vein_mat', bone_mat_key)
     for s in sides:
         tag = 'L' if s > 0 else 'R'
         # pose (T17 CR2, pose dynamique) : override PAR CÔTÉ, appliqué APRÈS le
@@ -931,18 +937,26 @@ def wing(part, mats):
                     batt = ops.tube(f'batten_{tag}{j}_{bi}', bpts, batten_radii)
                     materials.assign(batt, _mat(mats, bone_mat_key))
                     out.append(batt)
-        # veines secondaires (vein_branches, défaut 0 → rétro-compat) : 2e GÉNÉRATION
-        # de nervures, fines, qui partent de chaque doigt (pas de la racine) et
-        # rayonnent en biais vers le bord de fuite du panneau voisin — anatomie de
-        # membrane (cf. réf. drogon_wing_membrane : nervures ramifiées en Y depuis les
-        # doigts), par opposition aux lattes primaires qui sont rectilignes racine->
-        # bord. Suivent le même relief (sag/camber/panel_billow) que les colonnes de
-        # membrane -> restent COLLÉES à la surface plutôt que de flotter au-dessus ;
-        # rayon ~1/3 d'une latte (`vein_branch_r0`), tube très bas poly (ornemental).
+        # veines de membrane EN ARBRE (chantier B, boucle 19 : le motif Voronoï du
+        # matériau `membrane` lit comme des cellules abstraites, pas un réseau —
+        # remplacé ici par une VRAIE géométrie ramifiée). Depuis chaque doigt, un
+        # tronc part vers le bord de fuite du panneau voisin (comme avant), puis
+        # BIFURQUE récursivement (`vein_levels` générations, `vein_children`
+        # embranchements par génération) : à chaque génération une partie des
+        # rameaux continue vers le bord de fuite (en s'affinant, `vein_taper`) et un
+        # rameau plus court repart vers la RACINE (l'attache du doigt) — un arbre
+        # hiérarchique DIRECTIONNEL, pas un balai de segments parallèles ni des
+        # cellules. Suit le même relief (sag/camber/panel_billow, via `panel_pt`)
+        # que les colonnes de membrane -> reste COLLÉ à la surface.
         vein_branches = part.get('vein_branches', 0)
         if vein_branches:
             vein_r0 = part.get('vein_branch_r0', batten_r0 / 3.0)
             vein_rmin = part.get('vein_branch_rmin', vein_r0 * 0.3)
+            vein_levels = max(0, int(part.get('vein_levels', 2)))
+            vein_children = max(1, int(part.get('vein_children', 2)))
+            vein_taper = part.get('vein_taper', 0.6)
+            vein_root_frac = part.get('vein_root_frac', 0.4)
+            _vein_id = itertools.count()
 
             def finger_pt(j, t):
                 v = knuckles[j].lerp(Vector(rays[j]), t)
@@ -963,6 +977,40 @@ def wing(part, mats):
                 v.z -= panel_billow * math.sin(math.pi * u) * math.sin(math.pi * t)
                 return v
 
+            def vein_branch(p0, p1, gen, r0, j, bi):
+                vr = laws.power_taper(3, r0, 1.1, max(vein_rmin, r0 * 0.3))
+                pmid = p0.lerp(p1, 0.5)
+                res_u, bev_res = (4, 3) if gen == 0 else (3, 2)
+                vtube = ops.tube(f'vein_{tag}{j}_{bi}_{gen}_{next(_vein_id)}',
+                                 [tuple(p0), tuple(pmid), tuple(p1)], vr,
+                                 resolution_u=res_u, bevel_resolution=bev_res)
+                materials.assign(vtube, _mat(mats, vein_mat_key))
+                out.append(vtube)
+                if gen >= vein_levels:
+                    return
+                seg = p1 - p0
+                if seg.length < 1e-6:
+                    return
+                perp = seg.cross(Vector((0, 0, 1)))
+                if perp.length < 1e-6:
+                    perp = Vector((1, 0, 0))
+                perp.normalize()
+                for c in range(vein_children):
+                    fc = (c + 1) / (vein_children + 1)
+                    start = p0.lerp(p1, 0.30 + 0.4 * fc)
+                    sign = 1.0 if c % 2 == 0 else -1.0
+                    # rameau DISTAL : continue vers le bord de fuite, s'écarte du tronc
+                    end_distal = (start + seg * (0.55 * vein_taper)
+                                  + perp * sign * seg.length * 0.28 * vein_taper)
+                    vein_branch(start, end_distal, gen + 1, r0 * vein_taper, j, bi)
+                # rameau PROXIMAL : un seul par génération, court, repart vers la
+                # racine (l'attache du doigt) -> bifurque aussi en arrière, pas
+                # seulement vers l'avant (lecture "arbre", pas "balai").
+                root_start = p0.lerp(p1, 0.12)
+                root_end = root_start.lerp(p0, vein_root_frac)
+                if (root_end - root_start).length > 1e-5:
+                    vein_branch(root_start, root_end, gen + 1, r0 * vein_taper * 0.85, j, bi)
+
             for j in range(len(ends) - 1):
                 for bi in range(vein_branches):
                     frac = (bi + 1) / (vein_branches + 1)
@@ -971,12 +1019,7 @@ def wing(part, mats):
                     u_end = 0.22 + 0.5 * frac    # s'écarte du doigt vers le panneau voisin
                     p0 = finger_pt(j, t_start)
                     p1 = panel_pt(j, u_end, t_end)
-                    pmid = p0.lerp(p1, 0.5)
-                    vr = laws.power_taper(3, vein_r0, 1.1, vein_rmin)
-                    vtube = ops.tube(f'vein_{tag}{j}_{bi}', [tuple(p0), tuple(pmid), tuple(p1)],
-                                     vr, resolution_u=4, bevel_resolution=3)
-                    materials.assign(vtube, _mat(mats, bone_mat_key))
-                    out.append(vtube)
+                    vein_branch(p0, p1, 0, vein_r0, j, bi)
         # doigts osseux : bourrelets SAILLANTS posés SUR la membrane (relief), pas des
         # tiges flottantes séparées -> soulevés de `finger_lift` le long de z (même
         # convention que les lattes) pour lire comme une arête en relief sur la surface.
@@ -1038,40 +1081,15 @@ def wing(part, mats):
 
 
 def _frame_init(tangent):
-    """Premier repère orthonormal (right/up) perpendiculaire à `tangent`, à partir
-    d'une référence monde stable (Z, ou Y si `tangent` est quasi vertical)."""
-    ref = Vector((0.0, 0.0, 1.0))
-    if abs(tangent.dot(ref)) > 0.9:
-        ref = Vector((0.0, 1.0, 0.0))
-    right = tangent.cross(ref)
-    if right.length < 1e-6:
-        right = Vector((1.0, 0.0, 0.0))
-    right.normalize()
-    up = tangent.cross(right).normalized()
-    return right, up
+    """Repère transporté : alias de `ops.frame_init` (chantier B, boucle 19 — la
+    même implémentation est réutilisée par `detail.write_axis_uv`/`armor_rows`,
+    déplacée dans `ops` pour être partagée sans import circulaire)."""
+    return ops.frame_init(tangent)
 
 
 def _frame_step(prev_tangent, prev_right, tangent):
-    """Transport du repère (right/up) d'un segment au suivant par rotation MINIMALE
-    (rotation-minimizing frame, méthode à réflexion simple) : évite la torsion
-    visible qu'un recalcul depuis une référence monde fixe provoquerait à chaque
-    changement d'angle notable (coude, cheville...)."""
-    axis = prev_tangent.cross(tangent)
-    sina = axis.length
-    cosa = max(-1.0, min(1.0, prev_tangent.dot(tangent)))
-    if sina < 1e-8:
-        right = Vector(prev_right)
-    else:
-        axis = axis / sina
-        angle = math.atan2(sina, cosa)
-        right = Quaternion(axis, angle) @ prev_right
-    right = right - tangent * right.dot(tangent)
-    if right.length < 1e-6:
-        right, _ = _frame_init(tangent)
-    else:
-        right.normalize()
-    up = tangent.cross(right).normalized()
-    return right, up
+    """Alias de `ops.frame_step` (cf. `_frame_init`)."""
+    return ops.frame_step(prev_tangent, prev_right, tangent)
 
 
 def _anatomical_tube(name, pts, radii, muscles=None, joints=None, folds=None,
@@ -1419,13 +1437,109 @@ def _apply_displace(spec, groups):
             _detail.displace_layers(ob, e.get('layers', []), subdiv=e.get('subdiv', 1))
 
 
+def _path_for_part(spec, part_id, side_tag=None):
+    """Polyligne de contrôle MONDE (`pts`) d'une part `spine`/`limb` de la spec,
+    mirorée selon `side_tag` ('R' inverse x) — même convention que `limb()`/
+    `wing()` (x=côté). Chemin de référence PARTAGÉ par `_apply_axis_uv` (attribut
+    shader) et les entrées d'armure `layout:'rows'` (`detail.armor_rows`) : une
+    seule source de vérité (aucune valeur dragon, dérivée de la spec)."""
+    for part in spec.get('parts', []):
+        if (part.get('id') or '') != part_id:
+            continue
+        pts = part.get('pts')
+        if not pts:
+            return None
+        if side_tag == 'R':
+            return [(-p[0], p[1], p[2]) for p in pts]
+        return [tuple(p) for p in pts]
+    return None
+
+
+def _retint_axis(ob, spec, axis_mat_key):
+    """Bascule le matériau d'un objet qui vient de recevoir l'attribut `axis_uv`
+    vers sa variante anisotrope (`axis_mat`, ex. 'scales_head'/'scales_legs') SANS
+    toucher aux AUTRES sous-objets de la même part (crêtes/blobs/lèvres pour la
+    tête, coussinet/orteils pour la patte) qui n'ont PAS reçu l'attribut -- leur
+    laisser le matériau isotrope par défaut évite une Attribute node qui renverrait
+    (0,0,0) (aucun attribut sur leur mesh) et casserait leur motif d'écailles."""
+    mat = spec.get('_mats', {}).get(axis_mat_key)
+    if not mat:
+        return
+    ob.data.materials.clear()
+    ob.data.materials.append(mat)
+
+
+def _apply_axis_uv(spec, groups):
+    """Coordonnée curviligne GÉNÉRIQUE (chantier B, boucle 19, faute F4 : « bruit
+    isotrope vendu comme organique ») : écrit sur les meshes tubulaires (spine,
+    limb) un attribut vertex `axis_uv` (Vector POINT, cf. `detail.write_axis_uv`)
+    — u = abscisse curviligne 0..1 le long de l'axe anatomique, v = angle 0..1
+    autour de la section. Calculé à partir de la POSITION finale du sommet vs. le
+    chemin `pts` connu de la spec (pas d'un attribut de construction) : reste
+    valide même si le mesh a ensuite été fusionné/remaillé (`fuse_groups`, SDF)
+    -> exposé aux shaders anisotropes (`materials.reptile_scales axis_uv=True`)
+    sur le corps fusionné comme sur une pièce non fusionnée. `axis_mat` (optionnel
+    dans la spec de la part) bascule SEULEMENT l'objet qui reçoit l'attribut vers
+    une variante anisotrope du matériau (cf. `_retint_axis`) -- le `mat` par défaut
+    de la part reste inchangé pour ses autres sous-objets.
+    Tête : chemin centreligne crâne->museau (axe local Y de `head()`, même repère
+    loc/pitch/yaw) sur les objets `skull`/`jaw` uniquement -- traite le cas F4
+    « texture face uniforme » sans dupliquer le builder de tête."""
+    from . import detail as _detail
+    for i, part in enumerate(spec['parts']):
+        ptype = part.get('type')
+        if ptype not in ('spine', 'limb') or not part.get('pts'):
+            continue
+        gid = part.get('id') or f"{ptype}_{i}"
+        axis_mat = part.get('axis_mat')
+        if ptype == 'spine':
+            path = _path_for_part(spec, gid)
+            for ob in groups.get(gid, []):
+                if ob.type == 'MESH' and ob.name == gid:
+                    _detail.write_axis_uv(ob, path)
+                    if axis_mat:
+                        _retint_axis(ob, spec, axis_mat)
+        else:
+            for tag in ('L', 'R'):
+                path = _path_for_part(spec, gid, tag)
+                for ob in groups.get(gid, []):
+                    if ob.type == 'MESH' and ob.name == f'{gid}_{tag}':
+                        _detail.write_axis_uv(ob, path)
+                        if axis_mat:
+                            _retint_axis(ob, spec, axis_mat)
+    for i, part in enumerate(spec['parts']):
+        if part.get('type') != 'head':
+            continue
+        gid = part.get('id') or f'head_{i}'
+        axis_mat = part.get('axis_mat')
+        L = Vector(part['loc'])
+        pitch = part.get('pitch', -8.0)
+        yaw = part.get('yaw', 0.0)
+        Rp = Euler((math.radians(pitch), 0, math.radians(yaw))).to_matrix()
+        upper = part.get('upper', [[-0.05, 0.26, 0.21], [1.18, 0.10, 0.055]])
+        y0, y1 = upper[0][0], upper[-1][0]
+        path = [tuple(L + Rp @ Vector((0.0, y0 + (y1 - y0) * t, 0.0)))
+                for t in (0.0, 0.25, 0.5, 0.75, 1.0)]
+        for ob in groups.get(gid, []):
+            if ob.type == 'MESH' and ob.name in ('skull', 'jaw'):
+                _detail.write_axis_uv(ob, path)
+                if axis_mat:
+                    _retint_axis(ob, spec, axis_mat)
+
+
 def _apply_armor(spec, groups):
     """Écailles GÉOMÉTRIQUES chevauchantes ciblées par groupe de parts (I1, sans passer
     par fuse). `detail.armor` = liste d'entrées {target(s), instance{...}, density,
     scale, caudal, curvature, mask{axis,range,to}, scale_grad{axis,range,scale_lo,scale_hi},
     exclude:[sous-chaînes de nom d'objet à sauter, ex. cornes/dents/yeux]}.
     Permet de restreindre les plaques à une région (cou, tête) sans dupliquer la géométrie
-    du corps ni toucher aux parts non concernées."""
+    du corps ni toucher aux parts non concernées.
+    `layout:'rows'` (chantier B, boucle 19, faute F4 : « semis Poisson isotrope » au
+    lieu de rangées anatomiques) : au lieu du semis Poisson ci-dessous, place les
+    plaques en RANGÉES régulières le long de l'axe de la part (`_path_for_part`) en
+    quinconce, tailles en champ continu par zone (`detail.armor_rows`) — le semis
+    Poisson reste le comportement par défaut (fallback) pour toute entrée sans
+    `layout`."""
     entries = spec.get('detail', {}).get('armor', [])
     if not entries:
         return
@@ -1456,6 +1570,30 @@ def _apply_armor(spec, groups):
         else:
             plate = _detail.keeled_scale(name=f'armor_plate_{idx}', **e.get('instance', {}))
             materials.assign(plate, _mat(spec.get('_mats', {}), e.get('mat', 'scales')))
+        if e.get('layout') == 'rows':
+            path_part = e.get('path', targets[0] if targets else None)
+            mat = _mat(spec.get('_mats', {}), e.get('mat', 'scales'))
+            for ob in objs:
+                tag = 'R' if ob.name.endswith('_R') else ('L' if ob.name.endswith('_L') else None)
+                path = _path_for_part(spec, path_part, tag)
+                if not path:
+                    continue
+                new_ob = _detail.armor_rows(
+                    ob, plate, path, mat,
+                    rows=e.get('rows', 20), cols=e.get('cols', 10),
+                    v_range=tuple(e.get('v_range', (0.08, 0.92))),
+                    quincunx=e.get('quincunx', 0.5),
+                    u_range=tuple(e.get('u_range', (0.0, 1.0))),
+                    scale_u=e.get('scale_u'), joint_u=e.get('joint_u'),
+                    joint_width=e.get('joint_width', 0.06),
+                    joint_dip=e.get('joint_dip', 0.55),
+                    flank_falloff=e.get('flank_falloff', 0.45),
+                    size=tuple(e.get('scale', (0.09, 0.14))),
+                    jitter=e.get('jitter', 0.15), rot_jitter=e.get('rot_jitter', 0.12),
+                    seed=e.get('seed', 1), name=f'armor_rows_{idx}_{ob.name}')
+                if new_ob:
+                    groups.setdefault('_armor_rows', []).append(new_ob)
+            continue
         realize = e.get('realize', False)
         for j, ob in enumerate(objs):
             _detail.armor_scales(
@@ -1518,6 +1656,7 @@ def build(spec):
         count += len(objs)
     _apply_fuse_detail(spec, groups)
     _apply_fuse_groups(spec, groups)
+    _apply_axis_uv(spec, groups)
     _apply_displace(spec, groups)
     _apply_armor(spec, groups)
     _apply_bake_uv(spec, groups)

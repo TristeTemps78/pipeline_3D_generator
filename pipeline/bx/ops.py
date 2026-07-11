@@ -3,7 +3,7 @@ import math
 
 import bmesh
 import bpy
-from mathutils import Euler, Matrix, Vector
+from mathutils import Euler, Matrix, Quaternion, Vector
 
 from . import core
 
@@ -174,6 +174,83 @@ def plane(name, size=60, z=0):
     mesh.from_pydata([(-s, -s, z), (s, -s, z), (s, s, z), (-s, s, z)], [], [(0, 1, 2, 3)])
     mesh.update()
     return core.link(bpy.data.objects.new(name, mesh))
+
+
+def frame_init(tangent):
+    """Premier repère orthonormal (right/up) perpendiculaire à `tangent`, à partir
+    d'une référence monde stable (Z, ou Y si `tangent` est quasi vertical). Public
+    (chantier B, texture/rangées pilotées par l'anatomie) : partagé par
+    `_anatomical_tube` (bx.organic) et `bx.detail.write_axis_uv`/`armor_rows`, plutôt
+    que dupliqué — un seul repère transporté pour toute pièce tubulaire."""
+    ref = Vector((0.0, 0.0, 1.0))
+    if abs(tangent.dot(ref)) > 0.9:
+        ref = Vector((0.0, 1.0, 0.0))
+    right = tangent.cross(ref)
+    if right.length < 1e-6:
+        right = Vector((1.0, 0.0, 0.0))
+    right.normalize()
+    up = tangent.cross(right).normalized()
+    return right, up
+
+
+def frame_step(prev_tangent, prev_right, tangent):
+    """Transport du repère (right/up) d'un segment au suivant par rotation MINIMALE
+    (rotation-minimizing frame) : évite la torsion visible qu'un recalcul depuis une
+    référence monde fixe provoquerait à chaque changement d'angle notable."""
+    axis = prev_tangent.cross(tangent)
+    sina = axis.length
+    cosa = max(-1.0, min(1.0, prev_tangent.dot(tangent)))
+    if sina < 1e-8:
+        right = Vector(prev_right)
+    else:
+        axis = axis / sina
+        angle = math.atan2(sina, cosa)
+        right = Quaternion(axis, angle) @ prev_right
+    right = right - tangent * right.dot(tangent)
+    if right.length < 1e-6:
+        right, _ = frame_init(tangent)
+    else:
+        right.normalize()
+    up = tangent.cross(right).normalized()
+    return right, up
+
+
+def sample_path_frames(path_pts, n=48):
+    """Échantillonne une polyligne monde `path_pts` en `n` points à ABSCISSE
+    CURVILIGNE réelle (arc-length, pas un simple index de segment) + repère
+    transporté (right/up, rotation-minimizing, cf. `frame_step`) à chaque
+    échantillon. Retourne (positions, rights, ups, tangents, longueur_totale) —
+    brique GÉNÉRIQUE partagée par `detail.write_axis_uv` (attribut shader `axis_uv`)
+    et `detail.armor_rows` (rangées d'écailles qui suivent la courbure) : une seule
+    implémentation du repère transporté pour tout ce qui a besoin de savoir
+    « où je suis le long de l'axe » et « quel est le haut/le côté ici »."""
+    pv = [Vector(p) for p in path_pts]
+    seg_len = [(pv[i + 1] - pv[i]).length for i in range(len(pv) - 1)]
+    total = sum(seg_len) or 1e-6
+    cum = [0.0]
+    for l in seg_len:
+        cum.append(cum[-1] + l)
+    positions, rights, ups, tangents = [], [], [], []
+    right = up = prev_tan = None
+    for i in range(n):
+        u = i / max(1, n - 1)
+        d = u * total
+        j = 0
+        while j < len(seg_len) - 1 and d > cum[j + 1]:
+            j += 1
+        f = (d - cum[j]) / max(seg_len[j], 1e-9)
+        p = pv[j].lerp(pv[j + 1], f)
+        tan = (pv[j + 1] - pv[j]).normalized() if seg_len[j] > 1e-9 else Vector((0, 0, -1))
+        if right is None:
+            right, up = frame_init(tan)
+        else:
+            right, up = frame_step(prev_tan, right, tan)
+        prev_tan = tan
+        positions.append(p)
+        rights.append(right.copy())
+        ups.append(up.copy())
+        tangents.append(tan.copy())
+    return positions, rights, ups, tangents, total
 
 
 def place(ob, loc=None, rot_deg=None, scale=None):

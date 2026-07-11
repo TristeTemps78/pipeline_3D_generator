@@ -55,7 +55,8 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
                    patina_gold=(0.6, 0.38, 0.13), patina_amount=0.0,
                    normal_map=None, normal_map_strength=1.0,
                    ao_map=None, ao_strength=0.35,
-                   curvature_map=None, curvature_mix=0.6):
+                   curvature_map=None, curvature_mix=0.6,
+                   axis_uv=False, axis_uv_stretch=2.4):
     """pattern.reptile_scales v3 (audit boucle 17, CR1 « charbon/rouge ») : 2 voronoi
     distance-to-edge superposés (plaques + micro-écailles) sur coordonnées Object
     distordues par noise (casse la grille ; Object car les curves n'ont pas de Generated
@@ -81,6 +82,16 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     décale l'origine du voronoi micro (v2 en 4D, W par seed) et éclaircit sa base de
     `micro`×seed — variation unique par plaque SANS réaliser les instances. Sur une
     géométrie non instanciée l'attribut vaut 0 → matériau inchangé.
+    `axis_uv` (chantier B, boucle 19, faute F4 : « filtre terre craquelée procédural
+    ARTIFICIEL UNIFORME », « pattes = texture papier peint sans tenir compte des
+    volumes ») : quand True, remplace la coordonnée Object isotrope par l'attribut
+    mesh `axis_uv` (u=abscisse curviligne, v=angle de section, écrit par
+    `detail.write_axis_uv` le long de l'axe anatomique réel de la pièce) ÉTIRÉ par
+    `axis_uv_stretch` sur l'axe u -> cellules Voronoi ALLONGÉES le long de l'axe
+    (écailles qui suivent la forme du membre/du dos, pas un bruit isotrope plaqué).
+    Sans l'attribut sur le mesh (pièce non couverte par `write_axis_uv`), l'Attribute
+    node renvoie (0,0,0) -> rétro-compat : `axis_uv=False` (défaut) laisse le
+    comportement Object-space v3 inchangé pour tous les appelants existants.
     `normal_map`/`ao_map`/`curvature_map` (boucle 16, bx.bake) : chemins PNG optionnels
     vers des maps bakées HIGH->LOW (peau continue à écailles imbriquées + plis
     d'articulation) — None (défaut) = comportement v2 inchangé (rétro-compat totale).
@@ -91,8 +102,24 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     Pointiness seule sur un low-poly lissé après le shell de bake."""
     mat, nt, bsdf = _new(name)
     n, lk = nt.nodes, nt.links
-    # --- coordonnées distordues : Object + (noise-0.5)*warp ---
+    # --- coordonnées distordues : base (Object, ou axis_uv anisotrope) + (noise-0.5)*warp ---
     tc = n.new('ShaderNodeTexCoord')
+    base_socket = tc.outputs['Object']
+    if axis_uv:
+        attr = n.new('ShaderNodeAttribute')
+        attr.attribute_type = 'GEOMETRY'
+        attr.attribute_name = 'axis_uv'
+        sepuv = n.new('ShaderNodeSeparateXYZ')
+        lk.new(attr.outputs['Vector'], sepuv.inputs['Vector'])
+        mulu = n.new('ShaderNodeMath')
+        mulu.operation = 'MULTIPLY'
+        mulu.inputs[1].default_value = axis_uv_stretch
+        lk.new(sepuv.outputs['X'], mulu.inputs[0])
+        combuv = n.new('ShaderNodeCombineXYZ')
+        lk.new(mulu.outputs['Value'], combuv.inputs['X'])
+        lk.new(sepuv.outputs['Y'], combuv.inputs['Y'])
+        combuv.inputs['Z'].default_value = 0.0
+        base_socket = combuv.outputs['Vector']
     wn = n.new('ShaderNodeTexNoise')
     wn.inputs['Scale'].default_value = 1.2
     wn.inputs['Detail'].default_value = 4
@@ -104,10 +131,10 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     scl.inputs['Scale'].default_value = warp
     add = n.new('ShaderNodeVectorMath')
     add.operation = 'ADD'
-    lk.new(tc.outputs['Object'], wn.inputs['Vector'])
+    lk.new(base_socket, wn.inputs['Vector'])
     lk.new(wn.outputs['Color'], sub.inputs[0])
     lk.new(sub.outputs['Vector'], scl.inputs[0])
-    lk.new(tc.outputs['Object'], add.inputs[0])
+    lk.new(base_socket, add.inputs[0])
     lk.new(scl.outputs['Vector'], add.inputs[1])
     coord = add.outputs['Vector']
     # --- 2 couches voronoi distance-to-edge (sillons) ---
