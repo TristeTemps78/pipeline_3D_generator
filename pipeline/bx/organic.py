@@ -1673,10 +1673,18 @@ def _apply_axis_uv(spec, groups):
             for tag in ('L', 'R'):
                 path = _path_for_part(spec, gid, tag)
                 for ob in groups.get(gid, []):
-                    if ob.type == 'MESH' and ob.name == f'{gid}_{tag}':
+                    if ob.type != 'MESH':
+                        continue
+                    if ob.name == f'{gid}_{tag}':
                         _detail.write_axis_uv(ob, path)
                         if axis_mat:
                             _retint_axis(ob, spec, axis_mat)
+                    elif f'_{tag}' in ob.name and 'axis_uv' not in ob.data.attributes:
+                        # annexes du membre (toe/footpad/claw…) : elles partagent
+                        # les matériaux axis_uv du tube — sans l'attribut le
+                        # shader dégénère (Voronoï à coordonnée constante =
+                        # pad pâle uniforme, constat critique boucle 19)
+                        _detail.write_axis_uv(ob, path)
     for i, part in enumerate(spec['parts']):
         if part.get('type') != 'head':
             continue
