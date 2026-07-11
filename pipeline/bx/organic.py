@@ -3,7 +3,7 @@ Chaque builder consomme un dict compact et retourne des objets Blender. Généra
 un dragon, un arbre ou un poisson ne diffèrent que par leur spec."""
 import math
 
-from mathutils import Euler, Vector
+from mathutils import Euler, Quaternion, Vector
 
 from gvl import laws, apply_law
 from . import core, ops, materials
@@ -725,7 +725,15 @@ def wing(part, mats):
         sh = (s * part['shoulder'][0], part['shoulder'][1], part['shoulder'][2])
         el = (s * part['elbow'][0], part['elbow'][1], part['elbow'][2] + pov.get('elbow_dz', 0.0))
         wr = (s * part['wrist'][0], part['wrist'][1], part['wrist'][2] + pov.get('wrist_dz', 0.0))
-        arm = ops.tube(f'arm_{tag}', [sh, el, wr], arm_radii, order=arm_order)
+        # anatomie du bras (épaule/biceps + avant-bras, coude en articulation nette,
+        # cf. `_anatomical_tube`) : rétro-compat totale, tube NURBS d'origine si
+        # `muscles`/`joints`/`folds` absents de la spec (comportement inchangé).
+        if part.get('muscles') or part.get('joints') or part.get('folds'):
+            arm = _anatomical_tube(f'arm_{tag}', [sh, el, wr], arm_radii,
+                                   muscles=part.get('muscles'), joints=part.get('joints'),
+                                   folds=part.get('folds'), mirror_sign=s)
+        else:
+            arm = ops.tube(f'arm_{tag}', [sh, el, wr], arm_radii, order=arm_order)
         materials.assign(arm, _mat(mats, bone_mat_key))
         out.append(arm)
         rays = [tuple((s * p[0], p[1], p[2])) for p in part['tips']]
@@ -1029,6 +1037,179 @@ def wing(part, mats):
     return out
 
 
+def _frame_init(tangent):
+    """Premier repère orthonormal (right/up) perpendiculaire à `tangent`, à partir
+    d'une référence monde stable (Z, ou Y si `tangent` est quasi vertical)."""
+    ref = Vector((0.0, 0.0, 1.0))
+    if abs(tangent.dot(ref)) > 0.9:
+        ref = Vector((0.0, 1.0, 0.0))
+    right = tangent.cross(ref)
+    if right.length < 1e-6:
+        right = Vector((1.0, 0.0, 0.0))
+    right.normalize()
+    up = tangent.cross(right).normalized()
+    return right, up
+
+
+def _frame_step(prev_tangent, prev_right, tangent):
+    """Transport du repère (right/up) d'un segment au suivant par rotation MINIMALE
+    (rotation-minimizing frame, méthode à réflexion simple) : évite la torsion
+    visible qu'un recalcul depuis une référence monde fixe provoquerait à chaque
+    changement d'angle notable (coude, cheville...)."""
+    axis = prev_tangent.cross(tangent)
+    sina = axis.length
+    cosa = max(-1.0, min(1.0, prev_tangent.dot(tangent)))
+    if sina < 1e-8:
+        right = Vector(prev_right)
+    else:
+        axis = axis / sina
+        angle = math.atan2(sina, cosa)
+        right = Quaternion(axis, angle) @ prev_right
+    right = right - tangent * right.dot(tangent)
+    if right.length < 1e-6:
+        right, _ = _frame_init(tangent)
+    else:
+        right.normalize()
+    up = tangent.cross(right).normalized()
+    return right, up
+
+
+def _anatomical_tube(name, pts, radii, muscles=None, joints=None, folds=None,
+                     n_ring=10, seg_samples=10, subsurf_levels=1, mirror_sign=1.0):
+    """Loft anatomique GÉNÉRIQUE pour un membre/bras (`limb`/`wing`) : chaîne de
+    sections ELLIPTIQUES le long de la polyligne de contrôle `pts`/`radii` (comme
+    `ops.tube`, section ronde à rayon interpolé linéairement, si `muscles`/`joints`/
+    `folds` sont absents -> comportement équivalent, juste loft mesh au lieu de
+    courbe NURBS+bevel). Trois modulations pilotées PAR SPEC, aucune valeur dragon :
+
+    `muscles` : [{seg, t0, t1, bulge, squash, peak, twist}] — masse fusiforme entre
+    deux points de contrôle (`seg` = index du 1er point du segment), enveloppe
+    `growth.muscle_bulge` (pic asymétrique vers `peak`, défaut 0.35 = haut du
+    segment). `bulge` gonfle le rayon "large" (axe local `right`), `squash` (<1)
+    aplatit l'axe local `up` en proportion -> section elliptique, pas un ballon rond
+    ("effet saucisse" évité). `twist` (deg) tourne le repère localement (relief).
+
+    `joints` : [{at, r, w, sharp}] — renflement osseux étroit au point de contrôle
+    `at`, enveloppe `growth.joint_bump` (gaussienne resserrée par `sharp`) — casse la
+    silhouette net (contrairement au bulge musculaire, large et progressif).
+
+    `folds` : [{at, n, depth, width, side, min_angle_deg}] — plis de compression
+    (`growth.fold_rings`) côté INTÉRIEUR (concave) du pli formé aux 2 segments
+    adjacents à `at`, ignorés si l'angle entre segments est presque droit (< 15° par
+    défaut, pas de pli sur un membre quasi tendu). Le côté intérieur est dérivé de la
+    géométrie (direction sortante - direction entrante) sauf si `side` est fourni
+    explicitement (repère local, mirroré par `mirror_sign`)."""
+    muscles = muscles or []
+    joints = joints or []
+    folds = folds or []
+    pv = [Vector(p) for p in pts]
+    n_seg = len(pv) - 1
+
+    def seg_dir(i):
+        d = pv[i + 1] - pv[i]
+        return d.normalized() if d.length > 1e-9 else Vector((0, 0, -1))
+
+    fold_by_at = {}
+    for f in folds:
+        at = f.get('at')
+        if at is None or at <= 0 or at >= len(pv) - 1:
+            continue
+        din, dout = seg_dir(at - 1), seg_dir(at)
+        cosang = max(-1.0, min(1.0, din.dot(dout)))
+        if math.degrees(math.acos(cosang)) < f.get('min_angle_deg', 15.0):
+            continue
+        if 'side' in f:
+            sx, sy, sz = f['side']
+            side_v = Vector((mirror_sign * sx, sy, sz))
+        else:
+            side_v = dout - din
+        if side_v.length < 1e-6:
+            continue
+        side_v.normalize()
+        fold_by_at[at] = dict(side=side_v, n=f.get('n', 3), depth=f.get('depth', 0.05),
+                              width=f.get('width', 0.06))
+
+    joint_by_at = {j['at']: j for j in joints if j.get('at') is not None and 0 <= j['at'] < len(pv)}
+    muscles_by_seg = {}
+    for m in muscles:
+        muscles_by_seg.setdefault(m.get('seg', 0), []).append(m)
+
+    rings = []
+    right = up = None
+    prev_tan = None
+    for si in range(n_seg):
+        a, b = pv[si], pv[si + 1]
+        ra, rb = radii[si], radii[si + 1]
+        tan = seg_dir(si)
+        if right is None:
+            right, up = _frame_init(tan)
+        else:
+            right, up = _frame_step(prev_tan, right, tan)
+        prev_tan = tan
+        m_list = muscles_by_seg.get(si, [])
+        n_s = seg_samples if si < n_seg - 1 else seg_samples + 1
+        for k in range(n_s):
+            tl = min(1.0, k / seg_samples)
+            center = a.lerp(b, tl)
+            r = ra + (rb - ra) * tl
+            rx = rz = r
+            twist_deg = 0.0
+            for m in m_list:
+                t0, t1 = m.get('t0', 0.1), m.get('t1', 0.8)
+                if t1 <= t0 or not (t0 <= tl <= t1):
+                    continue
+                u = (tl - t0) / (t1 - t0)
+                env = apply_law('growth.muscle_bulge', u=u, peak=m.get('peak', 0.35),
+                                power=m.get('power', 2.0))
+                bulge = m.get('bulge', 0.3)
+                sq = m.get('squash', 0.7)
+                rx *= 1.0 + bulge * env
+                rz *= 1.0 + bulge * env * sq
+                twist_deg += m.get('twist', 0.0) * env
+            for at, jd in joint_by_at.items():
+                if at == si:
+                    d = tl
+                elif at == si + 1:
+                    d = tl - 1.0
+                else:
+                    continue
+                env = apply_law('growth.joint_bump', d=d, w=jd.get('w', 0.12),
+                                sharp=jd.get('sharp', 2.0))
+                rr = jd.get('r', 1.25)
+                mult = 1.0 + (rr - 1.0) * env
+                rx *= mult
+                rz *= mult
+            right_r, up_r = right, up
+            if twist_deg:
+                q = Quaternion(tan, math.radians(twist_deg))
+                right_r, up_r = q @ right, q @ up
+            ring_pts = []
+            for j in range(n_ring):
+                ang = 2 * math.pi * j / n_ring
+                c, sn = math.cos(ang), math.sin(ang)
+                local = right_r * (rx * c) + up_r * (rz * sn)
+                indent = 0.0
+                for at, fd in fold_by_at.items():
+                    if at == si:
+                        d = tl
+                    elif at == si + 1:
+                        d = tl - 1.0
+                    else:
+                        continue
+                    dirn = right_r * c + up_r * sn
+                    w = max(0.0, dirn.dot(fd['side']))
+                    if w <= 0.0:
+                        continue
+                    indent += w * apply_law('growth.fold_rings', d=d, n=fd['n'],
+                                            width=fd['width'], depth=fd['depth'])
+                if indent:
+                    local *= max(0.15, 1.0 - indent / max(r, 1e-4))
+                ring_pts.append(tuple(center + local))
+            rings.append(ring_pts)
+    ob = ops.ring_loft(name, rings, subsurf_levels=subsurf_levels)
+    return ob
+
+
 @builder('limb')
 def limb(part, mats):
     """Patte : tube conique articulé + pied à orteils griffus.
@@ -1044,7 +1225,15 @@ def limb(part, mats):
         tag = 'L' if s > 0 else 'R'
         pts = [(s * p[0], p[1], p[2]) for p in part['pts']]
         radii = part.get('radii') or laws.power_taper(len(pts), part.get('r0', 0.3), 1.0, 0.1)
-        leg = ops.tube(f"{part.get('id', 'leg')}_{tag}", pts, radii)
+        # anatomie (muscles fusiformes/articulations/plis, cf. `_anatomical_tube`) :
+        # rétro-compat totale, un tube rond à rayon interpolé linéairement (comportement
+        # historique) si `muscles`/`joints`/`folds` sont absents de la spec.
+        if part.get('muscles') or part.get('joints') or part.get('folds'):
+            leg = _anatomical_tube(f"{part.get('id', 'leg')}_{tag}", pts, radii,
+                                   muscles=part.get('muscles'), joints=part.get('joints'),
+                                   folds=part.get('folds'), mirror_sign=s)
+        else:
+            leg = ops.tube(f"{part.get('id', 'leg')}_{tag}", pts, radii)
         materials.assign(leg, _mat(mats, part.get('mat', 'scales')))
         out.append(leg)
         if part.get('foot'):

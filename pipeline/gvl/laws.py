@@ -150,6 +150,49 @@ def axis_flex(n, dip=0.0, tip=0.0, dip_pos=0.4, sharp=1.0):
     return out
 
 
+def fusiform(u, peak=0.35, power=2.0):
+    """Enveloppe de renflement fusiforme ASYMÉTRIQUE (masses musculaires sur un
+    membre/bras) : profil 0->1->0 sur u=0..1 (fraction locale d'une fenêtre de
+    muscle), pic décalé vers `peak` (<0.5 = masse concentrée vers le DÉBUT de la
+    fenêtre, ex. haut de cuisse/épaule qui s'amenuise plus progressivement vers le
+    tendon distal, comme un vrai muscle plutôt qu'un renflement centré symétrique).
+    `power` (>1) resserre la montée/descente autour du pic (bulge plus net, moins
+    "ballon")."""
+    peak = min(max(peak, 1e-4), 1 - 1e-4)
+    u = min(max(u, 0.0), 1.0)
+    f = u / peak if u < peak else (1 - u) / (1 - peak)
+    return max(0.0, math.sin(math.pi * 0.5 * f)) ** power
+
+
+def joint_bump(d, w=0.12, sharp=2.0):
+    """Renflement osseux LOCAL et NET à une articulation (genou, cheville, coude/
+    poignet d'aile) : gaussienne resserrée (`sharp`>1 = flancs plus raides, casse la
+    silhouette au lieu d'un simple élargissement doux) en fonction de la distance
+    signée `d` (fraction de segment) au point de contrôle de l'articulation. Retourne
+    une enveloppe 0..1 (0 loin du joint, 1 pile dessus) à combiner en multiplicateur
+    de rayon par l'appelant (ex. `1 + (r_joint - 1) * joint_bump(...)`)."""
+    return math.exp(-0.5 * (d / max(w, 1e-4)) ** 2) ** sharp
+
+
+def fold_indent(d, n=3, width=0.06, depth=0.05):
+    """Plis de peau aux articulations (`fold_rings`) : PLUSIEURS anneaux de pincement
+    (2-4, `n`) d'amplitude décroissante, décalés de part et d'autre du point de pli
+    (d=0, fraction de segment) -> lit comme plusieurs plis de peau superposés qui
+    s'estompent en s'éloignant, plutôt qu'un unique sillon symétrique. Retourne
+    l'indentation cumulée (0..~depth) à SOUSTRAIRE du rayon, uniquement du côté
+    intérieur du pli (l'appelant pondère déjà par la projection sur le côté concave)."""
+    n = max(1, int(n))
+    total = 0.0
+    for i in range(n):
+        side = 1 if i % 2 == 0 else -1
+        mag = (i // 2) + 1
+        off = side * mag * width * 1.15
+        amp = depth * (1.0 - i / n)
+        g = math.exp(-0.5 * ((d - off) / max(width * 0.55, 1e-4)) ** 2)
+        total += amp * g
+    return total
+
+
 def lsystem(axiom, rules, depth):
     """L-système symbolique (ramifications : bois de cerf, veines). Retourne la chaîne."""
     s = axiom
