@@ -56,7 +56,7 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
                    normal_map=None, normal_map_strength=1.0,
                    ao_map=None, ao_strength=0.35,
                    curvature_map=None, curvature_mix=0.6,
-                   axis_uv=False, axis_uv_stretch=2.4):
+                   axis_uv=False, axis_uv_stretch=2.4, scale_axis=None):
     """pattern.reptile_scales v3 (audit boucle 17, CR1 « charbon/rouge ») : 2 voronoi
     distance-to-edge superposés (plaques + micro-écailles) sur coordonnées Object
     distordues par noise (casse la grille ; Object car les curves n'ont pas de Generated
@@ -99,18 +99,28 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     shader empilés, pas un remplacement) ; `ao_map` multiplie légèrement la base color
     (creux baked plus sombres) ; `curvature_map` se MÉLANGE (`curvature_mix`) à la
     Pointiness géométrique live pour moduler la patine cavité — moins uniforme qu'une
-    Pointiness seule sur un low-poly lissé après le shell de bake."""
+    Pointiness seule sur un low-poly lissé après le shell de bake.
+    `scale_axis` (P0 boucle 19 round 2, chantier « face lave uniforme ») : liste
+    [[u, multiplicateur], ...] triée par `u` (0..1, abscisse le long de l'axe
+    `axis_uv` — nécessite `axis_uv=True`) qui module le `Scale` Voronoi (plaques +
+    micro + cellule couleur) le long de l'axe anatomique via une simple ColorRamp
+    (LINEAR, interpolation piecewise générique — pas de valeur dragon en dur) :
+    permet de GROSSES plaques au museau/mâchoire et des FINES près de l'œil sur le
+    même matériau de tête, plutôt qu'une taille de motif uniforme façon papier
+    peint. None (défaut) = comportement v3 inchangé (Scale constant)."""
     mat, nt, bsdf = _new(name)
     n, lk = nt.nodes, nt.links
     # --- coordonnées distordues : base (Object, ou axis_uv anisotrope) + (noise-0.5)*warp ---
     tc = n.new('ShaderNodeTexCoord')
     base_socket = tc.outputs['Object']
+    axis_u_out = None
     if axis_uv:
         attr = n.new('ShaderNodeAttribute')
         attr.attribute_type = 'GEOMETRY'
         attr.attribute_name = 'axis_uv'
         sepuv = n.new('ShaderNodeSeparateXYZ')
         lk.new(attr.outputs['Vector'], sepuv.inputs['Vector'])
+        axis_u_out = sepuv.outputs['X']
         mulu = n.new('ShaderNodeMath')
         mulu.operation = 'MULTIPLY'
         mulu.inputs[1].default_value = axis_uv_stretch
@@ -203,6 +213,30 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     cell = n.new('ShaderNodeTexVoronoi')
     cell.inputs['Scale'].default_value = scale
     lk.new(coord, cell.inputs['Vector'])
+    if axis_u_out is not None and scale_axis:
+        # ColorRamp = fonction 1D générique (piecewise LINEAR) u -> multiplicateur de
+        # Scale, réutilisée pour les 3 Voronoi (plaques/micro/cellule couleur) afin que
+        # la taille du motif change de ZONE cohérente (pas juste le bump) le long de
+        # l'axe anatomique -- ex. grandes plaques museau (mult bas), fines près de
+        # l'œil (mult haut), sur le MÊME matériau de tête.
+        sramp = n.new('ShaderNodeValToRGB')
+        els = sramp.color_ramp.elements
+        while len(els) > 1:
+            els.remove(els[-1])
+        pts_axis = sorted(scale_axis, key=lambda p: p[0])
+        u0, m0 = pts_axis[0]
+        els[0].position, els[0].color = max(0.0, min(1.0, u0)), (m0, m0, m0, 1)
+        for u, m in pts_axis[1:]:
+            e = els.new(max(0.0, min(1.0, u)))
+            e.color = (m, m, m, 1)
+        sramp.color_ramp.interpolation = 'LINEAR'
+        lk.new(axis_u_out, sramp.inputs['Fac'])
+        for vnode, base_scale in ((v1, scale), (v2, scale2), (cell, scale)):
+            smul = n.new('ShaderNodeMath')
+            smul.operation = 'MULTIPLY'
+            smul.inputs[1].default_value = base_scale
+            lk.new(sramp.outputs['Color'], smul.inputs[0])
+            lk.new(smul.outputs['Value'], vnode.inputs['Scale'])
     crange = n.new('ShaderNodeMapRange')
     crange.inputs['To Min'].default_value = 0.0
     crange.inputs['To Max'].default_value = 0.18
@@ -223,11 +257,21 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
         vfac.operation = 'MULTIPLY'
         vfac.inputs[1].default_value = micro
         lk.new(seed_fac, vfac.inputs[0])
+        # (P0 boucle 19, round render-critic 2 : fix « dragon brun-cuivre uniforme »)
+        # AVANT : B = base*4 + tint*0.2 -> ratio R/G/B fortement copper (~2.3/2.8) même
+        # loin de toute arête -> chaque écaille à seed haut peignait TOUT le corps en
+        # cuivre, noyant le masque edge_copper censé réserver le cuivre aux arêtes/
+        # carènes réelles (mesuré : copper_fraction .87 contre .46 en réf). Le cuivre
+        # doit rester le fait de `mix2`/`efac` (masque de cavité), pas de cette
+        # variation par-écaille. Ici B garde le RATIO de `base` (mult uniforme, PAS de
+        # tint) -> variation par plaque = value seulement (certaines plus claires,
+        # d'autres plus sombres), jamais un virage de teinte -> base reste quasi-noire
+        # même sur les écailles au seed le plus haut.
         mixv = n.new('ShaderNodeMix')
         mixv.data_type = 'RGBA'
-        mixv.inputs['B'].default_value = (min(1.0, base[0] * 4 + tint[0] * 0.2),
-                                          min(1.0, base[1] * 4 + tint[1] * 0.2),
-                                          min(1.0, base[2] * 4 + tint[2] * 0.2), 1)
+        mixv.inputs['B'].default_value = (min(1.0, base[0] * 2.6),
+                                          min(1.0, base[1] * 2.6),
+                                          min(1.0, base[2] * 2.6), 1)
         lk.new(var_out, mixv.inputs['A'])
         lk.new(vfac.outputs['Value'], mixv.inputs['Factor'])
         var_out = mixv.outputs['Result']
@@ -376,7 +420,8 @@ def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough
             transmission=0.3, sss=0.35, sss_radius=(0.25, 0.05, 0.03),
             vein_scale=0.0, vein_strength=0.35, vein_dark=(0.02, 0.004, 0.006),
             vein_width=0.05, vein_bump=None,
-            wrinkle_scale=0.0, wrinkle_strength=0.12, glow=0.0):
+            wrinkle_scale=0.0, wrinkle_strength=0.12, glow=0.0,
+            edge_grad_min=0.15, edge_grad_max=1.4):
     """pattern.membrane_skin v2 : peau fine vascularisée. Réseau de veines procédural
     (2 Voronoi distance-to-edge superposés, coords Object) -> bump fin + assombrissement
     le long des sillons ; dégradé de couleur racine (`color`, près du corps) -> bord
@@ -392,7 +437,15 @@ def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough
     créer une ombre propre sous les lumières dures existantes (aucun changement de scène).
     `vein_scale`/`wrinkle_scale` à 0 (défaut) = géométrie shader v1 inchangée (rétro-
     compat). Transmission BORNÉE à 0.05 (piège : coque fine + lumières fortes = taches
-    blanches transmises, cf. claude.md) -> simuler la translucidité via `sss`/`glow`."""
+    blanches transmises, cf. claude.md) -> simuler la translucidité via `sss`/`glow`.
+    `edge_grad_min`/`edge_grad_max` (P0 boucle 19 round 2 : « membrane orange uniforme,
+    pas juste le bord ») bornent la distance (Generated Length, proxy bbox objet) où le
+    dégradé racine->bord SE TERMINE. Défauts (0.15/1.4) historiques calibrés sur une
+    aile dont l'origine objet est proche du CENTRE de la bbox — sur une aile dont
+    l'origine est près de l'ÉPAULE (un coin, donc la longueur peut dépasser 1 sur une
+    grande diagonale), un `From Max` trop bas fait basculer la PLUPART de la surface
+    vers `edge_color` bien avant le bord réel -> voile chaud uniforme au lieu d'un
+    liseré. Augmenter `edge_grad_max` resserre `edge_color` sur le vrai bord libre."""
     mat, nt, bsdf = _new(name)
     n, lk = nt.nodes, nt.links
     edge_color = edge_color if edge_color is not None else color
@@ -403,8 +456,8 @@ def membrane(name='membrane', color=(0.09, 0.015, 0.012), edge_color=None, rough
     glen.operation = 'LENGTH'
     lk.new(tc.outputs['Generated'], glen.inputs[0])
     grad = n.new('ShaderNodeMapRange')
-    grad.inputs['From Min'].default_value = 0.15
-    grad.inputs['From Max'].default_value = 1.4
+    grad.inputs['From Min'].default_value = edge_grad_min
+    grad.inputs['From Max'].default_value = edge_grad_max
     lk.new(glen.outputs['Value'], grad.inputs['Value'])
     mixc = n.new('ShaderNodeMix')
     mixc.data_type = 'RGBA'
@@ -603,7 +656,9 @@ def eye(name='eye', color=(0.9, 0.45, 0.08), glow=2.0):
 
 def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 0.22, 0.045),
              iris_color2=None, pupil_color=(0.012, 0.009, 0.007), pupil_width=0.16, iris_r=0.5,
-             rough=0.08, clearcoat=0.55, glow=0.12):
+             rough=0.08, clearcoat=0.55, glow=0.12, pupil_length=1.0, pupil_edge=0.015,
+             catchlight=0.0, catchlight_pos=(0.55, 0.4), catchlight_size=0.045,
+             catchlight_soft=0.02):
     """EyeBuilder (boucle 17 CR3, feedback B) : matériau GÉNÉRIQUE pour un globe
     oculaire ISOLÉ en un seul objet + un seul matériau — remplace l'empilement de 3
     disques (sclère/iris/pupille plaqués) sur un matériau émissif plat par un
@@ -625,7 +680,18 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     avant la sclère -> même à travers une petite ouverture de paupière, l'œil montre
     au moins deux teintes + un bord net vers la sclère sombre au lieu d'un aplat
     uniforme. `iris_r` réduit par défaut (plateau iris plus étroit) pour laisser plus
-    de place à la sclère visible dans l'ouverture."""
+    de place à la sclère visible dans l'ouverture.
+    `pupil_length` (P0 boucle 19 round 2, feedback render-critic « pupille = tache
+    floue en losange ») : DIVISE l'axe Z avant le calcul de distance (comme
+    `pupil_width` divise Y) -> >1.0 allonge la fente VERTICALEMENT sans l'élargir
+    (fente fine ET haute, pas juste fine). `pupil_edge` resserre encore l'écart de
+    ColorRamp pupille->liseré (défaut 0.03 avant -> `pupil_edge` ~0.015) pour un bord
+    de fente NET plutôt qu'un flou de transition large.
+    `catchlight` (0..1, défaut 0 = off) : point de lumière PONCTUEL fixe en espace
+    Object (indépendant de l'éclairage de scène, donc jamais une barre plate = la
+    forme d'une area light réfléchie) — petit disque net (`catchlight_size`/
+    `catchlight_soft`) mélangé en blanc sur la Base Color ET boosté en Emission à cet
+    endroit seul, positionné par `catchlight_pos` (Y, Z local)."""
     mat, nt, bsdf = _new(name)
     n, lk = nt.nodes, nt.links
     tc = n.new('ShaderNodeTexCoord')
@@ -635,14 +701,18 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     ydiv.operation = 'DIVIDE'
     ydiv.inputs[1].default_value = max(0.02, pupil_width)
     lk.new(sep.outputs['Y'], ydiv.inputs[0])
+    zdiv = n.new('ShaderNodeMath')
+    zdiv.operation = 'DIVIDE'
+    zdiv.inputs[1].default_value = max(0.02, pupil_length)
+    lk.new(sep.outputs['Z'], zdiv.inputs[0])
     y2 = n.new('ShaderNodeMath')
     y2.operation = 'MULTIPLY'
     lk.new(ydiv.outputs['Value'], y2.inputs[0])
     lk.new(ydiv.outputs['Value'], y2.inputs[1])
     z2 = n.new('ShaderNodeMath')
     z2.operation = 'MULTIPLY'
-    lk.new(sep.outputs['Z'], z2.inputs[0])
-    lk.new(sep.outputs['Z'], z2.inputs[1])
+    lk.new(zdiv.outputs['Value'], z2.inputs[0])
+    lk.new(zdiv.outputs['Value'], z2.inputs[1])
     dsum = n.new('ShaderNodeMath')
     dsum.operation = 'ADD'
     lk.new(y2.outputs['Value'], dsum.inputs[0])
@@ -663,16 +733,67 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     amber_hi = tuple(min(1.0, c * 1.5 + 0.05) for c in iris_color)
     ir = max(0.20, min(iris_r, 0.45))
     outer2 = iris_color2 if iris_color2 is not None else tuple(c * 0.55 for c in iris_color)
+    edge = max(0.006, pupil_edge)
     stop(0.15, pupil_color)               # bord net pupille
-    stop(0.18, amber_hi)                  # liseré clair (catch-light iris/pupille)
-    stop(0.24, iris_color)                # iris interne vif
+    stop(0.15 + edge, amber_hi)           # liseré clair (catch-light iris/pupille), resserré
+    stop(0.15 + edge + 0.05, iris_color)  # iris interne vif
     stop(ir * 0.72, iris_color)           # tenu jusqu'à l'anneau externe
     stop(ir, outer2)                      # DEUX TONS : anneau externe plus sombre
     stop(min(0.94, ir + 0.06), sclera_color)  # bord net iris/sclère
     stop(1.0, sclera_color)
     ramp.color_ramp.interpolation = 'LINEAR'
     lk.new(dist.outputs['Value'], ramp.inputs['Fac'])
-    lk.new(ramp.outputs['Color'], bsdf.inputs['Base Color'])
+    color_out = ramp.outputs['Color']
+    emission_out = ramp.outputs['Color']
+    if catchlight > 0:
+        cy, cz = catchlight_pos
+        dy = n.new('ShaderNodeMath')
+        dy.operation = 'SUBTRACT'
+        dy.inputs[1].default_value = cy
+        lk.new(sep.outputs['Y'], dy.inputs[0])
+        dz = n.new('ShaderNodeMath')
+        dz.operation = 'SUBTRACT'
+        dz.inputs[1].default_value = cz
+        lk.new(sep.outputs['Z'], dz.inputs[0])
+        dy2 = n.new('ShaderNodeMath')
+        dy2.operation = 'MULTIPLY'
+        lk.new(dy.outputs['Value'], dy2.inputs[0])
+        lk.new(dy.outputs['Value'], dy2.inputs[1])
+        dz2 = n.new('ShaderNodeMath')
+        dz2.operation = 'MULTIPLY'
+        lk.new(dz.outputs['Value'], dz2.inputs[0])
+        lk.new(dz.outputs['Value'], dz2.inputs[1])
+        cdsum = n.new('ShaderNodeMath')
+        cdsum.operation = 'ADD'
+        lk.new(dy2.outputs['Value'], cdsum.inputs[0])
+        lk.new(dz2.outputs['Value'], cdsum.inputs[1])
+        cdist = n.new('ShaderNodeMath')
+        cdist.operation = 'SQRT'
+        lk.new(cdsum.outputs['Value'], cdist.inputs[0])
+        cmap = n.new('ShaderNodeMapRange')
+        cmap.clamp = True
+        cmap.inputs['From Min'].default_value = max(0.001, catchlight_size)
+        cmap.inputs['From Max'].default_value = max(0.002, catchlight_size + catchlight_soft)
+        cmap.inputs['To Min'].default_value = 1.0
+        cmap.inputs['To Max'].default_value = 0.0
+        lk.new(cdist.outputs['Value'], cmap.inputs['Value'])
+        cfac = n.new('ShaderNodeMath')
+        cfac.operation = 'MULTIPLY'
+        cfac.inputs[1].default_value = catchlight
+        lk.new(cmap.outputs['Result'], cfac.inputs[0])
+        cmix = n.new('ShaderNodeMix')
+        cmix.data_type = 'RGBA'
+        cmix.inputs['B'].default_value = (1, 1, 1, 1)
+        lk.new(color_out, cmix.inputs['A'])
+        lk.new(cfac.outputs['Value'], cmix.inputs['Factor'])
+        color_out = cmix.outputs['Result']
+        ecmix = n.new('ShaderNodeMix')
+        ecmix.data_type = 'RGBA'
+        ecmix.inputs['B'].default_value = (1, 1, 1, 1)
+        lk.new(emission_out, ecmix.inputs['A'])
+        lk.new(cfac.outputs['Value'], ecmix.inputs['Factor'])
+        emission_out = ecmix.outputs['Result']
+    lk.new(color_out, bsdf.inputs['Base Color'])
     _set(bsdf, 'Roughness', rough)
     _set(bsdf, 'Coat Weight', clearcoat)
     _set(bsdf, 'Clearcoat', clearcoat)
@@ -683,8 +804,10 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     # noyait la sclère sombre sous un glow ambré constant en éclairage faible, rendant
     # l'œil entier « disque doré plat » même quand la Base Color variait correctement.
     # Brancher la rampe fait retomber l'émission à ~0 sur la sclère (couleur quasi
-    # noire) et ne glow que pupille/iris, sans changer `glow` (force globale).
-    lk.new(ramp.outputs['Color'], bsdf.inputs['Emission Color'])
+    # noire) et ne glow que pupille/iris, sans changer `glow` (force globale) ; le
+    # catchlight (si actif) s'ajoute PAR-DESSUS pour un point net visible même en
+    # éclairage faible (indépendant de la forme/position des lumières de scène).
+    lk.new(emission_out, bsdf.inputs['Emission Color'])
     _set(bsdf, 'Emission Strength', glow)
     return mat
 
