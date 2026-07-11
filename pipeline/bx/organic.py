@@ -977,7 +977,7 @@ def wing(part, mats):
                 v.z -= panel_billow * math.sin(math.pi * u) * math.sin(math.pi * t)
                 return v
 
-            def vein_branch(p0, p1, gen, r0, j, bi):
+            def vein_branch(p0, p1, gen, r0, j, bi, root_ref, max_reach):
                 vr = laws.power_taper(3, r0, 1.1, max(vein_rmin, r0 * 0.3))
                 pmid = p0.lerp(p1, 0.5)
                 res_u, bev_res = (4, 3) if gen == 0 else (3, 2)
@@ -1000,16 +1000,40 @@ def wing(part, mats):
                     start = p0.lerp(p1, 0.30 + 0.4 * fc)
                     sign = 1.0 if c % 2 == 0 else -1.0
                     # rameau DISTAL : continue vers le bord de fuite, s'écarte du tronc
-                    end_distal = (start + seg * (0.55 * vein_taper)
-                                  + perp * sign * seg.length * 0.28 * vein_taper)
-                    vein_branch(start, end_distal, gen + 1, r0 * vein_taper, j, bi)
+                    # (portée réduite chantier B fix, cf. note ci-dessous : 0.55/0.28
+                    # -> 0.4/0.16, moins d'élan pour moins dépasser)
+                    end_distal = (start + seg * (0.4 * vein_taper)
+                                  + perp * sign * seg.length * 0.16 * vein_taper)
+                    # FIX régression boucle 19 (step_238_hero) : extrapolation en 3D
+                    # pure, sans lien avec le panneau (u,t) -> un rameau distal peut
+                    # dépasser `p1` (déjà proche du bord de fuite, t_end<=0.92) et
+                    # sortir de la membrane (filaments qui dépassent la silhouette).
+                    # `root_ref`/`max_reach` = CENTRE et rayon d'une sphère de sécurité
+                    # établie sur le tronc de génération 0 (seul segment garanti dans
+                    # la membrane par construction, marge t/u incluse) : la sphère est
+                    # centrée sur le MILIEU du tronc avec un rayon réduit (0.55x sa
+                    # demi-longueur) pour rester near l'intérieur du panneau (étroit
+                    # latéralement) plutôt que de permettre tout le rayon jusqu'à p1
+                    # (qui laissait passer des rameaux latéraux hors silhouette) — aucun
+                    # point ne peut s'en éloigner plus loin, quelle que soit la
+                    # direction -> clippe avant de sortir du panneau au lieu de laisser
+                    # filer le rameau.
+                    d = end_distal - root_ref
+                    dlen = d.length
+                    if dlen > max_reach:
+                        end_distal = root_ref + d * (max_reach / dlen)
+                    vein_branch(start, end_distal, gen + 1, r0 * vein_taper, j, bi,
+                                root_ref, max_reach)
                 # rameau PROXIMAL : un seul par génération, court, repart vers la
                 # racine (l'attache du doigt) -> bifurque aussi en arrière, pas
-                # seulement vers l'avant (lecture "arbre", pas "balai").
+                # seulement vers l'avant (lecture "arbre", pas "balai"). Reste
+                # toujours entre p0 et p1 (barycentre) donc déjà dans la sphère de
+                # référence -> pas besoin de clamp.
                 root_start = p0.lerp(p1, 0.12)
                 root_end = root_start.lerp(p0, vein_root_frac)
                 if (root_end - root_start).length > 1e-5:
-                    vein_branch(root_start, root_end, gen + 1, r0 * vein_taper * 0.85, j, bi)
+                    vein_branch(root_start, root_end, gen + 1, r0 * vein_taper * 0.85, j, bi,
+                                root_ref, max_reach)
 
             for j in range(len(ends) - 1):
                 for bi in range(vein_branches):
@@ -1019,7 +1043,14 @@ def wing(part, mats):
                     u_end = 0.22 + 0.5 * frac    # s'écarte du doigt vers le panneau voisin
                     p0 = finger_pt(j, t_start)
                     p1 = panel_pt(j, u_end, t_end)
-                    vein_branch(p0, p1, 0, vein_r0, j, bi)
+                    # sphère de sécurité centrée sur le MILIEU du tronc (pas une
+                    # extrémité) : rayon = demi-longueur + marge modeste -> reste
+                    # proche du tronc établi (déjà validé dans le panneau) au lieu
+                    # d'autoriser tout le rayon d'une extrémité à l'autre (trop
+                    # généreux latéralement pour un panneau étroit, cf. fix ci-dessus).
+                    trunk_center = p0.lerp(p1, 0.5)
+                    trunk_reach = (p1 - p0).length * 0.5 * 1.2
+                    vein_branch(p0, p1, 0, vein_r0, j, bi, trunk_center, trunk_reach)
         # doigts osseux : bourrelets SAILLANTS posés SUR la membrane (relief), pas des
         # tiges flottantes séparées -> soulevés de `finger_lift` le long de z (même
         # convention que les lattes) pour lire comme une arête en relief sur la surface.

@@ -641,10 +641,25 @@ def armor_rows(ob, plates, path_world, mat_default, rows=20, cols=10,
         plate_bms.append(pb)
     u0, u1 = u_range
     placed = 0
+    # FIX régression boucle 19 (step_238_head) : plaques flottantes près de la
+    # gorge/mâchoire. Le raycast part de très loin (`search_dist` ~ 0.6x la
+    # bbox) donc un manque local (trou, pli concave près d'une jonction
+    # corps/tête) le laisse traverser et toucher une surface ÉLOIGNÉE et sans
+    # rapport (repliée ailleurs sur le même mesh) : la plaque est bien "sur"
+    # le maillage mais visuellement détachée, un trou noir tout autour.
+    # Détection : le rayon local (distance p0->hit le long de `dirn`, via la
+    # distance de ray_cast qu'on ignorait avant) doit varier PEU d'une colonne
+    # à l'autre le long d'un même anneau/rangée (surface organique lisse) ;
+    # un saut > RADIUS_JUMP (~0.15u) = échantillon aberrant -> rejeté, comme un
+    # raté de raycast pur (pas de reprojection/clamp : on préfère un trou dans
+    # le semis à une plaque mal posée).
+    RADIUS_JUMP = 0.15
+    row_col_r = [None] * cols   # dernier rayon accepté à cette colonne (rangée précédente)
     for ri in range(rows):
         u = u0 + (u1 - u0) * (ri / max(1, rows - 1))
         p0, rgt, up, tan = sample_at(u)
         offs = 0.5 if (quincunx and ri % 2 == 1) else 0.0
+        prev_row_r = None   # dernier rayon accepté dans CETTE rangée (colonne précédente)
         for ci in range(cols):
             frac = ((ci + offs) / cols) % 1.0
             vfrac = v_range[0] + (v_range[1] - v_range[0]) * frac
@@ -654,11 +669,17 @@ def armor_rows(ob, plates, path_world, mat_default, rows=20, cols=10,
                 continue
             dirn.normalize()
             origin = p0 + dirn * search_dist
-            loc, hn, _, _ = bvh.ray_cast(origin, -dirn, search_dist * 2.2)
+            loc, hn, _, hit_dist = bvh.ray_cast(origin, -dirn, search_dist * 2.2)
             if loc is None:
                 continue
-            if hn.dot(dirn) < 0.1:   # bord/jonction quasi tangente -> évite un placement en biseau
+            if hn.dot(dirn) < 0.2:   # bord/jonction quasi tangente -> évite un placement en biseau
                 continue
+            r_local = search_dist - hit_dist   # distance p0->surface le long de dirn (rayon local)
+            ref = prev_row_r if prev_row_r is not None else row_col_r[ci]
+            if ref is not None and abs(r_local - ref) > RADIUS_JUMP:
+                continue   # rayon aberrant (surface éloignée sans rapport) -> pas de plaque
+            prev_row_r = r_local
+            row_col_r[ci] = r_local
             flank = abs(vfrac - 0.5) * 2.0
             s = size[0] + (size[1] - size[0]) * rng.random()
             s *= scale_field(u)
