@@ -450,6 +450,42 @@ def bone(name='bone', color=(0.06, 0.05, 0.045), rough=0.35):
     return mat
 
 
+def enamel(name='enamel', color=(0.85, 0.82, 0.75), root_color=(0.32, 0.24, 0.17),
+           rough=0.22, sss=0.12, root_frac=0.32):
+    """Émail dentaire (feedback boucle 18 pt3 : dents « uniformes », matériau `bone`
+    trop plat) : blanc cassé légèrement translucide (SSS léger), racine plus sombre
+    près de la gencive. Le gradient racine->couronne est piloté par la coordonnée
+    UV.U générée AUTOMATIQUEMENT par Blender le long d'un tube-courbe (u=0 au premier
+    point de contrôle -> u=1 au dernier, cf. test empirique `ops.tube`) plutôt qu'un
+    axe Z objet/monde : générique et ORIENTATION-INDÉPENDANT, alors qu'un gradient Z
+    s'inverserait entre dents du haut (pointent vers le bas) et du bas (pointent vers
+    le haut) sur un matériau partagé. Suppose seulement que l'appelant construit ses
+    points racine->pointe dans cet ordre (déjà le cas dans `bx.organic.head`)."""
+    mat, nt, bsdf = _new(name)
+    n, lk = nt.nodes, nt.links
+    uvmap = n.new('ShaderNodeUVMap')
+    sep = n.new('ShaderNodeSeparateXYZ')
+    lk.new(uvmap.outputs['UV'], sep.inputs['Vector'])
+    mr = n.new('ShaderNodeMapRange')
+    mr.clamp = True
+    mr.inputs['From Min'].default_value = 0.0
+    mr.inputs['From Max'].default_value = max(0.05, root_frac)
+    mr.inputs['To Min'].default_value = 0.0   # racine (u bas) sombre
+    mr.inputs['To Max'].default_value = 1.0   # couronne (u haut) claire
+    lk.new(sep.outputs['X'], mr.inputs['Value'])
+    mix = n.new('ShaderNodeMix')
+    mix.data_type = 'RGBA'
+    mix.inputs['A'].default_value = (*root_color, 1)
+    mix.inputs['B'].default_value = (*color, 1)
+    lk.new(mr.outputs['Result'], mix.inputs['Factor'])
+    lk.new(mix.outputs['Result'], bsdf.inputs['Base Color'])
+    _set(bsdf, 'Roughness', rough)
+    if sss > 0:
+        _set(bsdf, 'Subsurface Weight', sss)
+        _set(bsdf, 'Subsurface Radius', (0.25, 0.22, 0.18))
+    return mat
+
+
 def horn(name='horn', color=(0.07, 0.045, 0.025), rough=0.3, stripe_scale=28,
          stripe_strength=0.22, aniso=0.4, var=0.14, spec_level=0.6):
     """pattern.horn v1 : kératine striée générique (cornes/griffes/épines osseuses) —
@@ -505,7 +541,7 @@ def eye(name='eye', color=(0.9, 0.45, 0.08), glow=2.0):
 
 
 def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 0.22, 0.045),
-             pupil_color=(0.012, 0.009, 0.007), pupil_width=0.16, iris_r=0.5,
+             iris_color2=None, pupil_color=(0.012, 0.009, 0.007), pupil_width=0.16, iris_r=0.5,
              rough=0.08, clearcoat=0.55, glow=0.12):
     """EyeBuilder (boucle 17 CR3, feedback B) : matériau GÉNÉRIQUE pour un globe
     oculaire ISOLÉ en un seul objet + un seul matériau — remplace l'empilement de 3
@@ -521,7 +557,14 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     Très spéculaire (`rough` bas, défaut proche du mouillé) + `clearcoat` -> le globe
     ACCROCHE la lumière (reflet net) au lieu du flat-color mort de l'ancien matériau
     uniforme ; `glow` (défaut faible, PAS l'ancien plein-émissif ~2.0) ajoute une once
-    de vie sans revenir à un œil qui a l'air de briller de l'intérieur."""
+    de vie sans revenir à un œil qui a l'air de briller de l'intérieur.
+    `iris_color2` (feedback boucle 18 pt2 : « disques dorés plats » à travers
+    l'ouverture des paupières) : iris à DEUX tons — `iris_color` vif près de la
+    pupille, `iris_color2` (défaut = `iris_color` assombri) sur l'anneau externe
+    avant la sclère -> même à travers une petite ouverture de paupière, l'œil montre
+    au moins deux teintes + un bord net vers la sclère sombre au lieu d'un aplat
+    uniforme. `iris_r` réduit par défaut (plateau iris plus étroit) pour laisser plus
+    de place à la sclère visible dans l'ouverture."""
     mat, nt, bsdf = _new(name)
     n, lk = nt.nodes, nt.links
     tc = n.new('ShaderNodeTexCoord')
@@ -557,11 +600,14 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
         e.color = (*color, 1)
 
     amber_hi = tuple(min(1.0, c * 1.5 + 0.05) for c in iris_color)
+    ir = max(0.20, min(iris_r, 0.45))
+    outer2 = iris_color2 if iris_color2 is not None else tuple(c * 0.55 for c in iris_color)
     stop(0.15, pupil_color)               # bord net pupille
     stop(0.18, amber_hi)                  # liseré clair (catch-light iris/pupille)
-    stop(0.26, iris_color)
-    stop(max(0.30, iris_r), iris_color)    # iris plein jusqu'au rayon réglable
-    stop(min(0.97, iris_r + 0.05), sclera_color)  # bord net iris/sclère
+    stop(0.24, iris_color)                # iris interne vif
+    stop(ir * 0.72, iris_color)           # tenu jusqu'à l'anneau externe
+    stop(ir, outer2)                      # DEUX TONS : anneau externe plus sombre
+    stop(min(0.94, ir + 0.06), sclera_color)  # bord net iris/sclère
     stop(1.0, sclera_color)
     ramp.color_ramp.interpolation = 'LINEAR'
     lk.new(dist.outputs['Value'], ramp.inputs['Fac'])
@@ -571,7 +617,13 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     _set(bsdf, 'Clearcoat', clearcoat)
     _set(bsdf, 'Coat Roughness', 0.03)
     _set(bsdf, 'Clearcoat Roughness', 0.03)
-    _set(bsdf, 'Emission Color', (*iris_color, 1))
+    # Emission = LA MÊME rampe (pas `iris_color` constant) : bug diagnostiqué boucle 18
+    # pt2 (test isolé sphère+lampe) -> une émission plate uniforme sur TOUTE la sphère
+    # noyait la sclère sombre sous un glow ambré constant en éclairage faible, rendant
+    # l'œil entier « disque doré plat » même quand la Base Color variait correctement.
+    # Brancher la rampe fait retomber l'émission à ~0 sur la sclère (couleur quasi
+    # noire) et ne glow que pupille/iris, sans changer `glow` (force globale).
+    lk.new(ramp.outputs['Color'], bsdf.inputs['Emission Color'])
     _set(bsdf, 'Emission Strength', glow)
     return mat
 

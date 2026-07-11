@@ -116,9 +116,52 @@ def _axis_factor(ng, axis, frm, to, clamp=True):
     return mr.outputs['Result']
 
 
+def _near_factor(ng, locs, radius=0.15, falloff=0.12):
+    """Masque de proximité générique (boucle 18, T1 : « couronnes orbitales/
+    maxillaires ») : distance MINIMALE de chaque point de surface à un point OU une
+    liste de points (approxime un segment/ligne — ex. une ligne de mâchoire — en
+    donnant plusieurs points échantillonnés le long de celle-ci, sans dépendre de la
+    topologie de la pièce) -> facteur 1.0 dans `radius`, dégradé LINÉAIRE à 0.0 sur
+    `falloff` au-delà. Mêmes coordonnées que `_axis_factor` (Position node, locales
+    == monde si l'objet est à l'origine, cf. pitfall claude.md). Réutilisable pour
+    toute zone circulaire/allongée (orbite, arête de mâchoire, griffe...)."""
+    pts = locs if isinstance(locs[0], (list, tuple)) else [locs]
+    pos = ng.nodes.new('GeometryNodeInputPosition')
+    lk = ng.links.new
+    dist_out = None
+    for p in pts:
+        const = ng.nodes.new('FunctionNodeInputVector')
+        const.vector = tuple(p)
+        sub = ng.nodes.new('ShaderNodeVectorMath')
+        sub.operation = 'SUBTRACT'
+        lk(pos.outputs['Position'], sub.inputs[0])
+        lk(const.outputs['Vector'], sub.inputs[1])
+        length = ng.nodes.new('ShaderNodeVectorMath')
+        length.operation = 'LENGTH'
+        lk(sub.outputs['Vector'], length.inputs[0])
+        d = length.outputs['Value']
+        if dist_out is None:
+            dist_out = d
+        else:
+            mn = ng.nodes.new('ShaderNodeMath')
+            mn.operation = 'MINIMUM'
+            lk(dist_out, mn.inputs[0])
+            lk(d, mn.inputs[1])
+            dist_out = mn.outputs['Value']
+    mr = ng.nodes.new('ShaderNodeMapRange')
+    mr.clamp = True
+    mr.inputs['From Min'].default_value = radius
+    mr.inputs['From Max'].default_value = radius + max(falloff, 1e-4)
+    mr.inputs['To Min'].default_value = 1.0
+    mr.inputs['To Max'].default_value = 0.0
+    lk(dist_out, mr.inputs['Value'])
+    return mr.outputs['Result']
+
+
 def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
                  caudal=(0, -1, 0), curvature=True, realize=True, name='armor',
-                 mask=None, mask_radial=None, scale_grad=None, distance_min=0.0,
+                 mask=None, mask_radial=None, mask_near=None, mask_near_avoid=None,
+                 scale_grad=None, distance_min=0.0,
                  index_grad=None, index_noise=(3.0, 1.4), rot_jitter=0.0,
                  store_seed=False, scale_noise=None):
     """Écailles-armure chevauchantes (inversion I1). Différence clé avec `scales` :
@@ -268,6 +311,58 @@ def armor_scales(ob, instance_ob, density=800.0, scale=(0.06, 0.10), seed=1,
             dens_factor = mul.outputs['Value']
         else:
             dens_factor = mfac
+    if mask_near:
+        # UNION des zones de proximité (orbite OU ligne de mâchoire...) : MAXIMUM
+        # entre elles, puis ce résultat se MULTIPLIE avec le reste (curvature/mask/
+        # mask_radial) comme un masque de plus, cohérent avec la combinatoire existante.
+        near_factor = None
+        for nm in mask_near:
+            nfac = _near_factor(ng, nm['loc'], nm.get('radius', 0.15), nm.get('falloff', 0.12))
+            if near_factor is None:
+                near_factor = nfac
+            else:
+                mx = ng.nodes.new('ShaderNodeMath')
+                mx.operation = 'MAXIMUM'
+                lk(near_factor, mx.inputs[0])
+                lk(nfac, mx.inputs[1])
+                near_factor = mx.outputs['Value']
+        if dens_factor is not None:
+            mul = ng.nodes.new('ShaderNodeMath')
+            mul.operation = 'MULTIPLY'
+            lk(dens_factor, mul.inputs[0])
+            lk(near_factor, mul.inputs[1])
+            dens_factor = mul.outputs['Value']
+        else:
+            dens_factor = near_factor
+    if mask_near_avoid:
+        # INVERSE de `mask_near` (boucle 18, T1 : « couronnes » englouties par
+        # l'armure fine environnante) : éclaircit (réduit la densité) autour des
+        # mêmes zones plutôt que de les réserver -> laisse de la place visuelle aux
+        # grosses plaques d'une AUTRE entrée d'armure ciblant la même zone, sans
+        # créer de trou net (dégradé via le même `falloff`).
+        avoid_factor = None
+        for nm in mask_near_avoid:
+            nfac = _near_factor(ng, nm['loc'], nm.get('radius', 0.15), nm.get('falloff', 0.12))
+            if avoid_factor is None:
+                avoid_factor = nfac
+            else:
+                mx = ng.nodes.new('ShaderNodeMath')
+                mx.operation = 'MAXIMUM'
+                lk(avoid_factor, mx.inputs[0])
+                lk(nfac, mx.inputs[1])
+                avoid_factor = mx.outputs['Value']
+        inv = ng.nodes.new('ShaderNodeMath')
+        inv.operation = 'SUBTRACT'
+        inv.inputs[0].default_value = 1.0
+        lk(avoid_factor, inv.inputs[1])
+        if dens_factor is not None:
+            mul = ng.nodes.new('ShaderNodeMath')
+            mul.operation = 'MULTIPLY'
+            lk(dens_factor, mul.inputs[0])
+            lk(inv.outputs['Value'], mul.inputs[1])
+            dens_factor = mul.outputs['Value']
+        else:
+            dens_factor = inv.outputs['Value']
     if dens_factor is not None:
         lk(dens_factor, dist.inputs['Density Factor'])
     sepc = ng.nodes.new('GeometryNodeSeparateComponents')

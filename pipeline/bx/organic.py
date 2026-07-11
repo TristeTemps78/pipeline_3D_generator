@@ -36,6 +36,16 @@ def spine(part, mats):
         path = laws.lerp_path(pts, n)
         rads = laws.lerp_path([(r, 0, 0) for r in radii], n)
         i0 = sp.get('skip', 2)
+        # base/pointe et anneaux de croissance (feedback boucle 18 pt5 : piques
+        # dorsales qui lisent comme de la fourrure/des plumes) : `base_frac`/`tip_r`
+        # (rétro-compat, défauts = valeurs historiques 0.22/0.008) élargissent la base
+        # d'implantation ; `rings` (absent par défaut = comportement inchangé) réutilise
+        # `laws.growth_rings` (déjà utilisée par les cornes) sur le profil à 3 points
+        # pour casser la lame lisse et translucide par un renflement médian discret.
+        base_frac = sp.get('base_frac', 0.22)
+        mid_frac = sp.get('mid_frac', 0.12)
+        tip_r = sp.get('tip_r', 0.008)
+        rp = sp.get('rings')
         for i in range(i0, n - 1):
             p, r = path[i], rads[i][0]
             nxt = path[i + 1]
@@ -56,7 +66,12 @@ def spine(part, mats):
                 s_pts = [(bx, by, bz),
                          (bx, by + vy * h * 0.55 - uy * h * 0.16, bz + vz * h * 0.55 - uz * h * 0.16),
                          (bx, by + vy * h * 0.92 - uy * h * 0.50, bz + vz * h * 0.92 - uz * h * 0.50)]
-                s = ops.tube(f'dorsal_{i}_{row}', s_pts, [h * 0.22, h * 0.12, 0.008])
+                s_radii = [h * base_frac, h * mid_frac, tip_r]
+                if rp and rp.get('depth', 0.0):
+                    mod = laws.growth_rings(3, depth=rp.get('depth', 0.12),
+                                            freq=rp.get('freq', 3.0), sharp=rp.get('sharp', 2.0))
+                    s_radii = [r * m for r, m in zip(s_radii, mod)]
+                s = ops.tube(f'dorsal_{i}_{row}', s_pts, s_radii)
                 materials.assign(s, _mat(mats, sp.get('mat', 'bone')))
                 out.append(s)
     return out
@@ -251,10 +266,13 @@ def head(part, mats):
     np_ = part.get('nostril', {})
     npos = np_.get('pos', (0.065, 1.10, 0.075))
     nk = np_.get('size', 0.03)
+    # taille de la coupe (feedback boucle 18 pt4, « narines absentes ») : agrandie
+    # (1.05/1.7/0.85 -> 1.15/1.85/1.0) pour une ouverture nette qui se voit à distance,
+    # pas seulement un pli à peine visible.
     for s, tag in ((1, 'l'), (-1, 'r')):
         cx, cy, cz = s * npos[0], npos[1], npos[2]
         cutter = ops.blob(f'nostril_cutter_{tag}', W((cx, cy, cz)),
-                          (nk * 1.05, nk * 1.7, nk * 0.85), rot_deg=(pitch - 18, 0, s * 20))
+                          (nk * 1.15, nk * 1.85, nk * 1.0), rot_deg=(pitch - 18, 0, s * 20))
         sk = ops.boolean_diff(sk, cutter, name='skull')
         materials.assign(sk, skin)
     out.append(sk)
@@ -404,12 +422,19 @@ def head(part, mats):
     # globe, le cachaient entièrement -> "regard mort" par occlusion, pas seulement
     # par matériau plat).
     eye_m = _mat(mats, eyep.get('mat', 'eye'))
+    # bourrelet supérieur (feedback boucle 18 pt2, « yeux = disques dorés plats ») :
+    # `lid_upper_scale`/`lid_upper_zfrac` (rétro-compat, défauts = valeurs historiques
+    # 0.30/0.5/0.24 et 0.74) permettent depuis la spec un capuchon plus couvrant qui
+    # referme le haut du globe (regard « prédateur » mi-clos) sans dupliquer le
+    # builder ni changer la géométrie des autres paupières.
+    lus = eyep.get('lid_upper_scale', (0.30, 0.5, 0.24))
+    luz = eyep.get('lid_upper_zfrac', 0.74)
     for s, tag in ((1, 'l'), (-1, 'r')):
         g = ops.blob(f'eye_{tag}', W((s * ex, ey - 0.006, ez)), (egr, egr, egr))
         materials.assign(g, eye_m)
         out.append(g)
-        lu = ops.blob(f'lid_up_{tag}', W((s * ex * 0.72, ey + 0.02, ez + esr * 0.74)),
-                      (esr * 0.30, esr * 0.5, esr * 0.24), rot_deg=(0, 0, s * 10))
+        lu = ops.blob(f'lid_up_{tag}', W((s * ex * 0.72, ey + 0.02, ez + esr * luz)),
+                      (esr * lus[0], esr * lus[1], esr * lus[2]), rot_deg=(0, 0, s * 10))
         materials.assign(lu, skin)
         out.append(lu)
         ll = ops.blob(f'lid_lo_{tag}', W((s * ex * 0.72, ey - 0.018, ez - esr * 0.72)),
@@ -426,19 +451,24 @@ def head(part, mats):
         out.append(lb)
 
     # --- naseaux (suite) : cavité sombre logée sous l'ouverture carvée (donne la
-    # profondeur qu'on ne voit pas dans le trou seul) + monticule charnu enfoncé
-    # aux 2/3 dans le museau (centre déplacé vers l'intérieur, pas posé dessus) ---
+    # profondeur qu'on ne voit pas dans le trou seul) + monticule charnu EN REBORD
+    # (feedback boucle 18 pt4 : l'ancien monticule, plus grand que le trou et centré
+    # dessus, l'ENGLOUTISSAIT entièrement -> aucune ouverture visible malgré un vrai
+    # trou dans le maillage, cf. diagnostic bmesh boundary-edges). Le monticule est
+    # maintenant plus PETIT que l'ouverture et poussé plus bas/profond : son sommet
+    # reste sous le centre du trou -> il forme juste une lèvre charnue basse, le
+    # reste de l'ouverture (haut) restant un vrai creux visible. ---
     for s, tag in ((1, 'l'), (-1, 'r')):
         cx, cy, cz = s * npos[0], npos[1], npos[2]
-        cavity = ops.blob(f'nostril_cavity_{tag}', W((cx * 1.02, cy + nk * 0.25, cz - nk * 0.2)),
-                          (nk * 0.55, nk * 0.8, nk * 0.42), rot_deg=(pitch - 18, 0, s * 20))
+        cavity = ops.blob(f'nostril_cavity_{tag}', W((cx * 1.02, cy + nk * 0.3, cz - nk * 0.15)),
+                          (nk * 0.7, nk * 1.0, nk * 0.55), rot_deg=(pitch - 18, 0, s * 20))
         # 'cavity' (pas 'eye' -> ce matériau est désormais le globe à gradient nodal
         # spéculaire de l'EyeBuilder, inadapté à une simple cavité sombre) : dark mat
         # neutre générique.
         materials.assign(cavity, _mat(mats, np_.get('cavity_mat', 'cavity')) or skin)
         out.append(cavity)
-        mound = ops.blob(f'nose_mound_{tag}', W((cx, cy - nk * 0.55, cz - nk * 0.7)),
-                         (nk * 2.2, nk * 2.8, nk * 1.7), rot_deg=(pitch - 8, 0, s * 14))
+        mound = ops.blob(f'nose_mound_{tag}', W((cx, cy - nk * 0.25, cz - nk * 1.0)),
+                         (nk * 1.35, nk * 1.55, nk * 0.6), rot_deg=(pitch - 8, 0, s * 14))
         materials.assign(mound, skin)
         out.append(mound)
 
@@ -1246,6 +1276,7 @@ def _apply_armor(spec, groups):
                 caudal=tuple(e.get('caudal', (0, -1, 0))),
                 curvature=e.get('curvature', True),
                 mask=e.get('mask'), mask_radial=e.get('mask_radial'),
+                mask_near=e.get('mask_near'), mask_near_avoid=e.get('mask_near_avoid'),
                 scale_grad=e.get('scale_grad'),
                 distance_min=e.get('distance_min', 0.0),
                 index_grad=e.get('index_grad'),

@@ -4,32 +4,33 @@ Reprise (conteneur neuf) : `bash pipeline/bootstrap.sh` → claude.md → ce fic
 l'utilisateur dit « continue », exécuter le contrat ci-dessous sans reposer de question.
 
 ## Où on en est
-Boucle 17 close (« vrais changements » exigés après l'audit `research/audit_boucle17.md`),
-**EN ATTENTE DE FEEDBACK** sur le A/B : **step_182_*** (avant) vs **step_218_*** (après,
-HQ 3 shots). Jalons intermédiaires : step_195_* (CR1 look), step_208_head (CR3 tête).
-Fait (3 agents Sonnet, dans l'ordre d'impact de l'audit) :
-- CR1 LOOK charbon/rouge : base quasi-noire, arêtes rouge-cuivre, `instance_variation`
-  par écaille, roughness contrastée .82/.24, fond noir + rim dur — les écailles LISENT
-  enfin. + métrique CR5 : luminance p5/p50/p95 dans color_stats (réf .082/.185/.715).
-- CR3 TÊTE v4 : courbure crocodilienne museau/mâchoire (loi `axis_flex`), lèvres
-  bruitées génériques (`lip_profile`, remplace les ridges durs), dents inclinées seedées
-  + gencive par dent, EyeBuilder (matériau `eye_globe` spéculaire, iris fente gradient,
-  paupières aplaties, œil DÉSOCCLUS — il était caché par le crâne depuis toujours).
-- CR2 POSE dynamique : virage bancé (overrides d'aile par côté `wing.pose.L/R`,
-  génériques post-miroir), queue en S, cou tendu, tête yaw 9°, gape 56°, caméra roll 10°
-  — TOUTES les ancres recalées (masks armure, throat, wrinkle_zones, head.loc).
-- Maps rebakées pour la nouvelle pose (bake 52 s), HQ 3 shots ~2 min.
-- Wyverne vs dragon : notre modèle EST une wyverne (2 ailes + 2 pattes) — décision : rien
-  à changer, l'audit externe avait mal compté.
+Boucle 18 close, **EN ATTENTE DE FEEDBACK** sur **step_231_hero/head/legs** (HQ).
+Lignée A/B conservée : step_182 (avant boucle 17) → step_218 (avant boucle 18) → step_231.
+Fait en boucle 18 (2 agents Sonnet, feedback step_218 dans session.json) :
+- AILES (point critique) : diagnostic « le détail existait mais ne lisait pas » —
+  vein_dark≈base + bump couplé (→ vein_width/vein_bump découplés, veines sombres rouges),
+  bone_mat=plaques délavées sur tubes fins (→ matériau wing_bone kératine dédié),
+  horn spec_level .6 chromé sous rim fort (→ paramétré). + phalanges (knuckles_per_finger),
+  ALULA avec micro-membrane et griffe (fix exclude_like fuse — piège récurrent), griffes
+  de doigts ×2 recalibrées (r .065, rot 125/0/25 — à .12 elles rendaient des BOULES).
+- TÊTE : masque générique `mask_near`/`mask_near_avoid` (zones par points) → couronne
+  d'écailles GROSSES autour des orbites + ligne de mâchoire, armure fine écartée de ces
+  zones ; œil : BUG émission uniforme iris_color sur toute la sphère (= disque doré) →
+  émission suit la rampe, iris 2 tons, paupière couvrante ; dents : crocs dominants ×1.5
+  + matériau `enamel` (gradient racine via UV.U) ; NARINES : cutter sous la surface
+  (jamais percé) + mound qui l'engloutissait → recalés, visibles ; piques dorsales :
+  spec_level .28 + base élargie + growth_rings.
+- Scène 288k verts stable, tête 66.5k.
 
-## Contrat boucle 18 (à recadrer selon feedback sur le A/B 182→218)
-Restes de l'audit par impact : CR4 (plaques héros 3-4x épaules/dos, couche `muscles`
-dans bake surface.layers, bake étendu à head/hindleg avec exclude eye_/lid_) ; doutes
-agents : froissement aile haute en gros plan, throat non recalé en X pour le yaw,
-lip_profile/œil à caler en HQ ; NEXT 0 restants : environnement caverne/canyon, cicatrices.
+## Contrat boucle 19 (à recadrer selon feedback step_231)
+Restes du feedback step_218 non traités : TORSION du corps entier (pose plus complexe —
+spine ne supporte pas le twist axial, mécanisme à créer) + tension musculaire des pattes ;
+CR4 de l'audit (plaques héros épaules/dos, couche muscles bake, bake étendu head/hindleg
+avec exclude eye_/lid_) ; NEXT 0 : environnement caverne/canyon, cicatrices.
+Doutes agents : piques encore « lames rétroéclairées » (contrainte lumières), alula fondue
+dans le panneau (edge_color dédié ?), gradient enamel suppose racine→pointe.
 
 ## Restes connus hors contrat
-copper_fraction peu fiable (dominé par la couleur du rim — juger via p5/p50/p95) ;
-compare --fast sous-estime les bords ; ~170 meshes non-manifold préexistants (dents/
-griffes, sans effet visible) ; scene.blend s'ouvre sur la caméra du dernier shot ;
-fuse_groups head/hindleg bloqué (armure spatiale prérequis).
+copper_fraction peu fiable (juger via luminance p5/p50/p95, réf .082/.185/.715) ;
+compare --fast sous-estime les bords ; ~175 mesh non-manifold préexistants sans effet ;
+scene.blend s'ouvre sur la caméra du dernier shot ; fuse_groups head/hindleg bloqué.
