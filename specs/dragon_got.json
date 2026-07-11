@@ -14,28 +14,28 @@
      0.014
     ],
     "tint": [
-     0.55,
      0.05,
-     0.018
+     0.02,
+     0.014
     ],
     "rough": 0.82,
     "rough_edge": 0.24,
     "sss": 0.15,
     "micro": 0.3,
-    "edge_copper": 0.55,
+    "edge_copper": 0.22,
     "edge_width": 0.02,
     "instance_variation": 0.4,
     "patina_color": [
-     0.15,
-     0.32,
-     0.24
+     0.13,
+     0.28,
+     0.21
     ],
     "patina_gold": [
      0.5,
      0.32,
      0.11
     ],
-    "patina_amount": 0.0
+    "patina_amount": 0.3
    }
   },
   "scales_body": {
@@ -50,28 +50,28 @@
      0.014
     ],
     "tint": [
-     0.55,
      0.05,
-     0.018
+     0.02,
+     0.014
     ],
     "rough": 0.82,
     "rough_edge": 0.24,
     "sss": 0.15,
     "micro": 0.3,
-    "edge_copper": 0.55,
+    "edge_copper": 0.22,
     "edge_width": 0.02,
     "instance_variation": 0.4,
     "patina_color": [
-     0.15,
-     0.32,
-     0.24
+     0.13,
+     0.28,
+     0.21
     ],
     "patina_gold": [
      0.5,
      0.32,
      0.11
     ],
-    "patina_amount": 0.0,
+    "patina_amount": 0.3,
     "normal_map": "maps/dragon_got_body_normal.png",
     "normal_map_strength": 1.35,
     "ao_map": "maps/dragon_got_body_ao.png",
@@ -152,15 +152,17 @@
     "scale2": 48,
     "bump": 0.9,
     "base": [0.013, 0.0135, 0.014],
-    "tint": [0.55, 0.05, 0.018],
+    "tint": [0.05, 0.02, 0.014],
     "rough": 0.82,
     "rough_edge": 0.24,
     "sss": 0.15,
     "micro": 0.3,
-    "edge_copper": 0.55,
+    "edge_copper": 0.22,
     "edge_width": 0.02,
     "instance_variation": 0.4,
-    "patina_amount": 0.0,
+    "patina_amount": 0.3,
+    "patina_color": [0.13, 0.28, 0.21],
+    "patina_gold": [0.5, 0.32, 0.11],
     "axis_uv": true,
     "axis_uv_stretch": 3.6
    }
