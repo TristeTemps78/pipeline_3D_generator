@@ -10,6 +10,7 @@ echo "✓ py_compile"
 
 python3 - <<'EOF'
 import json, re, sys, glob
+sys.stdout.reconfigure(encoding='utf-8')  # console Windows locale (cp1252) : sinon UnicodeEncodeError sur ✓/✗
 mat_defs = set(re.findall(r'^def (\w+)\(', open('pipeline/bx/materials.py').read(), re.M))
 law_defs = set(re.findall(r'^def (\w+)\(', open('pipeline/gvl/laws.py').read(), re.M))
 errs = []
