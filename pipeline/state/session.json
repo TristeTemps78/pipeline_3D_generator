@@ -1,7 +1,7 @@
 {
- "step": 325,
+ "step": 342,
  "spec": "specs/krokmou.json",
- "last_render": "renders/step_325_wing.png",
+ "last_render": "renders/step_342_tailfin.png",
  "feedback": [
   {
    "step": 6,
