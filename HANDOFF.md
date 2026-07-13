@@ -21,8 +21,9 @@ miroité sur TOUTES les branches claude/* — tout clone antérieur doit être R
 règle : blends committés aux JALONS seulement (cause de l'ancien gonflement).
 Boucle 20 = SWITCH Drogon → **Krokmou** (Toothless, décision utilisateur) + virage
 SIMPLICITÉ/RAPIDITÉ (feedback mi-boucle, directive permanente ajoutée à CLAUDE.md).
-Boucle 21 round GÉOMÉTRIE exécuté EN LOCAL (2026-07-13, shape-smith + micro-fix earplates,
-look non touché) — **EN ATTENTE DE FEEDBACK** sur **step_400_hero/head/eye/wing/tailfin** (HQ).
+Boucle 21 exécutée en local, **verdict step_400 : « ne va pas du tout »** (2026-07-14) —
+diagnostic structurel accepté : primitives POSÉES/disjointes au lieu de surfaces continues
+soudées. Guide externe trié (verbatim + tri dans session.json step 400) → contrat boucle 22.
 Pipeline 100 % local désormais : `bash pipeline/blender_run.sh <cmd> <spec>` (Blender installé,
 bpy embarqué, part ~4 s) — plus besoin de conteneur ; wheel bpy pip impossible (ARM64/3.14).
 Drogon archivé : `specs/dragon_got.json` + maps + `renders/drogon_step297.blend` + jalons.
@@ -50,7 +51,23 @@ Fait en boucle 20 :
 - SIMPLICITÉ : `docs/ARCHITECTURE.md` (carte stacks pédagogique), `run.py part <spec> <id>`
   (pièce isolée ~20-30 s, `core.isolate` générique), directives CLAUDE.md.
 
-## Contrat boucle 21 — EXÉCUTÉ (round géométrie unique ; à juger sur step_400)
+## Contrat boucle 22 (verdict step_400 + guide externe trié — thème : SOUDER, pas POSER)
+- **P0 QUEUE/AILERON** (« inacceptable ») : spine à interpolation LISSE (plus de coudes vifs
+  entre pts — mécanisme générique, règle aussi le zigzag connu) ; aileron = UN objet soudé
+  (boolean union os+membrane, PAS voxel) pénétrant la queue.
+- **P0 TÊTE** : orbite = dépression ovoïde à bords ADOUCIS (pas trou net) ; arcade =
+  plaque ENVELOPPANTE (large côté externe → fine vers le front, inclinée bas-extérieur) ;
+  museau : aplat vertical + élargissement progressifs, profil U doux ; bouche = fente
+  CARVÉE suivant le U (pas un fil) ; cornes = PLAQUES élancées courbées arrière à base
+  large (pas des cônes), petites excroissances fusionnées au crâne.
+- **P1 DOS** : épines = profils plats type écaille, taille/rotation variables le long de la
+  spine (petites tête → grandes milieu) ; micro-relief musculaire léger (bruit sur le dos).
+- REJETÉS : métaballes corps entier (refonte incompatible spec/écailles/maps) ; subsurf
+  global fin de script (piège perf step_160) — lissage ciblé seulement.
+- Rappels : Bézier+rayon variable = déjà `pts`/`radii` ; ancres absolues à recaler si la
+  spine bouge ; membranes des ailes principales = NE PAS TOUCHER.
+
+## Contrat boucle 21 — EXÉCUTÉ (round géométrie unique ; jugé : REJETÉ, cf. ci-dessus)
 Fait : œil enfoncé (globe_r .16→.135, paupière inclinée via nouvelle clé générique
 `eye.lid_upper_rot`), museau élargi ×2 (fini la proue), 2 cornes arrière + nubs
 menton/mâchoire (`face_blobs`), earplates épaissies/balayées arrière (étaient des disques),
