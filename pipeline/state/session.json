@@ -1,7 +1,7 @@
 {
- "step": 360,
+ "step": 361,
  "spec": "specs/krokmou.json",
- "last_render": "renders/step_360_hero.png",
+ "last_render": "renders/step_361_hero.png",
  "feedback": [
   {
    "step": 6,
