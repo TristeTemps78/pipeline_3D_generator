@@ -266,6 +266,18 @@ def clay():
     area_light((6, 10, 6), target=(0, 1, 2.5), energy=500, size=12)
 
 
+def isolate(keep_names):
+    """Cache au rendu tout MESH/CURVE hors de `keep_names` (lumières/caméra intactes) —
+    inspection d'UNE pièce seule à l'écran (`run.py part`). Retourne le nb caché."""
+    n = 0
+    for ob in bpy.context.scene.objects:
+        if ob.type not in ('MESH', 'CURVE') or ob.name in keep_names:
+            continue
+        ob.hide_render = True
+        n += 1
+    return n
+
+
 def rim_setup(key=(6, -8, 5), rim=(-7, 7, 4), target=(0, 0, 1.5),
               key_energy=700, rim_energy=2600, rim_color=(1.0, 0.72, 0.42),
               bg=(0.01, 0.011, 0.014), key_size=8, rim_size=5,

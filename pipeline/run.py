@@ -10,6 +10,9 @@
                                                   pièce (couleurs plates), cadrage auto bbox (axe 5)
   inspect <spec.json>                            JSON compact par pièce (bbox/dims/objets/verts),
                                                   AUCUN rendu (axe 5)
+  part <spec.json> <id> [--fast] [--clay]        UNE pièce ISOLÉE à l'écran, cadrage auto
+                                                  (head, wing, tail, tailfin_pros…) — le mode
+                                                  « inspecter les pièces » rapide (~20-30 s)
   clayhero <spec.json> [--fast]                  clay + caméra hero (géométrie seule, cadrage macro)
   compare <spec.json> <ref.png> [--fast]         réf | rendu rim-lit + deltas couleur/bords (I2)
   bake <spec.json> [--fast]                      étage HIGH->LOW générique (bx.bake) : shell
@@ -267,6 +270,43 @@ def do_bake(spec_path, fast=False):
     print(json.dumps(rep, indent=1))
 
 
+def do_part(spec_path, part_key, fast=False):
+    """Inspection VISUELLE d'une pièce isolée (demande utilisateur boucle 20 : voir et
+    comprendre les pièces une par une, vite). Construit la scène, cache tout le reste,
+    cadre auto sur la bbox de la pièce, rendu léger. `--clay` = géométrie seule."""
+    spec = _load(spec_path)
+    st = load_state()
+    st['step'] += 1
+    organic.build(spec)
+    if '--clay' in sys.argv:
+        core.clay()
+    registry = feedback.part_registry(feedback.spec_parts(spec))
+    keep = set()
+    for key, objs in registry.items():
+        if key == part_key or key.startswith(part_key + '_'):
+            keep.update(o.name for o in objs)
+    if not keep:
+        raise SystemExit(f"pièce '{part_key}' introuvable — ids : {sorted(registry)}")
+    core.isolate(keep)
+    bb = feedback.part_bbox(spec, part_key)
+    center, radius = bb
+    cam = spec.get('scene', {}).get('camera', {})
+    base_loc, base_tgt = cam.get('loc', (9, -11, 3.5)), cam.get('target', (0, 0, 2))
+    d = [base_loc[i] - base_tgt[i] for i in range(3)]
+    norm = sum(c * c for c in d) ** 0.5 or 1.0
+    lens = 50
+    res = (640, 480) if fast else (1152, 864)
+    tan_h = 18.0 / lens
+    dist = radius * 1.4 / min(tan_h, tan_h * (res[1] / res[0]))
+    core.camera(tuple(center[i] + d[i] / norm * dist for i in range(3)),
+                target=tuple(center), lens=lens)
+    out = _next_out(st).replace('.png', f'_part_{part_key}.png')
+    core.render(out, res=res, samples=(16 if fast else 48))
+    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
+    save_state(st)
+    print(f"OK pièce '{part_key}' ({len(keep)} objets) -> {out}")
+
+
 def do_inspect(spec_path):
     """Axe 5 doctrine : introspection scène sans dépenser un rendu. JSON par pièce de
     spec (nb objets, bbox, dimensions) + compteurs globaux, sur stdout."""
@@ -291,6 +331,8 @@ if __name__ == '__main__':
         do_sheet4(sys.argv[2], fast=fast)
     elif cmd == 'inspect':
         do_inspect(sys.argv[2])
+    elif cmd == 'part':
+        do_part(sys.argv[2], sys.argv[3], fast=fast)
     elif cmd == 'clayhero':
         do_clayhero(sys.argv[2], fast=fast)
     elif cmd == 'compare':
