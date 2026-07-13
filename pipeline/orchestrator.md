@@ -27,11 +27,9 @@ Boucle : **GROUND → BUILD → RENDER → CRITIQUE → FEEDBACK utilisateur →
 - Un pas qui n'améliore pas sa métrique est annulé (git checkout de la spec), pas « compensé ».
 
 ## Multi-sessions / branches
-- Toutes les sessions convergent sur UNE lignée : avant de travailler, `git fetch --prune`,
-  repérer la branche `claude/*` la plus avancée, fast-forward dessus (les branches ne doivent
-  jamais diverger — une seule session écrit à la fois).
-- Après push, miroiter la pointe sur les autres branches `claude/*` actives
-  (`git push origin HEAD:<branche>`) pour que la prochaine session parte du bon état.
+- `main` = source de vérité unique. Boot : `git fetch origin main` puis partir de
+  `origin/main` sur la branche `claude/*` de la session. Après chaque push : miroiter sur
+  main (`git push origin HEAD:main`, fast-forward seulement). Une seule session écrit à la fois.
 - Conteneur neuf : `bash pipeline/bootstrap.sh` (installe bpy pip si absent).
 
 ## Économie de tokens

@@ -67,9 +67,12 @@ pièce ~20-30 s ; validate/inspect = zéro rendu). Carte des modules bx : `docs/
 `materials` ignorés en clay ; GVL (`pipeline/gvl/`) pour toute nouvelle loi de croissance.
 
 ## Git
-Toutes les branches `claude/*` = UNE lignée : `git fetch --prune`, travailler sur la plus
-avancée (celle de la session), miroiter la pointe sur les autres après push (fast-forward
-seulement). Commit par étape de boucle, push + état AVANT fin de session (conteneur éphémère).
+`main` = LA référence unique (source de vérité). L'hébergeur impose une branche `claude/*`
+par session : y travailler, puis après CHAQUE push miroiter la pointe sur main
+(`git push origin HEAD:main`, fast-forward seulement — refus = une autre session a avancé :
+`git fetch` + rebase d'abord). Boot session : partir de `origin/main`, pas d'une vieille
+`claude/*`. Les branches `claude/*` sont JETABLES une fois miroitées — ne pas en accumuler.
+Commit par étape de boucle, push + état AVANT fin de session (conteneur éphémère).
 BLENDS : ne committer `renders/scene*.blend` qu'aux JALONS (présentation/fin de boucle),
 jamais à chaque étape — c'est ce qui a gonflé le .git à 400 Mo (~12 Mo d'historique par
 commit de blends). `git add` explicite, pas de `git add -A` aveugle sur renders/.
