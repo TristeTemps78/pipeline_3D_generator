@@ -21,7 +21,9 @@ miroité sur TOUTES les branches claude/* — tout clone antérieur doit être R
 règle : blends committés aux JALONS seulement (cause de l'ancien gonflement).
 Boucle 20 = SWITCH Drogon → **Krokmou** (Toothless, décision utilisateur) + virage
 SIMPLICITÉ/RAPIDITÉ (feedback mi-boucle, directive permanente ajoutée à CLAUDE.md).
-**EN ATTENTE DE FEEDBACK** sur **step_380_hero/head/eye/wing/tailfin** (HQ, v1 Krokmou).
+**FEEDBACK step_380 REÇU (2026-07-13, session locale)** → contrat boucle 21 ci-dessous.
+Session locale Windows : bpy ininstallable (ARM64/3.14) — run.py = conteneur seulement,
+note ajoutée au README ; la boucle 21 s'exécute donc en session conteneur.
 Drogon archivé : `specs/dragon_got.json` + maps + `renders/drogon_step297.blend` + jalons.
 
 Cible = photo utilisateur transcrite dans `references/krokmou_ref.md` (pose couchée ailes
@@ -47,16 +49,29 @@ Fait en boucle 20 :
 - SIMPLICITÉ : `docs/ARCHITECTURE.md` (carte stacks pédagogique), `run.py part <spec> <id>`
   (pièce isolée ~20-30 s, `core.isolate` générique), directives CLAUDE.md.
 
-## Contrat prochaine boucle (À CADRER après feedback utilisateur)
-Restes ASSUMÉS v1 Krokmou (connus, ne pas redécouvrir) :
-1. Queue : zigzag anguleux au close-up tailfin (coudes vifs entre points de spine) ;
-   ailerons = lames triangulaires plates, pas des nageoires organiques à bord arrondi.
-2. Emblème blanc prothèse + selle + sangles cuir : omis v1 (pas de mécanisme décalque).
-3. Ailes : bord de fuite encore un peu « découpé » au hero ; drapé perfectible.
-4. Pointe/dard noir près de la tête au shot eye/head (earplate ou nub qui lit en lame).
-5. Iris : vert acide obtenu mais catchlight/vivacité à pousser (photo très expressive).
-6. Proposé à l'utilisateur (à valider) : découper organic.py (1854 l.) en un fichier par
-   type de partie — SEULEMENT s'il veut lire ce code.
+## Contrat boucle 21 (feedback utilisateur step_380, 2026-07-13 — verbatim dans session.json)
+Cadence SIMPLICITÉ : 1 round géométrie + 1 round look max avant de montrer ; HQ en fin seulement.
+- **P0 TÊTE** (« le gros point noir », aspect mécanique/aplati) :
+  a. Œil INTÉGRÉ : le crâne doit englober l'arrière du globe (aujourd'hui : sphère parfaite
+     posée à l'extérieur + orbite « découpée » agressivement) ; arcade sourcilière = courbe
+     fluide type paupière naturelle, pas plaque rigide posée dessus.
+  b. Crâne = ellipsoïde APLATI (tête de salamandre/serpent) avec taper vers l'avant mais
+     museau LARGE et ARRONDI — pas plat sur le dessus, pas de « proue de bateau ».
+  c. Cornes/oreilles MANQUANTES : 2 grandes cornes principales à l'arrière + petites
+     excroissances côtés/menton (aspect « axolotl »).
+- **P1 COU/CORPS** : vraie distinction cou (fin) / corps (massif) — variation de rayon le
+  long de la spine, dos légèrement bombé ; transition cou→tête pas un tube rigide.
+- **P1 QUEUE/AILERON** (tailfin.png : pièces qui ne se touchent pas) : aileron prothétique
+  DÉTACHÉ de l'axe de queue → faire pénétrer sa base dans le cylindre de queue. L'utilisateur
+  suggère boolean union + remesh ; ATTENTION piège connu : pas de fuse voxel sur pièces fines
+  (gonfle ×3) — préférer la pénétration géométrique simple.
+- **P2 AILES** (point le MIEUX réussi — membranes plissées validées) : doigts = cylindres
+  parfaits rigides → légère courbure vers l'arrière (chauve-souris).
+
+Restes v1 NON couverts par ce feedback (backlog, ne pas redécouvrir) :
+emblème blanc prothèse + selle + sangles (pas de mécanisme décalque) ; iris catchlight à
+pousser ; zigzag anguleux entre points de spine (recouvre partiellement P1) ; découpage
+d'organic.py en fichiers par type (à valider par l'utilisateur s'il lit ce code).
 
 ## Restes connus hors contrat
 compare mesuré suspendu (pas de krokmou_pose.png) ; ~138-343 mesh non-manifold préexistants

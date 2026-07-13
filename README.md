@@ -15,6 +15,11 @@ python3 pipeline/run.py forge specs/krokmou.json --fast       # toute la bête
 Sorties : `renders/step_NNN*.png` + `renders/scene.blend` (ouvrable dans Blender GUI).
 **Comment lire ce projet : `docs/ARCHITECTURE.md` (la carte pédagogique, 5 étages).**
 
+**Windows local (hors conteneur) :** le wheel pip `bpy` n'existe que pour Linux x64 / Python
+3.10-3.11 — `bootstrap.sh` échoue sur Python ARM64/3.14 (pas de fallback prévu). `run.py` reste
+réservé aux sessions conteneur (Linux, bpy pip OK). En local, ouvrir `renders/scene.blend`
+directement dans l'appli Blender installée pour inspecter/juger le dernier rendu.
+
 ## Carte du dépôt (rôle UNIQUE par fichier .md)
 - `CLAUDE.md` — PERMANENT : but, directives, règles, pièges (auto-chargé à chaque session).
 - `HANDOFF.md` — ÉTAT COURANT + contrat de la boucle suivante (relu en 2e — seul fichier d'état).
