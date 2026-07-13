@@ -246,13 +246,13 @@
      0.025
     ],
     "iris_color": [
-     0.4,
-     0.5,
-     0.035
+     0.16,
+     0.52,
+     0.03
     ],
     "iris_color2": [
+     0.4,
      0.46,
-     0.38,
      0.03
     ],
     "pupil_color": [
@@ -1171,7 +1171,7 @@
     0.97
    ],
    "strength": 0.45,
-   "visible_strength": 1.4
+   "visible_strength": 1.9
   },
   "sun": {
    "direction": [
