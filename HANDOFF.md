@@ -14,6 +14,11 @@ SIMPLICITÉ (contradiction « max 3 itérations » supprimée) + économie dédu
 CLAUDE.md, CLAUDE.md restructuré (pièges en liste, métriques Drogon marquées archivées),
 NEXT.md nettoyé (items Drogon archivés, « 2e créature » retiré : FAIT = Krokmou), README
 réécrit (exemples Krokmou), note DOUTE résolue retirée de la spec, research/renders purgé.
+Audit 3 (final) : `pipeline/check.sh` = QA statique 1 commande (~5 s, sans bpy) — c'est
+L'AUDIT, ne pas ré-explorer à la main ; 3 fonctions mortes supprimées ; HISTORIQUE GIT
+RÉÉCRIT avec accord utilisateur (402→20 Mo, vieux blends/PNG purgés, tip identique) et
+miroité sur TOUTES les branches claude/* — tout clone antérieur doit être RE-CLONÉ ;
+règle : blends committés aux JALONS seulement (cause de l'ancien gonflement).
 Boucle 20 = SWITCH Drogon → **Krokmou** (Toothless, décision utilisateur) + virage
 SIMPLICITÉ/RAPIDITÉ (feedback mi-boucle, directive permanente ajoutée à CLAUDE.md).
 **EN ATTENTE DE FEEDBACK** sur **step_380_hero/head/eye/wing/tailfin** (HQ, v1 Krokmou).
