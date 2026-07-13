@@ -21,7 +21,7 @@ Priorisé, à recadrer à chaque feedback. Le « fait » vit dans git log + HAND
    consommant axis_uv (edge_density .19→.348), pad/toes pâles (registre groups), folds via
    displace, anatomie bras d'aile vs fuse SDF.
 1. Membrane organique niveau 2 (après boucle 13) : micro-plis dynamiques, translucidité
-   contrôlée sans taches (cf. pièges claude.md), déchirures/cicatrices héros.
+   contrôlée sans taches (cf. pièges CLAUDE.md), déchirures/cicatrices héros.
 2. fuse_groups : étendre à head (couture crâne/cou) et hindleg (hanche) — BLOQUÉ tel quel
    (constat boucle 13) : la fusion consomme skull/tubes de patte dans le groupe `body`, or
    `detail.armor` cible les groupes par id (`head`, `hindleg`) et le masque corps monte à

@@ -4,11 +4,17 @@
 - BUT : pipeline GÉNÉRIQUE phrase/texte/vidéo → modèle 3D précis et complexe, Python+Blender
   seulement. Le dragon = banc d'essai (important en soi) ; toute mécanique nouvelle doit rester
   pilotée par la spec JSON, jamais du code spécifique dragon.
-- ÉCONOMIE : l'orchestrateur délègue le gros du travail à des agents SONNET (`model: sonnet`) ;
-  auto-audit régulier via `bash pipeline/audit.sh` (poids, nb fichiers, LOC) — direction claire,
-  pas de boucles/hallucinations/tokens déraisonnables.
+- ÉCONOMIE : l'orchestrateur délègue le gros du travail à des agents SONNET (`model: sonnet`
+  imposé dans le frontmatter de `.claude/agents/*.md` — vérifier qu'il y reste) ; auto-audit
+  régulier via `bash pipeline/audit.sh` (poids, nb fichiers, LOC) — direction claire,
+  pas de boucles/hallucinations/tokens déraisonnables. Budget lecture : boot session =
+  CLAUDE.md (auto) + HANDOFF.md, RIEN d'autre ; gros fichiers (bx/organic.py 1854 l.,
+  materials.py, specs) JAMAIS en Read complet — Grep ciblé/offset, spec éditée par patchs ;
+  images : 1 planche (`sheet`/`compare`) par round de jugement, pas N PNG séparés ;
+  rendu HQ = long → le lancer UNE fois en fin de boucle, pas au milieu d'allers-retours
+  (chaque pause >5 min casse le cache de prompt et refacture tout le contexte).
 - COMPACITÉ : dossier léger — purger les renders sauf jalons référencés, logs compacts,
-  claude.md court. Conseil clone local léger : `git clone --depth 1`.
+  CLAUDE.md court. Conseil clone local léger : `git clone --depth 1`.
 - BLENDS : toujours garder les 2 derniers modèles ouvrables (`renders/scene.blend` +
   `renders/scene_prev.blend`, rotation auto dans run.py) pour le Blender local de l'utilisateur.
 - SIMPLICITÉ/RAPIDITÉ (feedback 2026-07-13, mi-boucle 20 — l'utilisateur était PERDU) :
@@ -40,7 +46,7 @@ Cibles réf : couleur moy (0.33,0.27,0.26) · cuivre 0.42 · bords 0.36. La PRIO
 - Géométrie d'abord (clay), look ensuite. Chaque pas jugé par métrique + œil ; pas non améliorant → annulé.
 - Écailles = GÉOMÉTRIE plaquée/imbriquée (`detail.armor` : mask, scale_grad, distance_min≈0.4-0.6×plaque), pas du bruit. Blobs quasi sphériques pour chair pendante = interdit (rend en œufs) : aplatir (ratio ≤0.5/2.7/0.8).
 - La tête suit la fin de spine (continuité, pas de couture) ; ancres absolues (dewlap, masks, ailes) à recaler après tout déplacement de spine.
-- Éditions par petits patchs ; --fast pour itérer, HQ pour présenter ; claude.md court.
+- Éditions par petits patchs ; --fast pour itérer, HQ pour présenter ; CLAUDE.md court.
 
 ## Cmds
 `bash pipeline/bootstrap.sh` (conteneur neuf) puis `python3 pipeline/run.py` :

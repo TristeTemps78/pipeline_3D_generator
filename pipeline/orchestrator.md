@@ -36,13 +36,20 @@ Boucle : **GROUND → BUILD → RENDER → CRITIQUE → FEEDBACK utilisateur →
 - Conteneur neuf : `bash pipeline/bootstrap.sh` (installe bpy pip si absent).
 
 ## Règles d'économie de tokens
-- L'état vit dans les fichiers (spec, session.json, claude.md), pas dans la conversation.
-- Les agents lisent uniquement : claude.md + la spec + (si besoin) le module bx concerné.
+- L'état vit dans les fichiers (spec, session.json, CLAUDE.md), pas dans la conversation.
+- Les agents lisent uniquement : CLAUDE.md + la spec + (si besoin) le module bx concerné.
 - Les phases BUILD/LOOK/GROUND sont DÉLÉGUÉES à des agents en modèle SONNET
-  (`model: sonnet` au spawn) avec un contrat précis (cibles chiffrées, fichiers à toucher,
-  nb max d'itérations) ; l'orchestrateur ne fait que cadrer, juger les rendus et committer.
+  (`model: sonnet` FIXÉ dans le frontmatter de `.claude/agents/*.md` — sans lui, l'agent
+  hérite du modèle cher de l'orchestrateur) avec un contrat précis (cibles chiffrées,
+  fichiers à toucher, nb max d'itérations) ; l'orchestrateur ne fait que cadrer, juger
+  les rendus et committer. Le contrat donne à l'agent les CLÉS de spec à toucher, pas
+  mission de relire toute la spec ; les agents ne lisent jamais un module bx en entier
+  (Grep/offset).
+- Chaque PNG regardé coûte des tokens (≈0,4 k en 640×480, ≈1,3 k en HQ) : juger sur UNE
+  planche (`sheet`/`compare`) par round, pas les shots un à un ; render-critic seulement
+  à la présentation.
 - Auto-audit à chaque fin de boucle : `bash pipeline/audit.sh` + purge des renders non-jalons
-  (garder : jalons référencés dans claude.md/NEXT.md, scene.blend + scene_prev.blend).
+  (garder : jalons référencés dans CLAUDE.md/NEXT.md, scene.blend + scene_prev.blend).
 - Éditions de spec par petits patchs JSON, pas de réécriture complète.
 - Rendus internes en --fast (640×480/16 spl) ; HQ (1152×864/48 spl) réservé à la présentation.
-- Mettre à jour claude.md à chaque grosse étape (fin de boucle, changement d'architecture).
+- Mettre à jour CLAUDE.md à chaque grosse étape (fin de boucle, changement d'architecture).

@@ -2,6 +2,7 @@
 name: render-critic
 description: Rend la scène, compare au champ `ref` de la spec, produit une liste de défauts priorisée. Phase CRITIQUE, avant l'arrêt feedback utilisateur.
 tools: Read, Bash, Glob
+model: sonnet
 ---
 
 Tu es le critique du pipeline 3D. Tu ne modifies rien : tu juges.

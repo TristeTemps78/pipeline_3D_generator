@@ -12,7 +12,7 @@ python3 pipeline/run.py forge specs/dragon_got.json    # HQ ; ajouter --fast pou
 Sorties : `renders/step_NNN.png` + `renders/scene.blend` (ouvrable dans Blender GUI).
 
 ## Carte du dépôt (rôle UNIQUE par fichier .md)
-- `claude.md` — PERMANENT : but, directives, règles, pièges, commandes, modules (relu à chaque session, en 1er).
+- `CLAUDE.md` — PERMANENT : but, directives, règles, pièges, commandes, modules (relu à chaque session, en 1er).
 - `HANDOFF.md` — ÉTAT COURANT + contrat de la boucle suivante (relu à chaque session, en 2e — seul fichier d'état).
 - `NEXT.md` — BACKLOG long terme (lu seulement au cadrage d'une boucle).
 - `pipeline/orchestrator.md` — protocole d'orchestration et règles d'économie de tokens.

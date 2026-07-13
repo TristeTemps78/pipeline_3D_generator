@@ -93,7 +93,7 @@ Le HQ (`forge` sans `--fast`, ~6 min) ne sert QUE pour te présenter un résulta
 2. **2 fichiers concentrent la moitié du code** (`organic.py`, `materials.py`). C'est le
    prochain découpage utile si on va plus loin : `organic.py` → un fichier par type de
    partie (spine.py, head.py, wing.py, limb.py). À faire SI tu veux lire ce code-là.
-3. **L'état est éclaté en 3 fichiers** (claude.md = règles, HANDOFF.md = état courant,
+3. **L'état est éclaté en 3 fichiers** (CLAUDE.md = règles, HANDOFF.md = état courant,
    NEXT.md = backlog). C'est voulu (sessions éphémères) mais il faut le savoir.
 
 ## Ta boucle de travail recommandée (rapide)

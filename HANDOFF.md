@@ -1,11 +1,16 @@
-# HANDOFF — état courant + reprise (SEUL fichier d'état ; permanent → claude.md, backlog → NEXT.md)
+# HANDOFF — état courant + reprise (SEUL fichier d'état ; permanent → CLAUDE.md, backlog → NEXT.md)
 
-Reprise (conteneur neuf) : `bash pipeline/bootstrap.sh` → claude.md → ce fichier, puis si
+Reprise (conteneur neuf) : `bash pipeline/bootstrap.sh` → CLAUDE.md → ce fichier, puis si
 l'utilisateur dit « continue », exécuter le contrat ci-dessous sans reposer de question.
 
 ## Où on en est
+Hors boucle (2026-07-13, plainte coût tokens) : CLAUDE.md renommé (minuscule = pas
+auto-chargé), `model: sonnet` AJOUTÉ au frontmatter des 4 agents (il manquait — chaque
+délégation tournait sur le modèle cher), règles budget lecture/images dans CLAUDE.md +
+orchestrator.md, audit.sh détecte renders non référencés + agents sans model, purge PNG
+182/218/231/297/381.
 Boucle 20 = SWITCH Drogon → **Krokmou** (Toothless, décision utilisateur) + virage
-SIMPLICITÉ/RAPIDITÉ (feedback mi-boucle, directive permanente ajoutée à claude.md).
+SIMPLICITÉ/RAPIDITÉ (feedback mi-boucle, directive permanente ajoutée à CLAUDE.md).
 **EN ATTENTE DE FEEDBACK** sur **step_380_hero/head/eye/wing/tailfin** (HQ, v1 Krokmou).
 Drogon archivé : `specs/dragon_got.json` + maps + `renders/drogon_step297.blend` + jalons.
 
@@ -30,7 +35,7 @@ Fait en boucle 20 :
   prothèse absente, blob flottant) → tous les P0 traités en round 4 + micro-fixes.
   Round 2 de critique SAUTÉ (virage rapidité) — jugement orchestrateur seul sur step_380.
 - SIMPLICITÉ : `docs/ARCHITECTURE.md` (carte stacks pédagogique), `run.py part <spec> <id>`
-  (pièce isolée ~20-30 s, `core.isolate` générique), directives claude.md.
+  (pièce isolée ~20-30 s, `core.isolate` générique), directives CLAUDE.md.
 
 ## Contrat prochaine boucle (À CADRER après feedback utilisateur)
 Restes ASSUMÉS v1 Krokmou (connus, ne pas redécouvrir) :
