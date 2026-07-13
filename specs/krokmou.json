@@ -350,14 +350,14 @@
    "radii": [
     0.34,
     0.55,
-    0.62,
-    0.58,
+    0.64,
+    0.67,
     0.42,
     0.28
    ],
    "spikes": {
     "n": 14,
-    "h0": 0.075,
+    "h0": 0.095,
     "skip": 2,
     "mat": "scales_head",
     "base_frac": 0.62,
@@ -471,7 +471,7 @@
    "pitch": -6,
    "mat": "scales_head",
    "axis_mat": "scales_head",
-   "gape": 4,
+   "gape": 0,
    "upper": [
     [
      -0.05,
@@ -546,6 +546,15 @@
    "feature_scale": 0.55,
    "tooth_scale": 1.0,
    "tooth_seed": 0,
+   "gum_mat": "scales_head",
+   "gum_ridge": {
+    "thickness_upper": 0.01,
+    "thickness_lower": 0.01,
+    "w_frac_upper": 0.72,
+    "w_frac_lower": 0.7,
+    "z_frac_upper": -0.05,
+    "z_frac_lower": 0.05
+   },
    "gum": {
     "scale": 1.0,
     "flatten": 0.5,
@@ -831,7 +840,7 @@
    "festoon": 0.12,
    "knuckle_spread": 0.12,
    "root_follow_arm": 0.6,
-   "vein_branches": 2,
+   "vein_branches": 0,
    "vein_branch_r0": 0.012,
    "vein_branch_rmin": 0.003,
    "vein_levels": 2,
@@ -1031,19 +1040,19 @@
      0.48
     ],
     [
-     0.28,
-     0.33,
-     0.24
+     0.62,
+     0.34,
+     0.2
     ],
     [
-     0.25,
+     0.27,
      0.28,
-     0.055
+     0.15
     ]
    ],
    "radii": [
+    0.16,
     0.14,
-    0.12,
     0.14
    ],
    "foot": {
@@ -1148,42 +1157,7 @@
    }
   ]
  },
- "fuse_groups": [
-  {
-   "id": "tailfin_nat_bone",
-   "parts": [
-    "tailfin_nat"
-   ],
-   "exclude_like": [
-    "membrane_",
-    "wclaw_",
-    "batten_",
-    "vein_",
-    "alula_",
-    "aclaw_"
-   ],
-   "voxel": 0.04,
-   "fillet": 0.08,
-   "mat": "wing_bone"
-  },
-  {
-   "id": "tailfin_pros_bone",
-   "parts": [
-    "tailfin_pros"
-   ],
-   "exclude_like": [
-    "membrane_",
-    "wclaw_",
-    "batten_",
-    "vein_",
-    "alula_",
-    "aclaw_"
-   ],
-   "voxel": 0.04,
-   "fillet": 0.08,
-   "mat": "prosthetic_bone"
-  }
- ],
+ "fuse_groups": [],
  "scene": {
   "world": {
    "color": [
