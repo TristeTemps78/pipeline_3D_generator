@@ -58,6 +58,8 @@ cuivre .42, bords .36 ; priorité utilisateur = densité de détail, pas la coul
 - Éditions par petits patchs ; --fast pour itérer, HQ pour présenter ; CLAUDE.md court.
 
 ## Cmds & modules
+`bash pipeline/check.sh` = QA statique en 1 commande (~5 s, sans bpy : compile + cohérence
+specs + audit) — à lancer AVANT tout commit, et c'est l'AUDIT : ne pas ré-explorer à la main.
 `bash pipeline/bootstrap.sh` (conteneur neuf) puis `python3 pipeline/run.py --help`
 (forge/part/clayhero/sheet/sheet4/compare/validate/inspect/bake — part = inspection d'UNE
 pièce ~20-30 s ; validate/inspect = zéro rendu). Carte des modules bx : `docs/ARCHITECTURE.md`.
@@ -68,3 +70,6 @@ pièce ~20-30 s ; validate/inspect = zéro rendu). Carte des modules bx : `docs/
 Toutes les branches `claude/*` = UNE lignée : `git fetch --prune`, travailler sur la plus
 avancée (celle de la session), miroiter la pointe sur les autres après push (fast-forward
 seulement). Commit par étape de boucle, push + état AVANT fin de session (conteneur éphémère).
+BLENDS : ne committer `renders/scene*.blend` qu'aux JALONS (présentation/fin de boucle),
+jamais à chaque étape — c'est ce qui a gonflé le .git à 400 Mo (~12 Mo d'historique par
+commit de blends). `git add` explicite, pas de `git add -A` aveugle sur renders/.

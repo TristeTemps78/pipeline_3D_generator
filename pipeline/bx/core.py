@@ -28,18 +28,6 @@ def subsurf(ob, levels=2):
     return ob
 
 
-def solidify(ob, thickness=0.02):
-    ob.modifiers.new('solid', 'SOLIDIFY').thickness = thickness
-    return ob
-
-
-def mirror_x(ob):
-    """Symétrie bilatérale à travers le plan X=0 (origine objet au monde)."""
-    m = ob.modifiers.new('mirror', 'MIRROR')
-    m.use_axis = (True, False, False)
-    return ob
-
-
 def realize_to_mesh(ob):
     """Convertit un objet CURVE (tube bevelé, cornes/dents/spine) en un nouvel objet MESH
     évalué — bake du profil bevel_depth/radius par point via le depsgraph (sans bpy.ops,

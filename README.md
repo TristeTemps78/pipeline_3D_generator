@@ -7,6 +7,7 @@ Créature en cours : **Krokmou** (`specs/krokmou.json`) ; Drogon archivé (`spec
 ## Démarrage
 ```bash
 bash pipeline/bootstrap.sh                            # installe bpy si absent (idempotent)
+bash pipeline/check.sh                                # QA statique ~5 s (compile+specs+audit)
 python3 pipeline/run.py --help                        # toutes les commandes
 python3 pipeline/run.py part specs/krokmou.json head --fast   # UNE pièce, ~20-30 s
 python3 pipeline/run.py forge specs/krokmou.json --fast       # toute la bête

@@ -253,16 +253,6 @@ def sample_path_frames(path_pts, n=48):
     return positions, rights, ups, tangents, total
 
 
-def place(ob, loc=None, rot_deg=None, scale=None):
-    if loc:
-        ob.location = loc
-    if rot_deg:
-        ob.rotation_euler = Euler([math.radians(a) for a in rot_deg])
-    if scale:
-        ob.scale = scale
-    return ob
-
-
 def transform_pts(pts, loc=(0, 0, 0), rot_deg=(0, 0, 0), scale=1.0, mirror=False):
     """Transforme des points locaux (ex: sortie de loi GVL) vers le monde."""
     rot = Euler([math.radians(a) for a in rot_deg]).to_matrix()
