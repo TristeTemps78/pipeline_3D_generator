@@ -193,6 +193,42 @@ def fold_indent(d, n=3, width=0.06, depth=0.05):
     return total
 
 
+def catmull_rom(pts, samples=1):
+    """Interpolation Catmull-Rom C1 (n>=2 points de contrôle, dimension quelconque —
+    3D pour une polyligne, 1-tuple pour un profil de rayons) : boucle 22, thème
+    « souder pas poser ». Contrairement à `lerp_path` (ré-échantillonnage LINÉAIRE,
+    donc coudes vifs à chaque point de contrôle conservés) ou à la NURBS de `ops.tube`
+    (lisse mais n'INTERPOLE pas exactement les points de contrôle intermédiaires), ceci
+    PASSE par tous les points d'origine avec une tangente continue -> remplace le
+    zigzag anguleux d'une spine à peu de points par une courbe fluide, sans changer
+    la forme d'ensemble ni les ancrages (début/fin inchangés). `samples` = nb de
+    points insérés par segment de contrôle (1 = pas d'insertion -> comportement
+    inchangé, rétro-compat totale). Points d'extrémité dupliqués (clamped) pour ne
+    pas extrapoler hors de la polyligne aux 2 bouts."""
+    n = len(pts)
+    if n < 3 or samples <= 1:
+        return list(pts)
+    dim = len(pts[0])
+
+    def get(i):
+        i = max(0, min(n - 1, i))
+        return pts[i]
+
+    out = []
+    for i in range(n - 1):
+        p0, p1, p2, p3 = get(i - 1), get(i), get(i + 1), get(i + 2)
+        for st in range(samples):
+            t = st / samples
+            t2, t3 = t * t, t * t * t
+            out.append(tuple(
+                0.5 * ((2 * p1[d]) + (-p0[d] + p2[d]) * t
+                       + (2 * p0[d] - 5 * p1[d] + 4 * p2[d] - p3[d]) * t2
+                       + (-p0[d] + 3 * p1[d] - 3 * p2[d] + p3[d]) * t3)
+                for d in range(dim)))
+    out.append(tuple(pts[-1]))
+    return out
+
+
 def lsystem(axiom, rules, depth):
     """L-système symbolique (ramifications : bois de cerf, veines). Retourne la chaîne."""
     s = axiom

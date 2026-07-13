@@ -4,7 +4,10 @@ un dragon, un arbre ou un poisson ne diffèrent que par leur spec."""
 import itertools
 import math
 
+import bmesh
+import bpy
 from mathutils import Euler, Quaternion, Vector
+from mathutils.bvhtree import BVHTree
 
 from gvl import laws, apply_law
 from . import core, ops, materials
@@ -28,6 +31,19 @@ def spine(part, mats):
     """Corps principal : tube conique + crête dorsale double rangée, pointes courbées vers l'arrière."""
     pts = [tuple(p) for p in part['pts']]
     radii = part['radii']
+    # smooth (boucle 22, thème « souder pas poser » — feedback P0 « queue à coudes
+    # vifs entre points de contrôle ») : défaut 0 = rétro-compat totale (polyligne de
+    # contrôle brute, comportement inchangé). >1 = densifie `pts`/`radii` par
+    # interpolation Catmull-Rom (`growth.spine_smooth`, PASSE par les points d'origine,
+    # contrairement à `laws.lerp_path` qui reste linéaire) AVANT de construire le tube
+    # -> une NURBS avec beaucoup plus de points de contrôle rapprochés colle à une
+    # courbe C1 fluide au lieu des quelques coudes anguleux d'origine. Générique :
+    # marche pour n'importe quelle spine (corps, queue, cou...), aucune valeur figée.
+    sm = part.get('smooth', 0)
+    if sm and sm > 1:
+        pts = apply_law('growth.spine_smooth', pts=pts, samples=sm)
+        radii = [r[0] for r in apply_law('growth.spine_smooth',
+                                         pts=[(r,) for r in radii], samples=sm)]
     body = ops.tube(part.get('id', 'spine'), pts, radii)
     materials.assign(body, _mat(mats, part.get('mat', 'scales')))
     out = [body]
@@ -72,7 +88,11 @@ def spine(part, mats):
                     mod = laws.growth_rings(3, depth=rp.get('depth', 0.12),
                                             freq=rp.get('freq', 3.0), sharp=rp.get('sharp', 2.0))
                     s_radii = [r * m for r, m in zip(s_radii, mod)]
-                s = ops.tube(f'dorsal_{i}_{row}', s_pts, s_radii)
+                # flat (P1 boucle 22, feedback « épines = cônes ronds -> profils plats
+                # type écaille ») : défaut None = rétro-compat (section ronde
+                # inchangée) ; réutilise `ops.tube(flat=...)` (même mécanisme que les
+                # cornes-lames plus bas) pour une pointe en plaque fine.
+                s = ops.tube(f'dorsal_{i}_{row}', s_pts, s_radii, flat=sp.get('flat'))
                 materials.assign(s, _mat(mats, sp.get('mat', 'bone')))
                 out.append(s)
     return out
@@ -188,6 +208,71 @@ def _lip_bourrelet(prefix, secs, y_span, Wf, mat, out, n=16, thickness=0.03,
         out.append(tube)
 
 
+def _bvh_from_mesh_obj(ob):
+    """BVHTree MONDE depuis un objet MESH évalué (modifiers appliqués : subsurf du
+    `ring_loft`, bevel d'un `boolean_diff` précédent...) — même schéma que
+    `bx.validate._evaluated_bm`/`_tree`, réutilisé ici pour échantillonner la surface
+    RÉELLE d'un mesh plutôt qu'une estimation analytique du profil."""
+    deps = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(deps), depsgraph=deps)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bpy.data.meshes.remove(me)
+    bm.transform(ob.matrix_world)
+    if bm.faces:
+        bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    tree = BVHTree.FromBMesh(bm, epsilon=1e-6)
+    return tree, bm
+
+
+def _mouth_cutter(name, secs, y_span, Wf, Rdir, flex, ys_flex, z_frac, depth, edge_frac,
+                  side, tree, n=14, ray_dist=2.0):
+    """Cutter FIN (booléen) suivant la même paramétrisation que `_lip_bourrelet` (même
+    profil `[y,w,hh]`, même convention `z_frac` = bord bas du crâne / bord haut de la
+    mâchoire, cf. docstring `_lip_bourrelet`) -> path collé exactement à la ligne où
+    crâne et mâchoire se touchent. Boucle 22, feedback P0 « bouche = fil posé -> fente
+    CARVÉE » : au lieu d'ajouter un bourrelet PAR-DESSUS la couture, ceci CREUSE une
+    gorge fine directement dans la surface le long du même tracé -> indentation
+    négative réelle, pas un tube qui se contente de flotter sur le dessus.
+    Round 2 (même boucle, « ne mord la surface qu'à la commissure ») : le point
+    latéral n'est PLUS une estimation analytique (`w*width_frac`) qui suppose un
+    profil elliptique -- l'exposant `exp` du profil superellipse déforme le bord réel
+    de façon non-linéaire, donc cette estimation ne colle au mesh que par endroits
+    (là où elle tombe juste par hasard). Remplacé par un RAYCAST HORIZONTAL (BVHTree,
+    même mécanisme que `bx.validate`) : depuis l'axe central de la tête (x local=0,
+    intérieur garanti du mesh) vers l'extérieur (`side`), jusqu'à la surface RÉELLE
+    de `tree` -> le point est TOUJOURS exactement sur la coque à cette hauteur/cette
+    section, plus de dépendance à la forme du profil. `edge_frac` (ex-`width_frac`,
+    même clé spec, sémantique adaptée) place le point le long de ce même rayon,
+    entre l'axe (0.0) et le bord réel touché (1.0) ; défaut proche de 1 = cutter
+    centré presque pile sur la coque -> mord partout, pas seulement au hasard."""
+    ys = [s[0] for s in secs]
+    ws = [s[1] for s in secs]
+    hs = [s[2] for s in secs]
+    y0, y1 = y_span
+    pts, radii = [], []
+    dir_local = Vector((side, 0.0, 0.0))
+    dir_world = (Rdir @ dir_local).normalized()
+    for i in range(n):
+        t = i / max(1, n - 1)
+        y = y0 + t * (y1 - y0)
+        w = _interp_scalar(ys, ws, y)
+        hh = _interp_scalar(ys, hs, y)
+        fz = _interp_scalar(ys_flex, flex, y) if flex else 0.0
+        z = fz + hh * z_frac
+        origin = Vector(Wf((0.0, y, z)))
+        hit = tree.ray_cast(origin, dir_world, ray_dist) if tree else (None, None, None, None)
+        if hit[0] is not None:
+            edge = origin.lerp(hit[0], edge_frac)
+        else:
+            # repli générique (rayon sans impact -- section hors mesh, début/fin de
+            # museau) : ancienne estimation analytique plutôt qu'un point orphelin.
+            edge = Vector(Wf((side * w * edge_frac, y, z)))
+        pts.append(tuple(edge))
+        radii.append(depth)
+    return core.realize_to_mesh(ops.tube(name, pts, radii, resolution_u=8, bevel_resolution=5))
+
+
 def _tooth_offsets(n, tilt_amt, curve_amt, twist_amt, power=1.7):
     """Décalages latéraux d'un profil de dent COURBE (boucle 19 chantier C, feedback
     « dents = cônes parfaits sans irrégularité ») : `laws.curl_offset` (déjà utilisée
@@ -246,6 +331,18 @@ def head(part, mats):
                                [0.70, 0.21, 0.13], [0.95, 0.155, 0.09], [1.18, 0.10, 0.055]])
     lower = part.get('lower', [[0.00, 0.20, 0.090], [0.30, 0.185, 0.075], [0.60, 0.155, 0.060],
                                [0.90, 0.115, 0.048], [1.06, 0.075, 0.038]])
+    # profile_smooth (boucle 22, thème « souder pas poser » — feedback P0 museau
+    # « section trop abrupte ») : défaut 0 = rétro-compat totale (sections de contrôle
+    # brutes, comportement inchangé). >1 = densifie `upper`/`lower` (chacun un triplet
+    # y/demi-largeur/demi-hauteur -> Catmull-Rom marche tel quel, dimension 3
+    # quelconque) AVANT le loft -> bien plus de sections intermédiaires SUIVANT une
+    # courbe C1 lisse au lieu de la simple interpolation linéaire entre quelques
+    # points épars -> transition crâne->museau progressive (profil en U doux) au lieu
+    # d'un aplat/élargissement qui casse net entre 2 points de contrôle voisins.
+    psm = part.get('profile_smooth', 0)
+    if psm and psm > 1:
+        upper = apply_law('growth.spine_smooth', pts=[tuple(p) for p in upper], samples=psm)
+        lower = apply_law('growth.spine_smooth', pts=[tuple(p) for p in lower], samples=psm)
     # courbure non-linéaire du museau (boucle 17 CR3, feedback A1) : `snout_curve`
     # {dip,tip,dip_pos,sharp} pilote `growth.axis_flex` -> le museau plonge puis
     # remonte vers la pointe au lieu d'un loft quasi-droit (effet "pince"). Décalage
@@ -269,10 +366,17 @@ def head(part, mats):
     ex, ey, ez = eyep.get('pos', (0.25, 0.315, 0.20))
     esr = eyep.get('socket_r', 0.088)
     egr = eyep.get('globe_r', 0.072)
+    # socket_bevel (boucle 22, feedback P0 « orbite = trou découpé net -> dépression
+    # OVOÏDE à bords ADOUCIS ») : défaut 0.0 = rétro-compat (arête de coupe vive
+    # inchangée). >0 = adoucit l'arête vive du booléen (`ops.boolean_diff bevel_width`,
+    # Bevel limité par angle, n'affecte pas les arêtes déjà douces de la calotte) ->
+    # la cavité se lit comme un creux naturel qui referme progressivement vers le
+    # rebord plutôt qu'un trou découpé net.
+    socket_bevel = eyep.get('socket_bevel', 0.0)
     for s, tag in ((1, 'l'), (-1, 'r')):
         cutter = ops.blob(f'eye_cutter_{tag}', W((s * ex * 0.92, ey, ez)),
                           (esr * 1.30, esr * 0.82, esr * 0.98))
-        sk = ops.boolean_diff(sk, cutter, name='skull')
+        sk = ops.boolean_diff(sk, cutter, name='skull', bevel_width=socket_bevel)
         materials.assign(sk, skin)
 
     # --- naseaux : ouverture carvée dans le museau (boolean, même schéma que les
@@ -290,6 +394,33 @@ def head(part, mats):
                           (nk * 1.15, nk * 1.85, nk * 1.0), rot_deg=(pitch - 18, 0, s * 20))
         sk = ops.boolean_diff(sk, cutter, name='skull')
         materials.assign(sk, skin)
+
+    # mouth_carve (boucle 22, feedback P0 « bouche = fil posé -> fente CARVÉE suivant
+    # le profil en U du museau ») : défaut None = rétro-compat totale (pas de carve,
+    # comportement inchangé). Creuse une gorge fine dans le crâne (bord bas, cf.
+    # `_mouth_cutter`) le long de la ligne de bouche — moitié mâchoire faite plus bas,
+    # une fois `jw` construite (même mécanisme, bord haut).
+    mc = part.get('mouth_carve')
+    if mc:
+        mc_depth = mc.get('depth', 0.014)
+        mc_width = mc.get('width_frac', 0.85)
+        mc_n = mc.get('n', 14)
+        mc_pad0 = mc.get('pad_start', 0.05)
+        mc_pad1 = mc.get('pad_end', 0.03)
+        mc_zu = mc.get('z_frac_upper', -0.18)
+        mc_y0u = max(ys_u[0], part.get('tooth_span_upper', (0.42, 1.07))[0] - mc_pad0)
+        mc_y1u = min(ys_u[-1], part.get('tooth_span_upper', (0.42, 1.07))[1] + mc_pad1)
+        # BVH de la coque RÉELLE du crâne (état courant, après orbites/naseaux, AVANT
+        # la carve) : les 2 côtés (l/r) mordent la même coque d'origine, symétrique et
+        # sans influence l'un sur l'autre -- un seul arbre pour les deux évite de
+        # ré-évaluer le depsgraph 2x.
+        sk_tree, sk_bm = _bvh_from_mesh_obj(sk)
+        for s, tag in ((1, 'l'), (-1, 'r')):
+            cut_u = _mouth_cutter(f'mouth_cut_u_{tag}', upper, (mc_y0u, mc_y1u), W, Rp,
+                                  upper_flex, ys_u, mc_zu, mc_depth, mc_width, s, sk_tree, n=mc_n)
+            sk = ops.boolean_diff(sk, cut_u, name='skull', bevel_width=mc.get('bevel', 0.0))
+            materials.assign(sk, skin)
+        sk_bm.free()
     out.append(sk)
 
     # mâchoire inférieure : courbe INVERSE de celle du museau (`jaw_curve`, même loi) —
@@ -302,6 +433,18 @@ def head(part, mats):
              for i, (y, w, hh) in enumerate(lower)]
     jw = ops.ring_loft('jaw', rings)
     materials.assign(jw, skin)
+    if mc:
+        mc_zl = mc.get('z_frac_lower', 0.15)
+        mc_y0l = max(ys_l[0], part.get('tooth_span_lower', (0.35, 0.99))[0] - mc_pad0)
+        mc_y1l = min(ys_l[-1], part.get('tooth_span_lower', (0.35, 0.99))[1] + mc_pad1)
+        jw_tree, jw_bm = _bvh_from_mesh_obj(jw)
+        Rjaw = Rp @ Rj
+        for s, tag in ((1, 'l'), (-1, 'r')):
+            cut_l = _mouth_cutter(f'mouth_cut_l_{tag}', lower, (mc_y0l, mc_y1l), WJ, Rjaw,
+                                  lower_flex, ys_l, mc_zl, mc_depth, mc_width, s, jw_tree, n=mc_n)
+            jw = ops.boolean_diff(jw, cut_l, name='jaw', bevel_width=mc.get('bevel', 0.0))
+            materials.assign(jw, skin)
+        jw_bm.free()
     out.append(jw)
 
     # --- dents : tubes effilés courbes le long des bords de gueule, VARIÉS (pas des
@@ -485,6 +628,18 @@ def head(part, mats):
     # de paupière pour qu'il ÉPOUSE la calotte du globe (recessé, cf. `eye.globe_r`/
     # `socket_r`) au lieu de rester un plan plaqué à plat dessus.
     lur = eyep.get('lid_upper_rot', (0, 0, 10))
+    # globe_recess (boucle 22 round 2, feedback P0 « globe = sphère POSÉE devant
+    # l'orbite », répété ×2) : le globe était placé à la MÊME profondeur X que le
+    # rebord de l'orbite (`ex` plein) alors que le cutter de cavité est centré plus
+    # en RETRAIT (`ex*0.92`) -- le globe finissait donc plus en avant que le creux
+    # censé l'accueillir, d'où la lecture "bille posée devant un trou" au lieu
+    # d'un oeil enchâssé. Défaut 0.0 = rétro-compat totale (position inchangée).
+    # >0 recule le CENTRE du globe (unités locales tête, pas une fraction de
+    # `globe_r` -- cohérent avec les autres offsets de `eye`, ex. `socket_bevel`)
+    # vers l'intérieur du crâne, sans toucher `globe_r` (l'oeil reste ÉNORME,
+    # seul son enfoncement change) ni la cavité/paupières (toujours ancrées sur
+    # `ex` plein -> leur rebord continue d'entourer le globe désormais plus reculé).
+    grecess = eyep.get('globe_recess', 0.0)
     for s, tag in ((1, 'l'), (-1, 'r')):
         # orientation du globe (feedback boucle 19 chantier C, « iris/pupille non
         # perçus ») : BUG diagnostiqué -- `ops.blob` sans `rot_deg` laisse l'axe
@@ -509,7 +664,7 @@ def head(part, mats):
             look_dir = Vector((s, 0.0, 0.0))
         eye_quat = look_dir.normalized().to_track_quat('X', 'Z')
         eye_rot = tuple(math.degrees(a) for a in eye_quat.to_euler())
-        g = ops.blob(f'eye_{tag}', W((s * ex, ey - 0.006, ez)), (egr, egr, egr), rot_deg=eye_rot)
+        g = ops.blob(f'eye_{tag}', W((s * (ex - grecess), ey - 0.006, ez)), (egr, egr, egr), rot_deg=eye_rot)
         materials.assign(g, eye_m)
         out.append(g)
         lu = ops.blob(f'lid_up_{tag}', W((s * ex * 0.72, ey + 0.02, ez + esr * luz)),
@@ -563,9 +718,19 @@ def head(part, mats):
         pts = r['pts']
         radii = r.get('radii', [0.02] * len(pts))
         sides = ((1, 'l'), (-1, 'r')) if r.get('mirror', True) else ((1, ''),)
+        # flat/twist (boucle 22, feedback P0 arcade « plaque enveloppante » — même
+        # mécanisme générique que les cornes-lames/épines dorsales, défauts None/0.0 =
+        # rétro-compat, section ronde inchangée) : une crête peut désormais être une
+        # PLAQUE aplatie (arcade sourcilière large côté externe -> fine vers le front)
+        # au lieu d'un simple bourrelet rond.
+        flat = r.get('flat')
+        twist = r.get('twist', 0.0)
+        n_r = len(pts)
+        tilts = [twist * i / (n_r - 1) for i in range(n_r)] if twist and n_r > 1 else None
         for s, tag in sides:
             wp = [Wf((s * x, y, z)) for x, y, z in pts]
-            t = ops.tube(f"ridge_{r.get('id', 'r')}_{tag}", wp, radii)
+            t = ops.tube(f"ridge_{r.get('id', 'r')}_{tag}", wp, radii, flat=flat,
+                        tilts=[a * s for a in tilts] if tilts else None)
             materials.assign(t, skin)
             out.append(t)
 
@@ -628,6 +793,18 @@ def head(part, mats):
     # size_bump fort, pitch très négatif (couchées vers la nuque), yaw_spread faible.
     bf = hp.get('base_from', (0.08, 0.10, 0.35))
     bt = hp.get('base_to', (0.27, -0.24, 0.19))
+    # blade (boucle 22, feedback P0 « cornes = cônes qui finissent en pointe fine ->
+    # PLAQUES élancées, base large/plate, légère torsion ») : sous-dict optionnel,
+    # défaut None = rétro-compat totale (cône rond à pointe fine, comportement
+    # inchangé). `flat` (0<flat<1, section aplatie via `ops.tube(flat=...)`, même
+    # mécanisme que les épines dorsales P1) ; `tip_frac` (fraction de `r0` = rayon
+    # PLANCHER à la pointe au lieu de ~0 -> bout émoussé, pas une aiguille) ;
+    # `twist` (degrés, torsion totale base->pointe via `p.tilt` par point, `ops.tube
+    # tilts=...`) -> lame plate légèrement vrillée plutôt qu'un pic conique.
+    blade = hp.get('blade')
+    blade_flat = blade.get('flat') if blade else None
+    blade_tip_frac = blade.get('tip_frac', 0.3) if blade else None
+    blade_twist = blade.get('twist', 0.0) if blade else 0.0
     for k in range(pairs):
         u = k / max(1, pairs - 1)
         sc = sizes[k]
@@ -636,7 +813,9 @@ def head(part, mats):
         raw_k = apply_law(hp.get('vocab', 'growth.horn_spiral'),
                           n=n_horn, a=hp.get('a', 0.10), b=b_k,
                           turns=hp.get('turns', 0.6), rise=hp.get('rise', 0.55))
-        base_radii_k = laws.power_taper(n_horn, hp.get('r0', 0.075), 1.15, 0.008)
+        r0_k = hp.get('r0', 0.075)
+        rmin_k = r0_k * blade_tip_frac if blade else 0.008
+        base_radii_k = laws.power_taper(n_horn, r0_k, 1.15, rmin_k)
         ring_p_k = dict(hp['rings']) if hp.get('rings') else None
         if ring_p_k:
             ring_p_k['depth'] = ring_p_k.get('depth', 0.14) * (
@@ -661,7 +840,10 @@ def head(part, mats):
             # résolution réduite (budget sommets) : `n_horn` points de contrôle portent
             # déjà le détail (anneaux), la résolution NURBS/bevel par défaut (pensée
             # pour des tubes à peu de points, ex. dents/crêtes) est inutilement dense.
-            h = ops.tube(f'horn_{tag}{k}', pts, radii, resolution_u=6, bevel_resolution=6)
+            tilts_k = ([blade_twist * i / (n_horn - 1) for i in range(n_horn)]
+                      if blade_twist else None)
+            h = ops.tube(f'horn_{tag}{k}', pts, radii, resolution_u=6, bevel_resolution=6,
+                        flat=blade_flat, tilts=tilts_k)
             materials.assign(h, bone_m)
             if bone_axis_m:
                 # réalisé en MESH (nécessaire pour porter un attribut vertex,
@@ -863,8 +1045,19 @@ def wing(part, mats):
     # retrouvent chaque part individuellement. Substrings (`exclude_like`/
     # `frame_match`/`displace_targets.match`) restent valides (recherche par `in`).
     pid = part.get('id', 'wing')
+    # weld (boucle 22, thème « souder pas poser » — feedback P0 aileron caudal
+    # « pièces disjointes flottantes ») : défaut False = rétro-compat totale (objets
+    # séparés comme avant). Si True, TOUS les objets os/membrane construits pour ce
+    # côté (bras, doigts, griffes, lattes, veines, membrane...) sont soudés en un seul
+    # mesh continu par booléen UNION exact (`ops.boolean_union`, PAS de voxel remesh —
+    # piège connu, gonfle ×3 les tubes fins) au lieu de rester des primitives qui se
+    # touchent seulement visuellement. Utile pour un petit aileron où la couture
+    # os->membrane doit lire comme UNE pièce, pas pour les grandes ailes principales
+    # (coût du solveur exact + inutile, membranes déjà validées).
+    weld = part.get('weld', False)
     for s in sides:
         tag = 'L' if s > 0 else 'R'
+        weld_start = len(out)
         # pose (T17 CR2, pose dynamique) : override PAR CÔTÉ, appliqué APRÈS le
         # miroir -> battement asymétrique générique (virage banqué : une aile haute
         # tendue, l'autre basse en appui) sans dupliquer le builder. `shoulder`/
@@ -1261,6 +1454,16 @@ def wing(part, mats):
                                      thickness=[t * 0.55 for t in thickness_rows])
             materials.assign(a_mem, _mat(mats, part.get('mat', 'membrane')))
             out.append(a_mem)
+
+        if weld:
+            side_objs = [core.realize_to_mesh(o) if o.type == 'CURVE' else o
+                        for o in out[weld_start:]]
+            del out[weld_start:]
+            if len(side_objs) >= 2:
+                fused = ops.boolean_union(f'{pid}_fin_{tag}', side_objs)
+                out.append(fused)
+            else:
+                out.extend(side_objs)
     return out
 
 

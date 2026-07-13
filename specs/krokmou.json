@@ -354,13 +354,15 @@
     0.36,
     0.2
    ],
+   "smooth": 4,
    "spikes": {
     "n": 14,
     "h0": 0.095,
     "skip": 2,
     "mat": "scales_head",
     "base_frac": 0.62,
-    "tip_r": 0.014
+    "tip_r": 0.014,
+    "flat": 0.32
    }
   },
   {
@@ -449,13 +451,15 @@
     0.07,
     0.062
    ],
+   "smooth": 4,
    "spikes": {
     "n": 13,
     "h0": 0.05,
     "skip": 1,
     "mat": "scales_head",
     "base_frac": 0.6,
-    "tip_r": 0.011
+    "tip_r": 0.011,
+    "flat": 0.32
    }
   },
   {
@@ -468,6 +472,7 @@
    ],
    "yaw": 6,
    "pitch": -6,
+   "profile_smooth": 3,
    "mat": "scales_head",
    "axis_mat": "scales_head",
    "gape": 0,
@@ -712,16 +717,18 @@
      0.3
     ],
     "lid_upper_scale": [
-     0.37,
-     0.53,
-     0.28
+     0.3,
+     0.46,
+     0.2
     ],
-    "lid_upper_zfrac": 0.6,
+    "lid_upper_zfrac": 0.72,
     "lid_upper_rot": [
      -14,
      10,
      14
-    ]
+    ],
+    "socket_bevel": 0.035,
+    "globe_recess": 0.02
    },
    "nostril": {
     "pos": [
@@ -731,22 +738,54 @@
     ],
     "size": 0.032
    },
+   "mouth_carve": {
+    "depth": 0.022,
+    "width_frac": 0.9,
+    "z_frac_upper": -0.22,
+    "z_frac_lower": 0.19,
+    "n": 16,
+    "pad_start": 0.05,
+    "pad_end": 0.03,
+    "bevel": 0.008
+   },
    "exp": 3.2,
    "fang_girth_upper": 1.0,
    "fang_girth_lower": 1.0,
-   "lip_profile": {
-    "n": 14,
-    "thickness_upper": 0.02,
-    "thickness_lower": 0.018,
-    "w_frac_upper": 0.9,
-    "w_frac_lower": 0.88,
-    "z_frac_upper": -0.25,
-    "z_frac_lower": 0.2,
-    "noise_scale": 0.14,
-    "noise_strength": 0.3,
-    "pad_start": 0.08,
-    "pad_end": 0.04
-   },
+   "ridges": [
+    {
+     "id": "brow",
+     "mirror": true,
+     "flat": 0.3,
+     "pts": [
+      [
+       0.14,
+       0.16,
+       0.33
+      ],
+      [
+       0.24,
+       0.1,
+       0.37
+      ],
+      [
+       0.34,
+       0.0,
+       0.35
+      ],
+      [
+       0.4,
+       -0.09,
+       0.29
+      ]
+     ],
+     "radii": [
+      0.02,
+      0.036,
+      0.046,
+      0.05
+     ]
+    }
+   ],
    "horns": {
     "pairs": 2,
     "master_k": 0.5,
@@ -781,8 +820,13 @@
     "scale": 0.9,
     "curl": 0.05,
     "curl_power": 1.2,
-    "root_len": 0.02,
-    "root_bulge": 1.1,
+    "root_len": 0.045,
+    "root_bulge": 1.4,
+    "blade": {
+     "flat": 0.3,
+     "tip_frac": 0.4,
+     "twist": 10
+    },
     "secondary": {
      "n": 5,
      "root_len": 0.01,
@@ -958,6 +1002,7 @@
    "side": "L",
    "mat": "membrane",
    "bone_mat": "wing_bone",
+   "weld": true,
    "shoulder": [
     -1.19,
     0.605,
@@ -1017,6 +1062,7 @@
    "side": "R",
    "mat": "prosthetic_fabric",
    "bone_mat": "prosthetic_bone",
+   "weld": true,
    "shoulder": [
     -1.19,
     0.605,

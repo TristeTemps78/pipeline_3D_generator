@@ -8,25 +8,70 @@ from mathutils import Euler, Matrix, Quaternion, Vector
 from . import core
 
 
-def tube(name, pts, radii, caps=True, order=4, resolution_u=12, bevel_resolution=8):
+_FLAT_BEVEL_CACHE = {}
+
+
+def _flat_bevel_obj(flat, n=12):
+    """Objet-profil de bevel APLATI (ellipse squashée, coords locales) réutilisé comme
+    `curve.bevel_object` — remplace le cercle rond par défaut de `bevel_depth` par une
+    section anisotrope (large/mince) : donne des tubes en PLAQUE (cornes-lames, écailles
+    dorsales plates) au lieu de tiges rondes, sans dupliquer la logique de `tube()` —
+    même mécanisme de rayon par point (`p.radius`) continue de s'appliquer, il scale
+    juste un profil non-circulaire. Caché par ratio (peu de valeurs distinctes en
+    pratique) pour ne pas créer un nouvel objet caché par appel."""
+    key = round(flat, 4)
+    cached = _FLAT_BEVEL_CACHE.get(key)
+    if cached is not None and cached.name in bpy.data.objects:
+        return cached
+    cu = bpy.data.curves.new(f'_bevel_flat_{key}', 'CURVE')
+    cu.dimensions = '2D'
+    sp = cu.splines.new('POLY')
+    sp.points.add(n - 1)
+    for i, p in enumerate(sp.points):
+        a = 2 * math.pi * i / n
+        p.co = (math.cos(a), flat * math.sin(a), 0.0, 1.0)
+    sp.use_cyclic_u = True
+    ob = bpy.data.objects.new(f'_bevel_flat_{key}', cu)
+    core.link(ob)
+    ob.hide_render = True
+    ob.hide_viewport = True
+    ob.hide_select = True
+    _FLAT_BEVEL_CACHE[key] = ob
+    return ob
+
+
+def tube(name, pts, radii, caps=True, order=4, resolution_u=12, bevel_resolution=8,
+         flat=None, tilts=None):
     """Tube organique : courbe NURBS avec rayon par point (corps, membres, cornes).
     `resolution_u`/`bevel_resolution` (défauts = valeurs Blender historiques, rétro-
     compat) : baisser les deux pour un profil à beaucoup de points de contrôle (ex.
     cornes à anneaux) SANS faire exploser le nombre de sommets — un tube à N points
     de contrôle a de toute façon assez de segments pour rester lisse avec une
-    résolution plus basse que le tube générique (corps/membres, peu de points)."""
+    résolution plus basse que le tube générique (corps/membres, peu de points).
+    `flat` (boucle 22, thème « souder pas poser » — cornes/épines en PLAQUE plutôt
+    qu'en cône rond, défaut None = rétro-compat, section circulaire inchangée) :
+    ratio 0<flat<1 = épaisseur/largeur de la section (`_flat_bevel_obj`), le rayon par
+    point continue de scaler toute la section -> une plaque qui s'amincit vers la
+    pointe au lieu d'un cône. `tilts` (liste de degrés par point, défaut None = 0
+    partout) : torsion progressive de la section le long de l'axe (légère torsion de
+    lame), tourne le profil de bevel autour de la tangente à chaque point de contrôle."""
     cu = bpy.data.curves.new(name, 'CURVE')
     cu.dimensions = '3D'
     sp = cu.splines.new('NURBS')
     sp.points.add(len(pts) - 1)
-    for p, pt, r in zip(sp.points, pts, radii):
+    for i, (p, pt, r) in enumerate(zip(sp.points, pts, radii)):
         p.co = (*pt, 1)
         p.radius = r
+        if tilts is not None and i < len(tilts):
+            p.tilt = math.radians(tilts[i])
     sp.use_endpoint_u = True
     sp.order_u = min(order, len(pts))
     cu.resolution_u = resolution_u
     cu.bevel_depth = 1.0
     cu.bevel_resolution = bevel_resolution
+    if flat is not None:
+        cu.bevel_mode = 'OBJECT'
+        cu.bevel_object = _flat_bevel_obj(flat)
     cu.use_fill_caps = caps
     return core.link(bpy.data.objects.new(name, cu))
 
@@ -141,15 +186,28 @@ def ring_loft(name, rings, caps=True, subsurf_levels=2):
     return ob
 
 
-def boolean_diff(target, cutter, name=None):
+def boolean_diff(target, cutter, name=None, bevel_width=0.0, bevel_segments=2,
+                  bevel_angle=35.0):
     """Soustrait `cutter` de `target` (creux d'orbite oculaire, etc.) via un modifier
     Boolean évalué par le depsgraph — même schéma que `core.realize_to_mesh` (bake vers
     un nouvel objet MESH, aucun bpy.ops nécessaire, robuste en headless). `cutter` est
-    consommé (retiré de la scène) après l'opération."""
+    consommé (retiré de la scène) après l'opération.
+    `bevel_width` (boucle 22, feedback « orbite = trou découpé net » ; défaut 0.0 =
+    rétro-compat, arête vive inchangée) : adoucit l'arête de coupe vive qu'un booléen
+    crée forcément — Bevel modifier limité par ANGLE (`bevel_angle`°, ne mord pas les
+    arêtes déjà douces de la surface d'origine) empilé APRÈS le Boolean, baké dans le
+    même mesh évalué -> un creux à bord arrondi au lieu d'un trou aux bords nets,
+    sans 2e objet ni post-traitement séparé."""
     mod = target.modifiers.new('bool_diff', 'BOOLEAN')
     mod.operation = 'DIFFERENCE'
     mod.object = cutter
     mod.solver = 'EXACT'
+    if bevel_width > 0:
+        bev = target.modifiers.new('bool_diff_bevel', 'BEVEL')
+        bev.width = bevel_width
+        bev.segments = bevel_segments
+        bev.limit_method = 'ANGLE'
+        bev.angle_limit = math.radians(bevel_angle)
     deps = bpy.context.evaluated_depsgraph_get()
     me = bpy.data.meshes.new_from_object(target.evaluated_get(deps), depsgraph=deps)
     new = bpy.data.objects.new(name or target.name, me)
@@ -165,6 +223,50 @@ def boolean_diff(target, cutter, name=None):
     bpy.data.objects.remove(cutter)
     if cutter_data.users == 0:
         bpy.data.meshes.remove(cutter_data)
+    return core.shade_smooth(new)
+
+
+def boolean_union(name, objs):
+    """Soude plusieurs objets MESH en UN SEUL mesh continu par booléen UNION exact
+    (boucle 22, thème « souder pas poser » — remplace des primitives qui se touchent/
+    se pénètrent juste visuellement par une VRAIE surface fusionnée). Solveur EXACT
+    (pas de voxel/remesh : piège connu, un fuse voxel gonfle ×3 les tubes fins, cf.
+    CLAUDE.md) — chaîne un modifier Boolean UNION par objet supplémentaire sur le
+    premier (host), puis bake en un seul mesh évalué (même schéma que `boolean_diff`).
+    Tous les objets sources (y compris `objs[0]`) sont CONSOMMÉS. Les objets CURVE
+    doivent être convertis en MESH par l'appelant d'abord (`core.realize_to_mesh`) —
+    le modifier Boolean n'opère que sur des meshes.
+    BUG mesuré (boucle 22) : par défaut (`material_mode='INDEX'`) le modifier Boolean
+    NE fusionne PAS les listes de matériaux des opérandes -- il garde tel quel le
+    `material_index` (entier LOCAL) de chaque face, interprété contre la liste de
+    slots du seul HOST -> avec des objets à 1 slot chacun (`materials.assign`, le cas
+    courant), TOUTES les faces valent index 0 et pointent donc sur le matériau du
+    host, quel que soit le matériau d'origine de l'opérande (mesuré : membrane tissu
+    -> rendu entièrement couleur os). Fix : `material_mode='TRANSFER'` (option native
+    du modifier depuis 3.x, non documentée en évidence) fait exactement ce qu'il faut
+    -- transfère/ajoute les matériaux réels des opérandes et remappe les faces vers
+    la bonne liste combinée."""
+    host, rest = objs[0], objs[1:]
+    for i, o in enumerate(rest):
+        mod = host.modifiers.new(f'bool_union_{i}', 'BOOLEAN')
+        mod.operation = 'UNION'
+        mod.object = o
+        mod.solver = 'EXACT'
+        mod.material_mode = 'TRANSFER'
+    deps = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(host.evaluated_get(deps), depsgraph=deps)
+    new = bpy.data.objects.new(name, me)
+    core.link(new)
+    new.matrix_world = host.matrix_world
+    old_data = host.data
+    bpy.data.objects.remove(host)
+    if old_data.users == 0:
+        bpy.data.meshes.remove(old_data)
+    for o in rest:
+        o_data = o.data
+        bpy.data.objects.remove(o)
+        if o_data.users == 0:
+            bpy.data.meshes.remove(o_data)
     return core.shade_smooth(new)
 
 
