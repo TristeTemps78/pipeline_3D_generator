@@ -1,12 +1,12 @@
 {
  "name": "krokmou",
- "ref": "Krokmou (Toothless, Night Fury, HTTYD), photo promo fond studio BLANC. Pose : couché à plat ventre, corps compact vu 3/4 avant surélevé ; tête posée bas près du sol, large/plate/arrondie, face au spectateur ; ailes de chauve-souris TRES grandes étalées à plat au sol, drapées, doigts en éventail, bord de fuite ondulé ; queue longue enroulée vers l'avant devant le corps, 2 ailerons caudaux au premier plan (gauche naturel noir, droit = prothèse rouge brique + emblème blanc) ; pattes avant trapues repliées sous le poitrail, à peine visibles. Morphologie féline/salamandre, PAS wyverne (4 pattes + 2 ailes) : pas de museau allongé, pas de cornes dures, dents rétractées (bouche fermée). Peau noir profond bleuté satinée, écailles très fines quasi invisibles sauf quelques plaques plus lisibles crâne/échine. Yeux énormes vert-jaune acide, pupille fente verticale, élément identitaire n°1. Critères de réussite (ordre) : 1) silhouette couchée reconnaissable (tête plate+gros yeux) ; 2) yeux verts lisibles et vivants (hero+head) ; 3) ailes étalées drapées naturellement, pas raides ; 4) queue enroulée devant + prothèse rouge/emblème lisible ; 5) noir profond satiné lisible sur fond blanc, sans écrasement.",
+ "ref": "Krokmou (Toothless, Night Fury, HTTYD), photo promo fond studio BLANC. Pose : couch\u00e9 \u00e0 plat ventre, corps compact vu 3/4 avant sur\u00e9lev\u00e9 ; t\u00eate pos\u00e9e bas pr\u00e8s du sol, large/plate/arrondie, face au spectateur ; ailes de chauve-souris TRES grandes \u00e9tal\u00e9es \u00e0 plat au sol, drap\u00e9es, doigts en \u00e9ventail, bord de fuite ondul\u00e9 ; queue longue enroul\u00e9e vers l'avant devant le corps, 2 ailerons caudaux au premier plan (gauche naturel noir, droit = proth\u00e8se rouge brique + embl\u00e8me blanc) ; pattes avant trapues repli\u00e9es sous le poitrail, \u00e0 peine visibles. Morphologie f\u00e9line/salamandre, PAS wyverne (4 pattes + 2 ailes) : pas de museau allong\u00e9, pas de cornes dures, dents r\u00e9tract\u00e9es (bouche ferm\u00e9e). Peau noir profond bleut\u00e9 satin\u00e9e, \u00e9cailles tr\u00e8s fines quasi invisibles sauf quelques plaques plus lisibles cr\u00e2ne/\u00e9chine. Yeux \u00e9normes vert-jaune acide, pupille fente verticale, \u00e9l\u00e9ment identitaire n\u00b01. Crit\u00e8res de r\u00e9ussite (ordre) : 1) silhouette couch\u00e9e reconnaissable (t\u00eate plate+gros yeux) ; 2) yeux verts lisibles et vivants (hero+head) ; 3) ailes \u00e9tal\u00e9es drap\u00e9es naturellement, pas raides ; 4) queue enroul\u00e9e devant + proth\u00e8se rouge/embl\u00e8me lisible ; 5) noir profond satin\u00e9 lisible sur fond blanc, sans \u00e9crasement.",
  "notes": [
-  "OMIS v1 : sangles/mécanisme de fixation cuir de la prothèse (pas de type de partie adapté, à trancher en BUILD).",
-  "OMIS v1 : selle discrète en cuir sur les épaules/garrot (idem, pas de type existant évident).",
-  "OMIS v1 : emblème blanc peint sur l'aileron prothèse (texture/décalque hors du système de matériaux procéduraux actuel) — v1 = toile rouge brique unie sur 'prosthetic_fabric'.",
-  "OMIS v1 : section 'bake' (normal/AO/curvature) et 'fuse_groups' — geometrie clay d'abord, bake/fuse en boucle suivante une fois la pose validée.",
-  "DOUTE : les parties 'wing' (wing, hipfin, tailfin_nat, tailfin_pros) nomment leurs objets par tag de côté (membrane_L/membrane_R, finger_L.., wclaw_L..) SANS l'id de la part -> collision de nom potentielle entre 4 parties de type wing. Shots/armor ciblant par 'frame_match' (substring) risquent d'attraper plusieurs parties à la fois ; préférer 'frame_part' (par id de part) pour les shots wing/tailfin, à confirmer en BUILD."
+  "OMIS v1 : sangles/m\u00e9canisme de fixation cuir de la proth\u00e8se (pas de type de partie adapt\u00e9, \u00e0 trancher en BUILD).",
+  "OMIS v1 : selle discr\u00e8te en cuir sur les \u00e9paules/garrot (idem, pas de type existant \u00e9vident).",
+  "OMIS v1 : embl\u00e8me blanc peint sur l'aileron proth\u00e8se (texture/d\u00e9calque hors du syst\u00e8me de mat\u00e9riaux proc\u00e9duraux actuel) \u2014 v1 = toile rouge brique unie sur 'prosthetic_fabric'.",
+  "OMIS v1 : section 'bake' (normal/AO/curvature) et 'fuse_groups' \u2014 geometrie clay d'abord, bake/fuse en boucle suivante une fois la pose valid\u00e9e.",
+  "DOUTE : les parties 'wing' (wing, hipfin, tailfin_nat, tailfin_pros) nomment leurs objets par tag de c\u00f4t\u00e9 (membrane_L/membrane_R, finger_L.., wclaw_L..) SANS l'id de la part -> collision de nom potentielle entre 4 parties de type wing. Shots/armor ciblant par 'frame_match' (substring) risquent d'attraper plusieurs parties \u00e0 la fois ; pr\u00e9f\u00e9rer 'frame_part' (par id de part) pour les shots wing/tailfin, \u00e0 confirmer en BUILD."
  ],
  "materials": {
   "scales_body": {
@@ -14,17 +14,33 @@
    "p": {
     "scale": 32,
     "scale2": 85,
-    "bump": 0.18,
-    "base": [0.011, 0.011, 0.015],
-    "tint": [0.01, 0.01, 0.016],
-    "rough": 0.42,
-    "rough_edge": 0.3,
+    "bump": 0.12,
+    "base": [
+     0.011,
+     0.011,
+     0.015
+    ],
+    "tint": [
+     0.01,
+     0.01,
+     0.016
+    ],
+    "rough": 0.48,
+    "rough_edge": 0.32,
     "sss": 0.06,
     "micro": 0.15,
     "edge_copper": 0.0,
     "edge_width": 0.015,
-    "instance_variation": 0.2,
-    "patina_amount": 0.0
+    "instance_variation": 0.14,
+    "patina_amount": 0.0,
+    "spec_level": 0.22,
+    "sheen": 0.02,
+    "aniso": 0.08,
+    "specular_tint": [
+     0.82,
+     0.87,
+     0.95
+    ]
    }
   },
   "scales_head": {
@@ -32,17 +48,33 @@
    "p": {
     "scale": 9,
     "scale2": 22,
-    "bump": 0.4,
-    "base": [0.011, 0.011, 0.015],
-    "tint": [0.01, 0.01, 0.016],
-    "rough": 0.42,
-    "rough_edge": 0.28,
+    "bump": 0.3,
+    "base": [
+     0.011,
+     0.011,
+     0.015
+    ],
+    "tint": [
+     0.01,
+     0.01,
+     0.016
+    ],
+    "rough": 0.48,
+    "rough_edge": 0.3,
     "sss": 0.06,
     "micro": 0.18,
     "edge_copper": 0.0,
     "edge_width": 0.018,
-    "instance_variation": 0.22,
-    "patina_amount": 0.0
+    "instance_variation": 0.16,
+    "patina_amount": 0.0,
+    "spec_level": 0.22,
+    "sheen": 0.02,
+    "aniso": 0.08,
+    "specular_tint": [
+     0.82,
+     0.87,
+     0.95
+    ]
    }
   },
   "scales_legs": {
@@ -50,47 +82,87 @@
    "p": {
     "scale": 28,
     "scale2": 75,
-    "bump": 0.2,
-    "base": [0.011, 0.011, 0.015],
-    "tint": [0.01, 0.01, 0.016],
-    "rough": 0.44,
-    "rough_edge": 0.3,
+    "bump": 0.16,
+    "base": [
+     0.011,
+     0.011,
+     0.015
+    ],
+    "tint": [
+     0.01,
+     0.01,
+     0.016
+    ],
+    "rough": 0.5,
+    "rough_edge": 0.32,
     "sss": 0.06,
     "micro": 0.15,
     "edge_copper": 0.0,
     "edge_width": 0.015,
-    "instance_variation": 0.2,
+    "instance_variation": 0.14,
     "patina_amount": 0.0,
     "axis_uv": true,
-    "axis_uv_stretch": 3.0
+    "axis_uv_stretch": 3.0,
+    "spec_level": 0.22,
+    "sheen": 0.02,
+    "aniso": 0.08,
+    "specular_tint": [
+     0.82,
+     0.87,
+     0.95
+    ]
    }
   },
   "membrane": {
    "builder": "membrane",
    "p": {
-    "color": [0.008, 0.008, 0.011],
-    "edge_color": [0.05, 0.05, 0.07],
+    "color": [
+     0.008,
+     0.008,
+     0.011
+    ],
+    "edge_color": [
+     0.05,
+     0.05,
+     0.07
+    ],
     "rough": 0.55,
     "transmission": 0.03,
     "sss": 0.05,
-    "sss_radius": [0.05, 0.02, 0.015],
+    "sss_radius": [
+     0.05,
+     0.02,
+     0.015
+    ],
     "edge_grad_min": 0.15,
     "edge_grad_max": 2.2,
     "vein_scale": 4.0,
     "vein_strength": 0.3,
     "vein_width": 0.12,
     "vein_bump": 0.5,
-    "vein_dark": [0.004, 0.004, 0.006],
+    "vein_dark": [
+     0.004,
+     0.004,
+     0.006
+    ],
     "wrinkle_scale": 30,
     "wrinkle_strength": 0.3,
     "mottle_scale": 1.0,
     "mottle_strength": 0.3,
-    "mottle_dark": [0.01, 0.01, 0.013],
+    "mottle_dark": [
+     0.01,
+     0.01,
+     0.013
+    ],
     "vein_radial_n": 5,
     "vein_radial_strength": 0.6,
     "vein_radial_width": 0.5,
     "vein_radial_taper": 0.4,
-    "vein_radial_dark": [0.003, 0.003, 0.004],
+    "vein_radial_dark": [
+     0.003,
+     0.003,
+     0.004
+    ],
     "vein_radial_bump": 0.6,
     "vein_radial_plane": "xy"
    }
@@ -98,7 +170,11 @@
   "wing_bone": {
    "builder": "horn",
    "p": {
-    "color": [0.02, 0.02, 0.025],
+    "color": [
+     0.02,
+     0.02,
+     0.025
+    ],
     "rough": 0.5,
     "stripe_scale": 20,
     "stripe_strength": 0.15,
@@ -110,8 +186,16 @@
   "prosthetic_fabric": {
    "builder": "membrane",
    "p": {
-    "color": [0.3, 0.07, 0.045],
-    "edge_color": [0.4, 0.12, 0.08],
+    "color": [
+     0.3,
+     0.07,
+     0.045
+    ],
+    "edge_color": [
+     0.4,
+     0.12,
+     0.08
+    ],
     "rough": 0.6,
     "transmission": 0.0,
     "sss": 0.0,
@@ -119,7 +203,11 @@
     "wrinkle_strength": 0.15,
     "mottle_scale": 1.2,
     "mottle_strength": 0.1,
-    "mottle_dark": [0.2, 0.04, 0.03],
+    "mottle_dark": [
+     0.2,
+     0.04,
+     0.03
+    ],
     "vein_strength": 0.0,
     "vein_radial_strength": 0.0
    }
@@ -127,14 +215,22 @@
   "prosthetic_bone": {
    "builder": "bone",
    "p": {
-    "color": [0.05, 0.035, 0.03],
+    "color": [
+     0.05,
+     0.035,
+     0.03
+    ],
     "rough": 0.35
    }
   },
   "gum": {
    "builder": "gum",
    "p": {
-    "color": [0.2, 0.05, 0.05],
+    "color": [
+     0.2,
+     0.05,
+     0.05
+    ],
     "rough": 0.5,
     "sss": 0.2,
     "spec_level": 0.2,
@@ -144,19 +240,39 @@
   "eye": {
    "builder": "eye_globe",
    "p": {
-    "sclera_color": [0.02, 0.02, 0.025],
-    "iris_color": [0.66, 0.78, 0.2],
-    "iris_color2": [0.85, 0.75, 0.15],
-    "pupil_color": [0.005, 0.005, 0.005],
+    "sclera_color": [
+     0.02,
+     0.02,
+     0.025
+    ],
+    "iris_color": [
+     0.4,
+     0.5,
+     0.035
+    ],
+    "iris_color2": [
+     0.46,
+     0.38,
+     0.03
+    ],
+    "pupil_color": [
+     0.005,
+     0.005,
+     0.005
+    ],
     "pupil_width": 0.11,
     "pupil_length": 2.0,
     "pupil_edge": 0.012,
     "iris_r": 0.46,
-    "rough": 0.06,
-    "clearcoat": 0.7,
-    "glow": 0.15,
+    "rough": 0.1,
+    "clearcoat": 0.1,
+    "spec_level": 0.15,
+    "glow": 0.1,
     "catchlight": 0.9,
-    "catchlight_pos": [0.5, 0.42],
+    "catchlight_pos": [
+     0.5,
+     0.42
+    ],
     "catchlight_size": 0.05,
     "catchlight_soft": 0.02
    }
@@ -164,15 +280,33 @@
   "cavity": {
    "builder": "bone",
    "p": {
-    "color": [0.02, 0.015, 0.015],
+    "color": [
+     0.02,
+     0.015,
+     0.015
+    ],
     "rough": 0.15
    }
   },
   "studio_floor": {
    "builder": "rock",
    "p": {
-    "color": [0.92, 0.92, 0.93],
-    "bump": 0.05
+    "color": [
+     0.92,
+     0.92,
+     0.93
+    ],
+    "bump": 0.05,
+    "burnt": [
+     0.88,
+     0.88,
+     0.89
+    ],
+    "ember": [
+     0.88,
+     0.88,
+     0.89
+    ]
    }
   }
  },
@@ -182,14 +316,45 @@
    "id": "body",
    "mat": "scales_body",
    "pts": [
-    [0.03, -1.6, 0.35],
-    [0.05, -0.9, 0.55],
-    [-0.03, -0.2, 0.75],
-    [0.0, 0.5, 0.68],
-    [0.0, 1.1, 0.5],
-    [0.0, 1.6, 0.34]
+    [
+     0.03,
+     -1.6,
+     0.35
+    ],
+    [
+     0.05,
+     -0.9,
+     0.55
+    ],
+    [
+     -0.03,
+     -0.2,
+     0.75
+    ],
+    [
+     0.0,
+     0.5,
+     0.68
+    ],
+    [
+     0.0,
+     1.1,
+     0.5
+    ],
+    [
+     0.0,
+     1.6,
+     0.34
+    ]
    ],
-   "radii": [0.34, 0.55, 0.62, 0.58, 0.42, 0.28],
+   "radii": [
+    0.34,
+    0.55,
+    0.62,
+    0.58,
+    0.42,
+    0.28
+   ],
    "spikes": {
     "n": 14,
     "h0": 0.075,
@@ -204,21 +369,87 @@
    "id": "tail",
    "mat": "scales_body",
    "pts": [
-    [0.03, -1.6, 0.35],
-    [0.1, -2.1, 0.3],
-    [0.28, -2.55, 0.24],
-    [0.5, -2.85, 0.2],
-    [0.75, -2.9, 0.17],
-    [0.95, -2.6, 0.14],
-    [0.98, -2.05, 0.12],
-    [0.85, -1.45, 0.11],
-    [0.58, -0.75, 0.1],
-    [0.3, -0.15, 0.095],
-    [-0.19, 0.21, 0.088],
-    [-0.695, 0.405, 0.095],
-    [-1.2, 0.6, 0.09]
+    [
+     0.03,
+     -1.6,
+     0.35
+    ],
+    [
+     0.1,
+     -2.1,
+     0.3
+    ],
+    [
+     0.28,
+     -2.55,
+     0.24
+    ],
+    [
+     0.5,
+     -2.85,
+     0.2
+    ],
+    [
+     0.75,
+     -2.9,
+     0.17
+    ],
+    [
+     0.95,
+     -2.6,
+     0.14
+    ],
+    [
+     0.98,
+     -2.05,
+     0.12
+    ],
+    [
+     0.85,
+     -1.45,
+     0.11
+    ],
+    [
+     0.58,
+     -0.75,
+     0.1
+    ],
+    [
+     0.3,
+     -0.15,
+     0.095
+    ],
+    [
+     -0.19,
+     0.21,
+     0.088
+    ],
+    [
+     -0.695,
+     0.405,
+     0.095
+    ],
+    [
+     -1.2,
+     0.6,
+     0.09
+    ]
    ],
-   "radii": [0.34, 0.27, 0.22, 0.18, 0.155, 0.13, 0.115, 0.1, 0.09, 0.085, 0.078, 0.07, 0.062],
+   "radii": [
+    0.34,
+    0.27,
+    0.22,
+    0.18,
+    0.155,
+    0.13,
+    0.115,
+    0.1,
+    0.09,
+    0.085,
+    0.078,
+    0.07,
+    0.062
+   ],
    "spikes": {
     "n": 13,
     "h0": 0.05,
@@ -231,57 +462,224 @@
   {
    "type": "head",
    "id": "head",
-   "loc": [0.0, 1.75, 0.3],
+   "loc": [
+    0.0,
+    1.75,
+    0.3
+   ],
    "yaw": 6,
    "pitch": -6,
    "mat": "scales_head",
    "axis_mat": "scales_head",
    "gape": 4,
    "upper": [
-    [-0.05, 0.4, 0.22],
-    [0.08, 0.42, 0.24],
-    [0.2, 0.37, 0.2],
-    [0.3, 0.27, 0.14],
-    [0.38, 0.17, 0.09],
-    [0.44, 0.1, 0.05]
+    [
+     -0.05,
+     0.4,
+     0.22
+    ],
+    [
+     0.08,
+     0.42,
+     0.24
+    ],
+    [
+     0.2,
+     0.37,
+     0.2
+    ],
+    [
+     0.3,
+     0.27,
+     0.14
+    ],
+    [
+     0.38,
+     0.17,
+     0.09
+    ],
+    [
+     0.44,
+     0.1,
+     0.05
+    ]
    ],
    "lower": [
-    [0.0, 0.29, 0.09],
-    [0.14, 0.26, 0.075],
-    [0.24, 0.21, 0.06],
-    [0.34, 0.15, 0.045],
-    [0.41, 0.1, 0.032]
+    [
+     0.0,
+     0.29,
+     0.09
+    ],
+    [
+     0.14,
+     0.26,
+     0.075
+    ],
+    [
+     0.24,
+     0.21,
+     0.06
+    ],
+    [
+     0.34,
+     0.15,
+     0.045
+    ],
+    [
+     0.41,
+     0.1,
+     0.032
+    ]
    ],
-   "snout_curve": {"dip": 0.02, "tip": 0.02, "dip_pos": 0.6, "sharp": 1.4},
-   "jaw_curve": {"dip": -0.015, "tip": 0.02, "dip_pos": 0.5, "sharp": 1.5},
+   "snout_curve": {
+    "dip": 0.02,
+    "tip": 0.02,
+    "dip_pos": 0.6,
+    "sharp": 1.4
+   },
+   "jaw_curve": {
+    "dip": -0.015,
+    "tip": 0.02,
+    "dip_pos": 0.5,
+    "sharp": 1.5
+   },
    "feature_scale": 0.55,
    "tooth_scale": 1.0,
    "tooth_seed": 0,
-   "gum": {"scale": 1.0, "flatten": 0.5, "seg": 8},
-   "tooth_span_upper": [0.05, 1.1],
+   "gum": {
+    "scale": 1.0,
+    "flatten": 0.5,
+    "seg": 8
+   },
+   "tooth_span_upper": [
+    0.05,
+    1.1
+   ],
    "teeth_upper": 0,
    "fang_idx_upper": [],
    "fang_scale_upper": 1.0,
-   "tooth_span_lower": [0.05, 1.0],
+   "tooth_span_lower": [
+    0.05,
+    1.0
+   ],
    "teeth_lower": 0,
    "fang_idx_lower": [],
    "fang_scale_lower": 1.0,
    "face_blobs": [
-    {"id": "earplate", "mirror": true, "pos": [0.3, -0.05, 0.28], "scale": [0.22, 0.3, 0.05], "rot": [15, 0, -12]},
-    {"id": "cheekpad", "mirror": true, "pos": [0.32, 0.14, 0.1], "scale": [0.1, 0.09, 0.04], "rot": [0, 0, 8]},
-    {"id": "frontal", "mirror": false, "pos": [0.0, 0.1, 0.27], "scale": [0.1, 0.12, 0.03]},
-    {"id": "commissure", "mirror": true, "pos": [0.2, -0.05, 0.06], "scale": [0.03, 0.05, 0.02], "rot": [0, 0, -10]},
-    {"id": "jaw_hinge", "mirror": true, "pos": [0.22, 0.02, 0.02], "scale": [0.06, 0.09, 0.03]}
+    {
+     "id": "earplate",
+     "mirror": true,
+     "pos": [
+      0.3,
+      -0.05,
+      0.28
+     ],
+     "scale": [
+      0.22,
+      0.3,
+      0.05
+     ],
+     "rot": [
+      15,
+      0,
+      -12
+     ]
+    },
+    {
+     "id": "cheekpad",
+     "mirror": true,
+     "pos": [
+      0.32,
+      0.14,
+      0.1
+     ],
+     "scale": [
+      0.1,
+      0.09,
+      0.04
+     ],
+     "rot": [
+      0,
+      0,
+      8
+     ]
+    },
+    {
+     "id": "frontal",
+     "mirror": false,
+     "pos": [
+      0.0,
+      0.1,
+      0.27
+     ],
+     "scale": [
+      0.1,
+      0.12,
+      0.03
+     ]
+    },
+    {
+     "id": "commissure",
+     "mirror": true,
+     "pos": [
+      0.2,
+      -0.05,
+      0.06
+     ],
+     "scale": [
+      0.03,
+      0.05,
+      0.02
+     ],
+     "rot": [
+      0,
+      0,
+      -10
+     ]
+    },
+    {
+     "id": "jaw_hinge",
+     "mirror": true,
+     "pos": [
+      0.22,
+      0.02,
+      0.02
+     ],
+     "scale": [
+      0.06,
+      0.09,
+      0.03
+     ]
+    }
    ],
    "eye": {
-    "pos": [0.32, 0.09, 0.2],
+    "pos": [
+     0.32,
+     0.09,
+     0.2
+    ],
     "socket_r": 0.2,
     "globe_r": 0.16,
-    "look_dir": [0.55, 0.65, 0.3],
-    "lid_upper_scale": [0.34, 0.5, 0.24],
+    "look_dir": [
+     0.55,
+     0.65,
+     0.3
+    ],
+    "lid_upper_scale": [
+     0.34,
+     0.5,
+     0.24
+    ],
     "lid_upper_zfrac": 0.55
    },
-   "nostril": {"pos": [0.05, 0.36, 0.042], "size": 0.032},
+   "nostril": {
+    "pos": [
+     0.05,
+     0.36,
+     0.042
+    ],
+    "size": 0.032
+   },
    "exp": 3.2,
    "fang_girth_upper": 1.0,
    "fang_girth_lower": 1.0,
@@ -315,8 +713,16 @@
     "yaw0": 25,
     "yaw_spread": 20,
     "fill_n": 0,
-    "base_from": [0.2, -0.05, 0.3],
-    "base_to": [0.28, -0.3, 0.15],
+    "base_from": [
+     0.2,
+     -0.05,
+     0.3
+    ],
+    "base_to": [
+     0.28,
+     -0.3,
+     0.15
+    ],
     "mat": "scales_head",
     "axis_mat": "scales_head",
     "seed": 2.0,
@@ -326,7 +732,11 @@
     "curl_power": 1.0,
     "root_len": 0.01,
     "root_bulge": 1.05,
-    "secondary": {"n": 5, "root_len": 0.005, "root_bulge": 1.0}
+    "secondary": {
+     "n": 5,
+     "root_len": 0.005,
+     "root_bulge": 1.0
+    }
    }
   },
   {
@@ -335,22 +745,70 @@
    "side": "both",
    "mat": "membrane",
    "bone_mat": "wing_bone",
-   "shoulder": [0.32, 0.15, 0.62],
-   "elbow": [1.55, -0.25, 0.48],
-   "wrist": [2.75, -0.55, 0.3],
-   "arm_radii": [0.15, 0.1, 0.065],
+   "shoulder": [
+    0.32,
+    0.15,
+    0.62
+   ],
+   "elbow": [
+    1.55,
+    -0.25,
+    0.48
+   ],
+   "wrist": [
+    2.75,
+    -0.55,
+    0.3
+   ],
+   "arm_radii": [
+    0.15,
+    0.1,
+    0.065
+   ],
    "arm_order": 2,
    "tips": [
-    [3.9, 0.65, 0.03],
-    [3.75, -0.75, 0.02],
-    [3.15, -2.15, 0.025],
-    [2.15, -3.25, 0.015]
+    [
+     3.9,
+     0.65,
+     0.03
+    ],
+    [
+     3.75,
+     -0.75,
+     0.02
+    ],
+    [
+     3.15,
+     -2.15,
+     0.025
+    ],
+    [
+     2.15,
+     -3.25,
+     0.015
+    ]
    ],
-   "anchor": [0.55, -1.95, 0.26],
+   "anchor": [
+    0.55,
+    -1.95,
+    0.26
+   ],
    "root_curve": [
-    [0.32, 0.55, 0.6],
-    [0.38, 0.0, 0.55],
-    [0.34, -1.35, 0.36]
+    [
+     0.32,
+     0.55,
+     0.6
+    ],
+    [
+     0.38,
+     0.0,
+     0.55
+    ],
+    [
+     0.34,
+     -1.35,
+     0.36
+    ]
    ],
    "root_offset": 0.02,
    "sag": 0.15,
@@ -386,7 +844,11 @@
    "knuckle_width": 0.08,
    "wclaw_len": 0.1,
    "wclaw_r": 0.02,
-   "wclaw_rot": [130, 0, 20]
+   "wclaw_rot": [
+    130,
+    0,
+    20
+   ]
   },
   {
    "type": "wing",
@@ -394,12 +856,38 @@
    "side": "both",
    "mat": "membrane",
    "bone_mat": "wing_bone",
-   "shoulder": [0.3, -1.3, 0.32],
-   "elbow": [0.42, -1.45, 0.26],
-   "wrist": [0.52, -1.58, 0.2],
-   "arm_radii": [0.03, 0.025, 0.02],
-   "tips": [[0.62, -1.68, 0.02]],
-   "anchor": [0.38, -1.42, 0.24],
+   "shoulder": [
+    0.3,
+    -1.3,
+    0.32
+   ],
+   "elbow": [
+    0.42,
+    -1.45,
+    0.26
+   ],
+   "wrist": [
+    0.52,
+    -1.58,
+    0.2
+   ],
+   "arm_radii": [
+    0.03,
+    0.025,
+    0.02
+   ],
+   "tips": [
+    [
+     0.62,
+     -1.68,
+     0.02
+    ]
+   ],
+   "anchor": [
+    0.38,
+    -1.42,
+    0.24
+   ],
    "sag": 0.03,
    "samples": 5,
    "columns_between": 1,
@@ -419,14 +907,38 @@
    "side": "L",
    "mat": "membrane",
    "bone_mat": "wing_bone",
-   "shoulder": [-1.3, 0.62, 0.09],
-   "elbow": [-1.43, 0.8, 0.1],
-   "wrist": [-1.55, 0.97, 0.09],
-   "arm_radii": [0.06, 0.052, 0.044],
-   "tips": [
-    [-2.05, 1.12, 0.01]
+   "shoulder": [
+    -1.3,
+    0.62,
+    0.09
    ],
-   "anchor": [-1.65, 0.62, 0.07],
+   "elbow": [
+    -1.43,
+    0.8,
+    0.1
+   ],
+   "wrist": [
+    -1.55,
+    0.97,
+    0.09
+   ],
+   "arm_radii": [
+    0.06,
+    0.052,
+    0.044
+   ],
+   "tips": [
+    [
+     -2.05,
+     1.12,
+     0.01
+    ]
+   ],
+   "anchor": [
+    -1.65,
+    0.62,
+    0.07
+   ],
    "sag": 0.0,
    "samples": 8,
    "columns_between": 1,
@@ -442,7 +954,11 @@
    "festoon": 0.0,
    "wclaw_len": 0.018,
    "wclaw_r": 0.005,
-   "wclaw_rot": [140, 0, 20]
+   "wclaw_rot": [
+    140,
+    0,
+    20
+   ]
   },
   {
    "type": "wing",
@@ -450,14 +966,38 @@
    "side": "R",
    "mat": "prosthetic_fabric",
    "bone_mat": "prosthetic_bone",
-   "shoulder": [-1.1, 0.62, 0.09],
-   "elbow": [-0.97, 0.8, 0.1],
-   "wrist": [-0.85, 0.97, 0.09],
-   "arm_radii": [0.06, 0.052, 0.044],
-   "tips": [
-    [-1.35, 1.12, 0.01]
+   "shoulder": [
+    -1.1,
+    0.62,
+    0.09
    ],
-   "anchor": [-0.75, 0.62, 0.07],
+   "elbow": [
+    -0.97,
+    0.8,
+    0.1
+   ],
+   "wrist": [
+    -0.85,
+    0.97,
+    0.09
+   ],
+   "arm_radii": [
+    0.06,
+    0.052,
+    0.044
+   ],
+   "tips": [
+    [
+     -1.35,
+     1.12,
+     0.01
+    ]
+   ],
+   "anchor": [
+    -0.75,
+    0.62,
+    0.07
+   ],
    "sag": 0.0,
    "samples": 8,
    "columns_between": 1,
@@ -473,7 +1013,11 @@
    "festoon": 0.0,
    "wclaw_len": 0.018,
    "wclaw_r": 0.005,
-   "wclaw_rot": [140, 0, 20]
+   "wclaw_rot": [
+    140,
+    0,
+    20
+   ]
   },
   {
    "type": "limb",
@@ -481,18 +1025,46 @@
    "side": "both",
    "mat": "scales_legs",
    "pts": [
-    [0.26, 0.4, 0.48],
-    [0.28, 0.33, 0.24],
-    [0.25, 0.28, 0.055]
+    [
+     0.26,
+     0.4,
+     0.48
+    ],
+    [
+     0.28,
+     0.33,
+     0.24
+    ],
+    [
+     0.25,
+     0.28,
+     0.055
+    ]
    ],
-   "radii": [0.14, 0.12, 0.14],
+   "radii": [
+    0.14,
+    0.12,
+    0.14
+   ],
    "foot": {
-    "loc": [0.25, 0.27, 0.055],
+    "loc": [
+     0.25,
+     0.27,
+     0.055
+    ],
     "length": 0.12,
     "toe_r0": 0.038,
     "claw_len": 0.035,
-    "pad_size": [0.09, 0.1, 0.06],
-    "toe_angles": [-20, 0, 20]
+    "pad_size": [
+     0.09,
+     0.1,
+     0.06
+    ],
+    "toe_angles": [
+     -20,
+     0,
+     20
+    ]
    }
   },
   {
@@ -501,18 +1073,47 @@
    "side": "both",
    "mat": "scales_legs",
    "pts": [
-    [0.35, -1.3, 0.45],
-    [0.42, -1.55, 0.22],
-    [0.34, -1.75, 0.1]
+    [
+     0.35,
+     -1.3,
+     0.45
+    ],
+    [
+     0.42,
+     -1.55,
+     0.22
+    ],
+    [
+     0.34,
+     -1.75,
+     0.1
+    ]
    ],
-   "radii": [0.22, 0.16, 0.1],
+   "radii": [
+    0.22,
+    0.16,
+    0.1
+   ],
    "foot": {
-    "loc": [0.34, -1.75, 0.09],
+    "loc": [
+     0.34,
+     -1.75,
+     0.09
+    ],
     "length": 0.22,
     "toe_r0": 0.06,
     "claw_len": 0.06,
-    "pad_size": [0.16, 0.18, 0.09],
-    "toe_angles": [-24, -6, 10, 26]
+    "pad_size": [
+     0.16,
+     0.18,
+     0.09
+    ],
+    "toe_angles": [
+     -24,
+     -6,
+     10,
+     26
+    ]
    }
   },
   {
@@ -529,8 +1130,20 @@
     "match": "membrane",
     "subdiv": 2,
     "layers": [
-     {"type": "CLOUDS", "size": 0.7, "strength": 0.06, "mid": 0.5, "coords": "OBJECT"},
-     {"type": "STUCCI", "size": 0.16, "strength": 0.03, "mid": 0.5, "coords": "OBJECT"}
+     {
+      "type": "CLOUDS",
+      "size": 0.7,
+      "strength": 0.06,
+      "mid": 0.5,
+      "coords": "OBJECT"
+     },
+     {
+      "type": "STUCCI",
+      "size": 0.16,
+      "strength": 0.03,
+      "mid": 0.5,
+      "coords": "OBJECT"
+     }
     ]
    }
   ]
@@ -538,16 +1151,34 @@
  "fuse_groups": [
   {
    "id": "tailfin_nat_bone",
-   "parts": ["tailfin_nat"],
-   "exclude_like": ["membrane_", "wclaw_", "batten_", "vein_", "alula_", "aclaw_"],
+   "parts": [
+    "tailfin_nat"
+   ],
+   "exclude_like": [
+    "membrane_",
+    "wclaw_",
+    "batten_",
+    "vein_",
+    "alula_",
+    "aclaw_"
+   ],
    "voxel": 0.04,
    "fillet": 0.08,
    "mat": "wing_bone"
   },
   {
    "id": "tailfin_pros_bone",
-   "parts": ["tailfin_pros"],
-   "exclude_like": ["membrane_", "wclaw_", "batten_", "vein_", "alula_", "aclaw_"],
+   "parts": [
+    "tailfin_pros"
+   ],
+   "exclude_like": [
+    "membrane_",
+    "wclaw_",
+    "batten_",
+    "vein_",
+    "alula_",
+    "aclaw_"
+   ],
    "voxel": 0.04,
    "fillet": 0.08,
    "mat": "prosthetic_bone"
@@ -555,49 +1186,202 @@
  ],
  "scene": {
   "world": {
-   "color": [0.85, 0.85, 0.87],
-   "color_top": [0.95, 0.95, 0.97],
-   "strength": 1.3
+   "color": [
+    0.85,
+    0.85,
+    0.87
+   ],
+   "color_top": [
+    0.95,
+    0.95,
+    0.97
+   ],
+   "strength": 0.45,
+   "visible_strength": 1.4
   },
   "sun": {
-   "direction": [-0.2, -0.5, -0.75],
-   "energy": 3.0,
-   "color": [1.0, 0.98, 0.95]
+   "direction": [
+    -0.2,
+    -0.5,
+    -0.75
+   ],
+   "energy": 1.8,
+   "color": [
+    1.0,
+    0.98,
+    0.95
+   ]
   },
   "area_lights": [
-   {"loc": [-3, -6, 6], "target": [0, 0.5, 0.4], "energy": 2200, "size": 3.0, "color": [1.0, 0.99, 0.96]},
-   {"loc": [4, -4, 3], "target": [0, 0, 0.3], "energy": 900, "size": 4.0, "color": [0.95, 0.97, 1.0]},
-   {"loc": [0, 4, 4], "target": [0, 0.5, 0.4], "energy": 700, "size": 3.0, "color": [1.0, 1.0, 1.0]}
+   {
+    "loc": [
+     -3,
+     -6,
+     6
+    ],
+    "target": [
+     0,
+     0.5,
+     0.4
+    ],
+    "energy": 450,
+    "size": 3.0,
+    "color": [
+     1.0,
+     0.99,
+     0.96
+    ]
+   },
+   {
+    "loc": [
+     4,
+     -4,
+     3
+    ],
+    "target": [
+     0,
+     0,
+     0.3
+    ],
+    "energy": 220,
+    "size": 4.0,
+    "color": [
+     0.95,
+     0.97,
+     1.0
+    ]
+   },
+   {
+    "loc": [
+     0,
+     4,
+     4
+    ],
+    "target": [
+     0,
+     0.5,
+     0.4
+    ],
+    "energy": 160,
+    "size": 3.0,
+    "color": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   }
   ],
   "camera": {
-   "loc": [5.5, 7.5, 6.0],
-   "target": [0, -0.5, 0.5],
+   "loc": [
+    5.5,
+    7.5,
+    6.0
+   ],
+   "target": [
+    0,
+    -0.5,
+    0.5
+   ],
    "lens": 32
   },
   "hero": {
-   "cam": [2.3, 3.2, 7.5],
-   "target": [0, -0.1, 0.3],
+   "cam": [
+    2.3,
+    3.2,
+    7.5
+   ],
+   "target": [
+    0,
+    -0.1,
+    0.3
+   ],
    "lens": 42
   },
   "rim": {
-   "key": [1, -4, 5],
-   "rim": [-3, 2, 3],
+   "key": [
+    1,
+    -4,
+    5
+   ],
+   "rim": [
+    -3,
+    2,
+    3
+   ],
    "key_energy": 700,
    "rim_energy": 1400,
-   "rim_color": [1.0, 1.0, 1.0],
+   "rim_color": [
+    1.0,
+    1.0,
+    1.0
+   ],
    "rim_size": 3.0,
    "key_size": 5,
-   "rim2": [3, -2, 2],
+   "rim2": [
+    3,
+    -2,
+    2
+   ],
    "rim2_energy": 400,
-   "rim2_color": [0.9, 0.95, 1.0],
+   "rim2_color": [
+    0.9,
+    0.95,
+    1.0
+   ],
    "rim2_size": 3
   },
   "shots": [
-   {"id": "hero", "roll": 6},
-   {"id": "head", "frame_part": "head", "dir": [0.9, 1.0, 0.4], "lens": 60, "margin": 1.15},
-   {"id": "eye", "frame_match": ["eye_", "lid_"], "dir": [0.6, 0.65, 0.4], "lens": 90, "margin": 1.3},
-   {"id": "wing", "frame_part": "wing", "dir": [0.3, -0.8, 0.85], "lens": 50, "margin": 1.2},
-   {"id": "tailfin", "frame_part": "tailfin_pros", "dir": [-0.7, 0.0, 0.7], "lens": 55, "margin": 1.6}
+   {
+    "id": "hero",
+    "roll": 6
+   },
+   {
+    "id": "head",
+    "frame_part": "head",
+    "dir": [
+     0.9,
+     1.0,
+     0.4
+    ],
+    "lens": 60,
+    "margin": 1.15
+   },
+   {
+    "id": "eye",
+    "frame_match": [
+     "eye_",
+     "lid_"
+    ],
+    "dir": [
+     0.6,
+     0.65,
+     0.4
+    ],
+    "lens": 90,
+    "margin": 1.3
+   },
+   {
+    "id": "wing",
+    "frame_part": "wing",
+    "dir": [
+     0.3,
+     -0.8,
+     0.85
+    ],
+    "lens": 50,
+    "margin": 1.2
+   },
+   {
+    "id": "tailfin",
+    "frame_part": "tailfin_pros",
+    "dir": [
+     -0.7,
+     0.0,
+     0.7
+    ],
+    "lens": 55,
+    "margin": 1.6
+   }
   ],
   "render": {
    "device": "AUTO",

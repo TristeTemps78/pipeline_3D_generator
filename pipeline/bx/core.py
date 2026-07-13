@@ -118,7 +118,8 @@ def camera(loc, target=(0, 0, 2), lens=45, roll=0.0):
     return ob
 
 
-def world(color=(0.03, 0.04, 0.06), strength=0.4, color_top=None, volume=None, variation=None):
+def world(color=(0.03, 0.04, 0.06), strength=0.4, color_top=None, volume=None, variation=None,
+          visible_strength=None):
     """Fond monde. Rétro-compatible : color/strength seuls = fond uni.
     color_top : dégradé horizon→zénith (horizon = `color`).
     volume : {'density', 'anisotropy', 'color', 'noise_scale', 'noise_strength'} → brume
@@ -127,7 +128,17 @@ def world(color=(0.03, 0.04, 0.06), strength=0.4, color_top=None, volume=None, v
     brouillard uniforme).
     variation : {'scale', 'strength', 'color', 'detail'} → fond non-uni générique (bruit
     Noise sur coords Generated, mixé par-dessus le dégradé/couleur de base) — casse le
-    fond plat façon canyon/paroi rocheuse, aucune valeur dragon en dur."""
+    fond plat façon canyon/paroi rocheuse, aucune valeur dragon en dur.
+    `visible_strength` (boucle 20, chantier Krokmou fond studio blanc) : découple la
+    LUMINOSITÉ VISIBLE du fond (rayons caméra directs, ce qu'on voit derrière le sujet)
+    de sa CONTRIBUTION comme source de lumière (GI/spéculaire/diffus sur les objets) —
+    via un noeud Light Path 'Is Camera Ray' + Mix Shader entre deux Background de même
+    couleur mais de force différente (`strength` pour l'éclairage, `visible_strength`
+    pour ce que voit la caméra). Un dôme très lumineux nécessaire à un fond blanc net
+    illumine sinon le sujet à la MÊME intensité, noyant un matériau sombre sous un
+    voile spéculaire gris uniforme (piège boucle 20 : silhouette noire illisible sur
+    fond studio). None (défaut) = un seul Background, comportement inchangé (rétro-
+    compat totale, tous les appelants existants)."""
     w = bpy.data.worlds.new('world')
     w.use_nodes = True
     nt = w.node_tree
@@ -173,8 +184,27 @@ def world(color=(0.03, 0.04, 0.06), strength=0.4, color_top=None, volume=None, v
             vmix.inputs['A'].default_value = (*color, 1)
         nt.links.new(vfac.outputs['Value'], vmix.inputs['Factor'])
         nt.links.new(vmix.outputs['Result'], bg.inputs[0])
+        final_socket = vmix.outputs['Result']
     elif base_socket is not None:
         nt.links.new(base_socket, bg.inputs[0])
+        final_socket = base_socket
+    else:
+        final_socket = None
+    if visible_strength is not None and visible_strength != strength:
+        # découplage visible/GI (cf. docstring) : 2e Background (même couleur, force
+        # `visible_strength`) mélangé au premier via Light Path 'Is Camera Ray'.
+        bg2 = nt.nodes.new('ShaderNodeBackground')
+        bg2.inputs[1].default_value = visible_strength
+        if final_socket is not None:
+            nt.links.new(final_socket, bg2.inputs[0])
+        else:
+            bg2.inputs[0].default_value = (*color, 1)
+        lp = nt.nodes.new('ShaderNodeLightPath')
+        mixsh = nt.nodes.new('ShaderNodeMixShader')
+        nt.links.new(lp.outputs['Is Camera Ray'], mixsh.inputs['Fac'])
+        nt.links.new(bg.outputs['Background'], mixsh.inputs[1])
+        nt.links.new(bg2.outputs['Background'], mixsh.inputs[2])
+        nt.links.new(mixsh.outputs['Shader'], nt.nodes['World Output'].inputs['Surface'])
     if volume:
         vs = nt.nodes.new('ShaderNodeVolumeScatter')
         base_density = volume.get('density', 0.01)

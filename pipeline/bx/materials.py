@@ -56,7 +56,9 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
                    normal_map=None, normal_map_strength=1.0,
                    ao_map=None, ao_strength=0.35,
                    curvature_map=None, curvature_mix=0.6,
-                   axis_uv=False, axis_uv_stretch=2.4, scale_axis=None):
+                   axis_uv=False, axis_uv_stretch=2.4, scale_axis=None,
+                   spec_level=0.55, sheen=0.08, aniso=0.3,
+                   specular_tint=(0.6, 0.46, 0.36)):
     """pattern.reptile_scales v3 (audit boucle 17, CR1 « charbon/rouge ») : 2 voronoi
     distance-to-edge superposés (plaques + micro-écailles) sur coordonnées Object
     distordues par noise (casse la grille ; Object car les curves n'ont pas de Generated
@@ -100,6 +102,13 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     (creux baked plus sombres) ; `curvature_map` se MÉLANGE (`curvature_mix`) à la
     Pointiness géométrique live pour moduler la patine cavité — moins uniforme qu'une
     Pointiness seule sur un low-poly lissé après le shell de bake.
+    `spec_level`/`sheen`/`aniso`/`specular_tint` (boucle 20, chantier Krokmou « peau
+    satinée gris-bleu, pas de teinte cuivre ») : ces 4 réglages du Principled BSDF
+    étaient câblés en dur (valeurs Drogon, reflet chaud cuivré) — désormais paramètres
+    avec les MÊMES défauts (rétro-compat totale pour Drogon et les autres appelants).
+    `specular_tint` neutre/froid (proche de (1,1,1)) retire la teinte chaude des
+    reflets/grazing-angle même quand `edge_copper=0` (ce dernier ne masque que la
+    couleur diffuse d'arête, pas le Specular Tint global du BSDF).
     `scale_axis` (P0 boucle 19 round 2, chantier « face lave uniforme ») : liste
     [[u, multiplicateur], ...] triée par `u` (0..1, abscisse le long de l'axe
     `axis_uv` — nécessite `axis_uv=True`) qui module le `Scale` Voronoi (plaques +
@@ -405,10 +414,10 @@ def reptile_scales(name='scales', base=(0.012, 0.011, 0.013), tint=(0.25, 0.05, 
     lk.new(color_out, bsdf.inputs['Base Color'])
     lk.new(rough_out, bsdf.inputs['Roughness'])
     _set(bsdf, 'Roughness', rough)
-    _set(bsdf, 'Specular Tint', (0.6, 0.46, 0.36, 1.0))
-    _set(bsdf, 'Specular IOR Level', 0.55)
-    _set(bsdf, 'Anisotropic', 0.3)
-    _set(bsdf, 'Sheen Weight', 0.08)
+    _set(bsdf, 'Specular Tint', (*specular_tint, 1.0))
+    _set(bsdf, 'Specular IOR Level', spec_level)
+    _set(bsdf, 'Anisotropic', aniso)
+    _set(bsdf, 'Sheen Weight', sheen)
     if sss > 0:  # I4 : diffusion sous-cutanée → chair vivante, pas plastique
         _set(bsdf, 'Subsurface Weight', sss)
         _set(bsdf, 'Subsurface Radius', sss_radius)
@@ -769,7 +778,7 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
              iris_color2=None, pupil_color=(0.012, 0.009, 0.007), pupil_width=0.16, iris_r=0.5,
              rough=0.08, clearcoat=0.55, glow=0.12, pupil_length=1.0, pupil_edge=0.015,
              catchlight=0.0, catchlight_pos=(0.55, 0.4), catchlight_size=0.045,
-             catchlight_soft=0.02):
+             catchlight_soft=0.02, spec_level=0.5):
     """EyeBuilder (boucle 17 CR3, feedback B) : matériau GÉNÉRIQUE pour un globe
     oculaire ISOLÉ en un seul objet + un seul matériau — remplace l'empilement de 3
     disques (sclère/iris/pupille plaqués) sur un matériau émissif plat par un
@@ -781,6 +790,11 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     `iris_r` (0..1) = rayon où l'iris cède la place à la sclère. ColorRamp à arrêts
     RAPPROCHÉS aux frontières (pupille/iris, iris/sclère) -> transitions nettes sans
     changer le mode d'interpolation (reste LINEAR, pas de flou de bord constant).
+    DEUX distances séparées (fix boucle 20, bug « bille de verre sans iris lisible ») :
+    l'anneau iris/sclère (rond, `dist_round`) et le trou de pupille + son liseré
+    (fente verticale squishée, `dist_slit`) sont calculés indépendamment puis
+    superposés par Mix — auparavant une SEULE distance squishée pilotait tout le
+    dégradé, écrasant le disque iris en une fine bande verticale.
     Très spéculaire (`rough` bas, défaut proche du mouillé) + `clearcoat` -> le globe
     ACCROCHE la lumière (reflet net) au lieu du flat-color mort de l'ancien matériau
     uniforme ; `glow` (défaut faible, PAS l'ancien plein-émissif ~2.0) ajoute une once
@@ -808,6 +822,52 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     tc = n.new('ShaderNodeTexCoord')
     sep = n.new('ShaderNodeSeparateXYZ')
     lk.new(tc.outputs['Object'], sep.inputs['Vector'])
+    # --- distance RONDE (Y,Z bruts, sphère unitaire) : pilote l'ANNEAU iris/sclère
+    # comme un DISQUE CIRCULAIRE (fix boucle 20, bug « bille de verre sans iris
+    # lisible » — cf. docstring : l'ancien code pilotait TOUT le dégradé pupille->
+    # iris->sclère depuis la distance SQUISHÉE (pupil_width/pupil_length), écrasant
+    # le disque iris rond en une fine bande verticale quasi invisible dès qu'on
+    # s'écartait de l'axe horizontal de quelques degrés). ---
+    y2r = n.new('ShaderNodeMath')
+    y2r.operation = 'MULTIPLY'
+    lk.new(sep.outputs['Y'], y2r.inputs[0])
+    lk.new(sep.outputs['Y'], y2r.inputs[1])
+    z2r = n.new('ShaderNodeMath')
+    z2r.operation = 'MULTIPLY'
+    lk.new(sep.outputs['Z'], z2r.inputs[0])
+    lk.new(sep.outputs['Z'], z2r.inputs[1])
+    dsumr = n.new('ShaderNodeMath')
+    dsumr.operation = 'ADD'
+    lk.new(y2r.outputs['Value'], dsumr.inputs[0])
+    lk.new(z2r.outputs['Value'], dsumr.inputs[1])
+    dist_round = n.new('ShaderNodeMath')
+    dist_round.operation = 'SQRT'
+    lk.new(dsumr.outputs['Value'], dist_round.inputs[0])
+
+    ir = max(0.20, min(iris_r, 0.45))
+    outer2 = iris_color2 if iris_color2 is not None else tuple(c * 0.55 for c in iris_color)
+    ramp = n.new('ShaderNodeValToRGB')
+    els = ramp.color_ramp.elements
+    while len(els) > 1:
+        els.remove(els[-1])
+    els[0].position, els[0].color = 0.0, (*iris_color, 1)
+
+    def stop(pos, color):
+        e = els.new(max(0.0, min(1.0, pos)))
+        e.color = (*color, 1)
+
+    stop(ir * 0.72, iris_color)               # tenu jusqu'à l'anneau externe
+    stop(ir, outer2)                          # DEUX TONS : anneau externe plus sombre
+    stop(min(0.94, ir + 0.06), sclera_color)  # bord net iris/sclère
+    stop(1.0, sclera_color)
+    ramp.color_ramp.interpolation = 'LINEAR'
+    lk.new(dist_round.outputs['Value'], ramp.inputs['Fac'])
+    color_out = ramp.outputs['Color']
+
+    # --- distance FENTE (squishée Y/pupil_width, Z/pupil_length) : pilote SEULEMENT
+    # le trou de pupille (ellipse verticale) + son liseré clair, superposés en Mix
+    # PAR-DESSUS le disque iris rond ci-dessus — la fente reste fine/haute, mais ne
+    # dévore plus tout l'iris environnant. ---
     ydiv = n.new('ShaderNodeMath')
     ydiv.operation = 'DIVIDE'
     ydiv.inputs[1].default_value = max(0.02, pupil_width)
@@ -828,34 +888,53 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     dsum.operation = 'ADD'
     lk.new(y2.outputs['Value'], dsum.inputs[0])
     lk.new(z2.outputs['Value'], dsum.inputs[1])
-    dist = n.new('ShaderNodeMath')
-    dist.operation = 'SQRT'
-    lk.new(dsum.outputs['Value'], dist.inputs[0])
-    ramp = n.new('ShaderNodeValToRGB')
-    els = ramp.color_ramp.elements
-    while len(els) > 1:
-        els.remove(els[-1])
-    els[0].position, els[0].color = 0.0, (*pupil_color, 1)
-
-    def stop(pos, color):
-        e = els.new(max(0.0, min(1.0, pos)))
-        e.color = (*color, 1)
+    dist_slit = n.new('ShaderNodeMath')
+    dist_slit.operation = 'SQRT'
+    lk.new(dsum.outputs['Value'], dist_slit.inputs[0])
 
     amber_hi = tuple(min(1.0, c * 1.5 + 0.05) for c in iris_color)
-    ir = max(0.20, min(iris_r, 0.45))
-    outer2 = iris_color2 if iris_color2 is not None else tuple(c * 0.55 for c in iris_color)
     edge = max(0.006, pupil_edge)
-    stop(0.15, pupil_color)               # bord net pupille
-    stop(0.15 + edge, amber_hi)           # liseré clair (catch-light iris/pupille), resserré
-    stop(0.15 + edge + 0.05, iris_color)  # iris interne vif
-    stop(ir * 0.72, iris_color)           # tenu jusqu'à l'anneau externe
-    stop(ir, outer2)                      # DEUX TONS : anneau externe plus sombre
-    stop(min(0.94, ir + 0.06), sclera_color)  # bord net iris/sclère
-    stop(1.0, sclera_color)
-    ramp.color_ramp.interpolation = 'LINEAR'
-    lk.new(dist.outputs['Value'], ramp.inputs['Fac'])
-    color_out = ramp.outputs['Color']
-    emission_out = ramp.outputs['Color']
+    pupil_r = 0.15
+    pupil_map = n.new('ShaderNodeMapRange')
+    pupil_map.clamp = True
+    pupil_map.inputs['From Min'].default_value = pupil_r
+    pupil_map.inputs['From Max'].default_value = pupil_r + edge
+    pupil_map.inputs['To Min'].default_value = 1.0
+    pupil_map.inputs['To Max'].default_value = 0.0
+    lk.new(dist_slit.outputs['Value'], pupil_map.inputs['Value'])
+    mix_pupil = n.new('ShaderNodeMix')
+    mix_pupil.data_type = 'RGBA'
+    mix_pupil.inputs['B'].default_value = (*pupil_color, 1)
+    lk.new(color_out, mix_pupil.inputs['A'])
+    lk.new(pupil_map.outputs['Result'], mix_pupil.inputs['Factor'])
+    color_out = mix_pupil.outputs['Result']
+
+    # liseré clair juste hors du trou (catch-light iris/pupille), même forme de fente
+    ring_up = n.new('ShaderNodeMapRange')
+    ring_up.clamp = True
+    ring_up.inputs['From Min'].default_value = pupil_r
+    ring_up.inputs['From Max'].default_value = pupil_r + edge
+    ring_up.inputs['To Min'].default_value = 0.0
+    ring_up.inputs['To Max'].default_value = 1.0
+    lk.new(dist_slit.outputs['Value'], ring_up.inputs['Value'])
+    ring_down = n.new('ShaderNodeMapRange')
+    ring_down.clamp = True
+    ring_down.inputs['From Min'].default_value = pupil_r + edge
+    ring_down.inputs['From Max'].default_value = pupil_r + edge + 0.05
+    ring_down.inputs['To Min'].default_value = 1.0
+    ring_down.inputs['To Max'].default_value = 0.0
+    lk.new(dist_slit.outputs['Value'], ring_down.inputs['Value'])
+    ring_fac = n.new('ShaderNodeMath')
+    ring_fac.operation = 'MINIMUM'
+    lk.new(ring_up.outputs['Result'], ring_fac.inputs[0])
+    lk.new(ring_down.outputs['Result'], ring_fac.inputs[1])
+    mix_ring = n.new('ShaderNodeMix')
+    mix_ring.data_type = 'RGBA'
+    mix_ring.inputs['B'].default_value = (*amber_hi, 1)
+    lk.new(color_out, mix_ring.inputs['A'])
+    lk.new(ring_fac.outputs['Value'], mix_ring.inputs['Factor'])
+    color_out = mix_ring.outputs['Result']
+    emission_out = color_out
     if catchlight > 0:
         cy, cz = catchlight_pos
         dy = n.new('ShaderNodeMath')
@@ -910,6 +989,14 @@ def eye_globe(name='eye', sclera_color=(0.045, 0.022, 0.016), iris_color=(0.55, 
     _set(bsdf, 'Clearcoat', clearcoat)
     _set(bsdf, 'Coat Roughness', 0.03)
     _set(bsdf, 'Clearcoat Roughness', 0.03)
+    # `spec_level` (boucle 20, chantier Krokmou : iris délavé/blanchi sous fond studio
+    # blanc très lumineux) : Specular IOR Level du BSDF, défaut 0.5 = comportement
+    # historique. Sous un dôme monde très lumineux, la réflexion diélectrique blanche
+    # s'AJOUTE (additif, pas un mélange) à la couleur diffuse de l'iris sur toute la
+    # calotte visible -> désature/blanchit un iris pourtant saturé en Base Color.
+    # Baisser `spec_level` réduit cette réflexion SANS toucher au catchlight (nodal,
+    # indépendant de l'éclairage réel de la scène).
+    _set(bsdf, 'Specular IOR Level', spec_level)
     # Emission = LA MÊME rampe (pas `iris_color` constant) : bug diagnostiqué boucle 18
     # pt2 (test isolé sphère+lampe) -> une émission plate uniforme sur TOUTE la sphère
     # noyait la sclère sombre sous un glow ambré constant en éclairage faible, rendant
