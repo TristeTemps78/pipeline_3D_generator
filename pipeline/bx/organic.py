@@ -849,6 +849,13 @@ def wing(part, mats):
     # visible contre la membrane rétro-éclairée (feedback : le réseau géométrique
     # doit se LIRE, pas se fondre avec les lattes/doigts du même ton).
     vein_mat_key = part.get('vein_mat', bone_mat_key)
+    # pid (fix boucle 20, note ref-analyst) : préfixe TOUS les noms d'objets de cette
+    # part avec son propre id -> plusieurs parts `wing` dans la même spec (ex.
+    # wing/hipfin/tailfin_nat/tailfin_pros) ne collisionnent plus sur les mêmes noms
+    # génériques (membrane_L, wclaw_L0...) -> `feedback.part_bbox`/`frame_part`
+    # retrouvent chaque part individuellement. Substrings (`exclude_like`/
+    # `frame_match`/`displace_targets.match`) restent valides (recherche par `in`).
+    pid = part.get('id', 'wing')
     for s in sides:
         tag = 'L' if s > 0 else 'R'
         # pose (T17 CR2, pose dynamique) : override PAR CÔTÉ, appliqué APRÈS le
@@ -874,11 +881,11 @@ def wing(part, mats):
         # cf. `_anatomical_tube`) : rétro-compat totale, tube NURBS d'origine si
         # `muscles`/`joints`/`folds` absents de la spec (comportement inchangé).
         if part.get('muscles') or part.get('joints') or part.get('folds'):
-            arm = _anatomical_tube(f'arm_{tag}', [sh, el, wr], arm_radii,
+            arm = _anatomical_tube(f'{pid}_arm_{tag}', [sh, el, wr], arm_radii,
                                    muscles=part.get('muscles'), joints=part.get('joints'),
                                    folds=part.get('folds'), mirror_sign=s)
         else:
-            arm = ops.tube(f'arm_{tag}', [sh, el, wr], arm_radii, order=arm_order)
+            arm = ops.tube(f'{pid}_arm_{tag}', [sh, el, wr], arm_radii, order=arm_order)
         materials.assign(arm, _mat(mats, bone_mat_key))
         out.append(arm)
         rays = [tuple((s * p[0], p[1], p[2])) for p in part['tips']]
@@ -930,7 +937,7 @@ def wing(part, mats):
             far = knuckles[0]
             hand_pts = [W, W.lerp(far, 0.55), far]
             hand_radii = [hand_r0, (hand_r0 + hand_r1) * 0.5, hand_r1]
-            hand = ops.tube(f'hand_{tag}', [tuple(p) for p in hand_pts], hand_radii)
+            hand = ops.tube(f'{pid}_hand_{tag}', [tuple(p) for p in hand_pts], hand_radii)
             materials.assign(hand, _mat(mats, bone_mat_key))
             out.append(hand)
 
@@ -1055,7 +1062,7 @@ def wing(part, mats):
         # volume "planche à voile" au lieu d'une membrane plate.
         thickness_rows = [th_root + (th_edge - th_root) * (i / (nt - 1)) ** 0.7
                           for i in range(nt)]
-        mem = ops.grid_surface(f'membrane_{tag}', cols, thickness=thickness_rows)
+        mem = ops.grid_surface(f'{pid}_membrane_{tag}', cols, thickness=thickness_rows)
         materials.assign(mem, _mat(mats, part.get('mat', 'membrane')))
         out.append(mem)
         # lattes (battens) : nervures fines couchées sur la membrane entre les doigts,
@@ -1073,7 +1080,7 @@ def wing(part, mats):
                     bpts = [(v.x, v.y, v.z + batten_lift)
                             for v in col_pts(root_at(gu), edge_pt(a, b, u, fest, chord_scale), u,
                                              t0=batten_start)]
-                    batt = ops.tube(f'batten_{tag}{j}_{bi}', bpts, batten_radii)
+                    batt = ops.tube(f'{pid}_batten_{tag}{j}_{bi}', bpts, batten_radii)
                     materials.assign(batt, _mat(mats, bone_mat_key))
                     out.append(batt)
         # veines de membrane EN ARBRE (chantier B, boucle 19 : le motif Voronoï du
@@ -1120,7 +1127,7 @@ def wing(part, mats):
                 vr = laws.power_taper(3, r0, 1.1, max(vein_rmin, r0 * 0.3))
                 pmid = p0.lerp(p1, 0.5)
                 res_u, bev_res = (4, 3) if gen == 0 else (3, 2)
-                vtube = ops.tube(f'vein_{tag}{j}_{bi}_{gen}_{next(_vein_id)}',
+                vtube = ops.tube(f'{pid}_vein_{tag}{j}_{bi}_{gen}_{next(_vein_id)}',
                                  [tuple(p0), tuple(pmid), tuple(p1)], vr,
                                  resolution_u=res_u, bevel_resolution=bev_res)
                 materials.assign(vtube, _mat(mats, vein_mat_key))
@@ -1206,10 +1213,10 @@ def wing(part, mats):
                 if finger_bow:
                     v = v + perp * (finger_bow * math.sin(math.pi * t))
                 fpts.append((v.x, v.y, v.z + finger_lift))
-            f = ops.tube(f'finger_{tag}{j}', fpts, fr)
+            f = ops.tube(f'{pid}_finger_{tag}{j}', fpts, fr)
             materials.assign(f, _mat(mats, bone_mat_key))
             out.append(f)
-            claw = ops.spike(f'wclaw_{tag}{j}', (tip[0], tip[1], tip[2] + finger_lift),
+            claw = ops.spike(f'{pid}_wclaw_{tag}{j}', (tip[0], tip[1], tip[2] + finger_lift),
                              wclaw_len, wclaw_r, wclaw_rot)
             materials.assign(claw, _mat(mats, claw_mat_key))
             out.append(claw)
@@ -1229,10 +1236,10 @@ def wing(part, mats):
             a_radii = laws.power_taper(nt, a_r0, finger_taper, a_rmin)
             a_pts = [(v.x, v.y, v.z + finger_lift)
                      for v in [W.lerp(Vector(a_tip), i / (nt - 1)) for i in range(nt)]]
-            afin = ops.tube(f'alula_{tag}', a_pts, a_radii)
+            afin = ops.tube(f'{pid}_alula_{tag}', a_pts, a_radii)
             materials.assign(afin, _mat(mats, bone_mat_key))
             out.append(afin)
-            aclaw = ops.spike(f'aclaw_{tag}', (a_tip[0], a_tip[1], a_tip[2] + finger_lift),
+            aclaw = ops.spike(f'{pid}_aclaw_{tag}', (a_tip[0], a_tip[1], a_tip[2] + finger_lift),
                               a_claw, a_claw * 0.4, wclaw_rot)
             materials.assign(aclaw, _mat(mats, claw_mat_key))
             out.append(aclaw)
@@ -1243,7 +1250,7 @@ def wing(part, mats):
             arm_base = Vector(el).lerp(W, alula.get('root_frac', 0.65))
             arm_col = [tuple(v) for v in col_pts(arm_base, W, 0.0)]
             tip_col = [tuple(v) for v in col_pts(W, Vector(a_tip), 1.0)]
-            a_mem = ops.grid_surface(f'alula_mem_{tag}', [arm_col, tip_col],
+            a_mem = ops.grid_surface(f'{pid}_alula_mem_{tag}', [arm_col, tip_col],
                                      thickness=[t * 0.55 for t in thickness_rows])
             materials.assign(a_mem, _mat(mats, part.get('mat', 'membrane')))
             out.append(a_mem)
