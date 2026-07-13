@@ -32,8 +32,9 @@ manquait, c'est cette carte, et un mode d'inspection rapide pièce par pièce (`
  └─────────────────┘
         │
         ▼
- ┌─────────────────┐   pipeline/run.py → le CHEF D'ORCHESTRE (301 lignes, 1 commande
- │ 4. RENDER        │       par action) : forge, clayhero, part, sheet4, bake…
+ ┌─────────────────┐   pipeline/run.py → le CHEF D'ORCHESTRE (1 commande par action) :
+ │ 4. RENDER        │       forge, clayhero, part, sheet4, bake…
+ │                  │       `python3 pipeline/run.py --help` les liste toutes
  └─────────────────┘
         │
         ▼
@@ -49,7 +50,7 @@ créature**. `dragon_got.json` et `krokmou.json` passent dans exactement le mêm
 
 | Fichier | Lignes | Rôle en une phrase |
 |---|---|---|
-| `pipeline/run.py` | ~340 | CLI : lit la spec, appelle les étages, écrit les PNG. **Commence ta lecture ici.** |
+| `pipeline/run.py` | ~335 | CLI : lit la spec, appelle les étages, écrit les PNG. `--help` liste tout. **Commence ta lecture ici.** |
 | `bx/validate.py` | 127 | « Est-ce que la géométrie est saine ? » sans dépenser un rendu. |
 | `bx/fuse.py` | 167 | Soude des groupes d'objets en un seul mesh (voxel/SDF). |
 | `gvl/laws.py` | 201 | Petites lois de croissance réutilisables (anneaux de corne, spirales…). |

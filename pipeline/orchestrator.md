@@ -9,14 +9,13 @@ Boucle : **GROUND → BUILD → RENDER → CRITIQUE → FEEDBACK utilisateur →
    si un nouveau type de partie est requis. Jamais de bpy brut hors de `bx/`.
 3. **LOOK** (agent `look-dev`) : matériaux, lumières, caméra — sections `materials`/`scene` de la spec.
 4. **RENDER** : `python3 pipeline/run.py forge <spec> --fast` pour itérer, sans `--fast` pour présenter.
-5. **CRITIQUE** : d'abord MESURÉE — `python3 pipeline/run.py compare <spec> <ref.png>`
-   (planche réf|rendu + deltas `color_stats`/`edge_density`). Puis OBLIGATOIRE (auto-audit
-   boucle 19, faute F2) : agent `render-critic` SÉPARÉ (œil neuf, jamais celui qui a
-   implémenté) sur les shots HQ de présentation, prompt = critères de l'évaluateur
-   utilisateur ; ses défauts bloquants font continuer la boucle au lieu de s'arrêter.
-   Un correctif n'est « fait » que s'il LIT dans le shot de présentation (faute F1) —
-   les rapports distinguent « implémenté » de « lit à l'écran » (faute F5). Max 3
-   itérations internes en --fast, puis rendu HQ.
+5. **CRITIQUE** (cadence SIMPLICITÉ boucle 20, remplace le « max 3 itérations » d'avant) :
+   1 round géométrie + 1 round look MAX avant de montrer. D'abord MESURÉE —
+   `python3 pipeline/run.py compare <spec> <ref.png>` (planche réf|rendu + deltas). Puis
+   agent `render-critic` SÉPARÉ (œil neuf, jamais celui qui a implémenté), UNE passe,
+   UNIQUEMENT sur les shots HQ de présentation ; ses défauts bloquants font continuer la
+   boucle. Un correctif n'est « fait » que s'il LIT dans le shot de présentation —
+   distinguer « implémenté » de « lit à l'écran ».
 6. **FEEDBACK** : STOP obligatoire — présenter le rendu HQ à l'utilisateur et attendre
    ses retours précis avant toute suite. Consigner le feedback dans `pipeline/state/session.json`
    et les décisions actionnables dans `NEXT.md` (contrat de la boucle suivante, avec cibles chiffrées).
@@ -35,21 +34,13 @@ Boucle : **GROUND → BUILD → RENDER → CRITIQUE → FEEDBACK utilisateur →
   (`git push origin HEAD:<branche>`) pour que la prochaine session parte du bon état.
 - Conteneur neuf : `bash pipeline/bootstrap.sh` (installe bpy pip si absent).
 
-## Règles d'économie de tokens
-- L'état vit dans les fichiers (spec, session.json, CLAUDE.md), pas dans la conversation.
-- Les agents lisent uniquement : CLAUDE.md + la spec + (si besoin) le module bx concerné.
-- Les phases BUILD/LOOK/GROUND sont DÉLÉGUÉES à des agents en modèle SONNET
-  (`model: sonnet` FIXÉ dans le frontmatter de `.claude/agents/*.md` — sans lui, l'agent
-  hérite du modèle cher de l'orchestrateur) avec un contrat précis (cibles chiffrées,
-  fichiers à toucher, nb max d'itérations) ; l'orchestrateur ne fait que cadrer, juger
-  les rendus et committer. Le contrat donne à l'agent les CLÉS de spec à toucher, pas
-  mission de relire toute la spec ; les agents ne lisent jamais un module bx en entier
-  (Grep/offset).
-- Chaque PNG regardé coûte des tokens (≈0,4 k en 640×480, ≈1,3 k en HQ) : juger sur UNE
-  planche (`sheet`/`compare`) par round, pas les shots un à un ; render-critic seulement
-  à la présentation.
-- Auto-audit à chaque fin de boucle : `bash pipeline/audit.sh` + purge des renders non-jalons
-  (garder : jalons référencés dans CLAUDE.md/NEXT.md, scene.blend + scene_prev.blend).
-- Éditions de spec par petits patchs JSON, pas de réécriture complète.
-- Rendus internes en --fast (640×480/16 spl) ; HQ (1152×864/48 spl) réservé à la présentation.
-- Mettre à jour CLAUDE.md à chaque grosse étape (fin de boucle, changement d'architecture).
+## Économie de tokens
+Les règles vivent dans CLAUDE.md (section ÉCONOMIE, auto-chargée par toutes les sessions
+et tous les agents) — ne pas les dupliquer ici. Spécifique à l'orchestration :
+- Délégation = contrat PRÉCIS : les CLÉS de spec à toucher (pas « relis la spec »),
+  cibles chiffrées, nb max d'itérations ; l'orchestrateur ne fait que cadrer, juger,
+  committer.
+- Chaque PNG regardé coûte (≈0,4 k tokens en 640×480, ≈1,3 k en HQ) : juger sur UNE
+  planche (`sheet`/`compare`) par round, pas les shots un à un.
+- Fin de boucle : `bash pipeline/audit.sh` (signale renders non référencés et agents
+  sans `model:`) + purge + mise à jour CLAUDE.md/HANDOFF.md.

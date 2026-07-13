@@ -2,17 +2,16 @@
 
 ## But & directives permanentes (utilisateur, 2026-07-08)
 - BUT : pipeline GÉNÉRIQUE phrase/texte/vidéo → modèle 3D précis et complexe, Python+Blender
-  seulement. Le dragon = banc d'essai (important en soi) ; toute mécanique nouvelle doit rester
-  pilotée par la spec JSON, jamais du code spécifique dragon.
+  seulement. La créature en cours = banc d'essai ; toute mécanique nouvelle doit rester
+  pilotée par la spec JSON, jamais du code spécifique à une créature.
 - ÉCONOMIE : l'orchestrateur délègue le gros du travail à des agents SONNET (`model: sonnet`
   imposé dans le frontmatter de `.claude/agents/*.md` — vérifier qu'il y reste) ; auto-audit
-  régulier via `bash pipeline/audit.sh` (poids, nb fichiers, LOC) — direction claire,
-  pas de boucles/hallucinations/tokens déraisonnables. Budget lecture : boot session =
-  CLAUDE.md (auto) + HANDOFF.md, RIEN d'autre ; gros fichiers (bx/organic.py 1854 l.,
-  materials.py, specs) JAMAIS en Read complet — Grep ciblé/offset, spec éditée par patchs ;
-  images : 1 planche (`sheet`/`compare`) par round de jugement, pas N PNG séparés ;
-  rendu HQ = long → le lancer UNE fois en fin de boucle, pas au milieu d'allers-retours
-  (chaque pause >5 min casse le cache de prompt et refacture tout le contexte).
+  régulier via `bash pipeline/audit.sh`. Budget lecture : boot session = CLAUDE.md (auto) +
+  HANDOFF.md, RIEN d'autre ; gros fichiers (bx/organic.py, materials.py, specs) JAMAIS en
+  Read complet — Grep ciblé/offset, spec éditée par patchs ; images : 1 planche
+  (`sheet`/`compare`) par round de jugement, pas N PNG séparés ; rendu HQ = long → le lancer
+  UNE fois en fin de boucle, pas au milieu d'allers-retours (chaque pause >5 min casse le
+  cache de prompt et refacture tout le contexte).
 - COMPACITÉ : dossier léger — purger les renders sauf jalons référencés, logs compacts,
   CLAUDE.md court. Conseil clone local léger : `git clone --depth 1`.
 - BLENDS : toujours garder les 2 derniers modèles ouvrables (`renders/scene.blend` +
@@ -29,31 +28,41 @@ JAMAIS ici : tout l'état (boucle en cours, dernier feedback, contrat, restes) v
 (à lire seulement au cadrage d'une boucle). Protocole : `pipeline/orchestrator.md`.
 Cible visuelle : `references/krokmou_ref.md` (Krokmou/Toothless, depuis boucle 20 ;
 Drogon archivé : spec+maps+`renders/drogon_step297.blend`, réfs `references/drogon_*.png`).
-PIÈGES appris : armure = Separate Components sinon OOM ; Object Info ORIGINAL ignore le
-transform objet ; couronne : angle X POSITIF = bascule arrière ; transmission sur coque
-fine + lumières fortes = taches blanches transmises (mettre 0 ou masquer) ; _axis_factor
-(masks/grads armure) travaille en coordonnées locales == monde seulement si l'objet est
-à l'origine ; détail tête : plaques trop grosses/soulevées = « gravier » qui noie la
-sculpture (scale ~.02-.05 à l'échelle d'un crâne de 2u) ; VOLUME SCATTER mondial
-(brume/poussière) = rendu ×30-100 sur CPU (2h chez l'utilisateur, >20 min HQ ici vs 38 s
-sans) — atmosphère par dégradé+variation du fond, volume réservé GPU et jamais par défaut.
 
-## Métriques (normalisées h=512 — `run.py compare`)
-Cibles réf : couleur moy (0.33,0.27,0.26) · cuivre 0.42 · bords 0.36. La PRIORITÉ utilisateur est la densité de détail (bords), pas la couleur.
+## Pièges appris (chèrement — ne pas redécouvrir)
+- Armure = Separate Components sinon OOM.
+- Object Info ORIGINAL ignore le transform objet.
+- Couronne : angle X POSITIF = bascule arrière.
+- Transmission sur coque fine + lumières fortes = taches blanches transmises (mettre 0 ou masquer).
+- `_axis_factor` (masks/grads armure) travaille en coordonnées locales == monde SEULEMENT
+  si l'objet est à l'origine.
+- Détail tête : plaques trop grosses/soulevées = « gravier » qui noie la sculpture
+  (scale ~.02-.05 à l'échelle d'un crâne de 2u).
+- VOLUME SCATTER mondial (brume/poussière) = rendu ×30-100 sur CPU (2h chez l'utilisateur) —
+  atmosphère par dégradé+variation du fond, volume réservé GPU et jamais par défaut.
+- Blobs quasi sphériques pour chair pendante = interdit (rend en œufs) : aplatir (ratio ≤0.5/2.7/0.8).
+- voxel fuse ≥.04 gonfle ×3 les tubes fins (r~.05), <.033 = mesh vide → pas de fuse sur pièces fines.
+
+## Métriques
+`run.py compare` (planche réf|rendu + deltas, normalisé h=512) dès que la réf PNG existe.
+Krokmou (noir sur fond blanc) : copper_fraction NON pertinent — juger luminance p5/p50/p95
+dans la créature + densité de bords. (Cibles Drogon archivées : couleur (0.33,0.27,0.26),
+cuivre .42, bords .36 ; priorité utilisateur = densité de détail, pas la couleur.)
 
 ## Règles
-- Spec = source de vérité (`specs/dragon_got.json`). Jamais de bpy brut hors `pipeline/bx/`.
+- Spec = source de vérité (`specs/krokmou.json`). Jamais de bpy brut hors `pipeline/bx/`.
 - Géométrie d'abord (clay), look ensuite. Chaque pas jugé par métrique + œil ; pas non améliorant → annulé.
-- Écailles = GÉOMÉTRIE plaquée/imbriquée (`detail.armor` : mask, scale_grad, distance_min≈0.4-0.6×plaque), pas du bruit. Blobs quasi sphériques pour chair pendante = interdit (rend en œufs) : aplatir (ratio ≤0.5/2.7/0.8).
-- La tête suit la fin de spine (continuité, pas de couture) ; ancres absolues (dewlap, masks, ailes) à recaler après tout déplacement de spine.
+- Écailles = GÉOMÉTRIE plaquée/imbriquée (`detail.armor`), pas du bruit.
+- La tête suit la fin de spine (continuité, pas de couture) ; ancres absolues (dewlap,
+  masks, ailes) à recaler après tout déplacement de spine.
 - Éditions par petits patchs ; --fast pour itérer, HQ pour présenter ; CLAUDE.md court.
 
-## Cmds
-`bash pipeline/bootstrap.sh` (conteneur neuf) puis `python3 pipeline/run.py` :
-`forge <spec> [--fast|--clay|--sheet|--shot <id>]` (si `scene.shots` : 1 PNG par prise, cadrage auto par pièce) · `part <spec> <id> [--fast|--clay]` (UNE pièce isolée, cadrage auto, ~20-30 s — inspection rapide) · `bake <spec> [--fast]` (étage high→low : shell voxel temporaire+displacement → maps/ normal/AO/courbure, ~45 s) · `clayhero <spec> [--fast]` (géométrie, cadrage macro) · `compare <spec> <ref.png> [--fast]` (réf|rendu + deltas) · `validate <spec>` (BVH sans rendu) · `sheet <spec>`.
-
-## Modules bx
-core (clay, rim_setup, camera, world variation, render settings=`scene.render` perf GPU/samples/bounces, realize_to_mesh) · ops (tube res param, blob, spike, grid_surface, ring_loft, boolean_diff) · organic (spine/head cornes growth_rings/wing knuckle_spread+root_follow_arm+vein_branches/limb/dewlap/armure `_apply_armor`) · detail (armor_scales masks axiaux+`mask_radial` normales nx/ny/nz+`scale_noise`, keeled_scale, displace_layers) · fuse (voxel_fuse, sdf_fuse+fuse_groups — exclude_like À TENIR À JOUR pour tout nouveau motif d'objet) · validate (BVH) · feedback (compare_sheet, sheet4, part_bbox, iou) · materials (reptile_scales patine cavité + slots maps bakées normal/ao/curvature, membrane veines transmission≤.05, horn kératine ; ignorés en clay) · bake (shell high-poly temporaire, surface.layers scales/wrinkles/micro, UV auto, bake selected_to_active). GVL : `pipeline/gvl/` (lois growth_rings/curl_offset + vocabulary.json).
+## Cmds & modules
+`bash pipeline/bootstrap.sh` (conteneur neuf) puis `python3 pipeline/run.py --help`
+(forge/part/clayhero/sheet/sheet4/compare/validate/inspect/bake — part = inspection d'UNE
+pièce ~20-30 s ; validate/inspect = zéro rendu). Carte des modules bx : `docs/ARCHITECTURE.md`.
+À TENIR À JOUR en codant : `fuse.exclude_like` pour tout nouveau motif d'objet ;
+`materials` ignorés en clay ; GVL (`pipeline/gvl/`) pour toute nouvelle loi de croissance.
 
 ## Git
 Toutes les branches `claude/*` = UNE lignée : `git fetch --prune`, travailler sur la plus

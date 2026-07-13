@@ -6,9 +6,14 @@ l'utilisateur dit « continue », exécuter le contrat ci-dessous sans reposer d
 ## Où on en est
 Hors boucle (2026-07-13, plainte coût tokens) : CLAUDE.md renommé (minuscule = pas
 auto-chargé), `model: sonnet` AJOUTÉ au frontmatter des 4 agents (il manquait — chaque
-délégation tournait sur le modèle cher), règles budget lecture/images dans CLAUDE.md +
-orchestrator.md, audit.sh détecte renders non référencés + agents sans model, purge PNG
-182/218/231/297/381.
+délégation tournait sur le modèle cher), règles budget lecture/images dans CLAUDE.md,
+audit.sh détecte renders non référencés + agents sans model, purge PNG 182/218/231/297/381.
+Audit 2 (même jour, « trop compliqué, fluidifie ») : run.py factorisé (_begin/_end, table
+COMMANDS, --help sans bpy, erreurs propres), orchestrator.md réaligné sur la cadence
+SIMPLICITÉ (contradiction « max 3 itérations » supprimée) + économie dédupliquée vers
+CLAUDE.md, CLAUDE.md restructuré (pièges en liste, métriques Drogon marquées archivées),
+NEXT.md nettoyé (items Drogon archivés, « 2e créature » retiré : FAIT = Krokmou), README
+réécrit (exemples Krokmou), note DOUTE résolue retirée de la spec, research/renders purgé.
 Boucle 20 = SWITCH Drogon → **Krokmou** (Toothless, décision utilisateur) + virage
 SIMPLICITÉ/RAPIDITÉ (feedback mi-boucle, directive permanente ajoutée à CLAUDE.md).
 **EN ATTENTE DE FEEDBACK** sur **step_380_hero/head/eye/wing/tailfin** (HQ, v1 Krokmou).

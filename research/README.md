@@ -12,7 +12,7 @@ câbler dans le pipeline.
   - `t4_t5_detail.py` — displace en couches + écailles geometry-nodes sur le corps fusionné.
   - `t6_t7_feedback.py` — planche-contact 4 vues → 1 PNG + score IoU de silhouette.
 - **`logs/`** — sortie JSON de chaque test (mesures numériques reproductibles).
-- **`renders/`** — rendus clay produits par les tests.
+- (les rendus des tests ne sont plus versionnés — régénérables via `python3 research/tests/t*.py`)
 
 ## Verdict
 

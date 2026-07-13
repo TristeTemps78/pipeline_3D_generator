@@ -29,7 +29,12 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'pipeline'))
 
-from bx import core, organic, validate, feedback  # noqa: E402
+if __name__ == '__main__' and (len(sys.argv) < 2 or sys.argv[1] in ('-h', '--help', 'help')):
+    sys.exit(__doc__)  # l'aide ne doit pas exiger bpy
+try:
+    from bx import core, organic, validate, feedback  # noqa: E402
+except ModuleNotFoundError as e:
+    raise SystemExit(f"{e} — conteneur neuf ? lancer d'abord : bash pipeline/bootstrap.sh")
 
 STATE = os.path.join(ROOT, 'pipeline', 'state', 'session.json')
 
@@ -56,6 +61,24 @@ def _next_out(st, ext='png'):
     out = os.path.join(ROOT, 'renders', f"step_{st['step']:03d}.{ext}")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     return out
+
+
+def _begin(spec_path, clay=False):
+    """Tronc commun des commandes qui rendent : spec + état incrémenté + scène construite.
+    Retourne (spec, st, n_objets)."""
+    spec = _load(spec_path)
+    st = load_state()
+    st['step'] += 1
+    n = organic.build(spec)
+    if clay:
+        core.clay()
+    return spec, st, n
+
+
+def _end(st, spec_path, out):
+    """Tronc commun de fin : enregistre spec courante + dernier rendu dans l'état."""
+    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
+    save_state(st)
 
 
 def _save_scene():
@@ -115,10 +138,7 @@ def _shot_camera(spec, shot, res):
 
 
 def forge(spec_path, fast=False):
-    spec = _load(spec_path)
-    st = load_state()
-    st['step'] += 1
-    n = organic.build(spec)
+    spec, st, n = _begin(spec_path)
     out = _next_out(st)
     if '--sheet' in sys.argv:
         core.clay()
@@ -159,8 +179,7 @@ def forge(spec_path, fast=False):
         else:
             core.render(out, res=res, samples=samples, settings=rset)
     _save_scene()
-    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
-    save_state(st)
+    _end(st, spec_path, out)
     print(f"OK objets={n} rendu={out}")
 
 
@@ -185,10 +204,7 @@ def do_validate(spec_path):
 def do_compare(spec_path, ref_path, fast=False):
     """Inversion I2 : rendu macro rim-lit d'une région côte à côte avec la réf + deltas.
     Région via spec['scene']['hero'] = {'cam':[...], 'target':[...], 'lens':..}."""
-    spec = _load(spec_path)
-    st = load_state()
-    st['step'] += 1
-    organic.build(spec)
+    spec, st, _ = _begin(spec_path)
     hero = spec.get('scene', {}).get('hero', {})
     tgt = tuple(hero.get('target', spec.get('scene', {}).get('camera', {}).get('target', (0, 0, 2))))
     core.rim_setup(target=tgt, **spec.get('scene', {}).get('rim', {}))
@@ -198,43 +214,32 @@ def do_compare(spec_path, ref_path, fast=False):
                                  res=res, samples=(20 if fast else 40),
                                  lens=hero.get('lens', 70))
     _save_scene()
-    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
-    save_state(st)
+    _end(st, spec_path, out)
     print(json.dumps({'sheet': rep['sheet'], 'ref': rep['ref'], 'render': rep['render']}, indent=1))
 
 
 def do_clayhero(spec_path, fast=False):
     """Clay + caméra hero : juge la GÉOMÉTRIE seule dans le cadrage macro de `compare`,
     sans matériaux ni rim. C'est le rendu de validation entre deux éditions d'écailles/reliefs."""
-    spec = _load(spec_path)
-    st = load_state()
-    st['step'] += 1
-    organic.build(spec)
-    core.clay()
+    spec, st, _ = _begin(spec_path, clay=True)
     hero = spec.get('scene', {}).get('hero', {})
     tgt = tuple(hero.get('target', spec.get('scene', {}).get('camera', {}).get('target', (0, 0, 2))))
     core.camera(tuple(hero.get('cam', (5, -6, 3))), target=tgt, lens=hero.get('lens', 70))
     out = _next_out(st)
     res, samples = ((560, 560), 12) if fast else ((900, 900), 24)
     core.render(out, res=res, samples=samples)
-    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
-    save_state(st)
+    _end(st, spec_path, out)
     print(f"OK clay hero -> {out}")
 
 
 def do_sheet(spec_path, fast=False):
-    spec = _load(spec_path)
-    st = load_state()
-    st['step'] += 1
-    organic.build(spec)
-    core.clay()
+    spec, st, _ = _begin(spec_path, clay=True)
     out = _next_out(st)
     tgt = spec.get('scene', {}).get('camera', {}).get('target', (0, 0, 1.5))
     res = (384, 288) if fast else (576, 432)
     path, views = feedback.contact_sheet(out, res=res, samples=(10 if fast else 24),
                                          target=tuple(tgt))
-    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
-    save_state(st)
+    _end(st, spec_path, out)
     print(f"OK planche-contact {views} -> {path}")
 
 
@@ -242,15 +247,10 @@ def do_sheet4(spec_path, fast=False):
     """Axe 5 doctrine : 5-10x le signal visuel d'un seul rendu — 6 vues cadrées auto
     (bbox globale) + passe ID par pièce, en UN PNG. Clay (comme `sheet`) : on juge la
     géométrie/les proportions/les pièces, pas le matériau final."""
-    spec = _load(spec_path)
-    st = load_state()
-    st['step'] += 1
-    organic.build(spec)
-    core.clay()
+    spec, st, _ = _begin(spec_path, clay=True)
     out = _next_out(st)
     path, legend, colors = feedback.sheet4(out, spec, fast=fast)
-    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
-    save_state(st)
+    _end(st, spec_path, out)
     print(f"OK sheet4 {legend} -> {path}")
     print(json.dumps({'legend': legend, 'id_colors': colors}, indent=1))
 
@@ -274,12 +274,7 @@ def do_part(spec_path, part_key, fast=False):
     """Inspection VISUELLE d'une pièce isolée (demande utilisateur boucle 20 : voir et
     comprendre les pièces une par une, vite). Construit la scène, cache tout le reste,
     cadre auto sur la bbox de la pièce, rendu léger. `--clay` = géométrie seule."""
-    spec = _load(spec_path)
-    st = load_state()
-    st['step'] += 1
-    organic.build(spec)
-    if '--clay' in sys.argv:
-        core.clay()
+    spec, st, _ = _begin(spec_path, clay='--clay' in sys.argv)
     registry = feedback.part_registry(feedback.spec_parts(spec))
     keep = set()
     for key, objs in registry.items():
@@ -302,8 +297,7 @@ def do_part(spec_path, part_key, fast=False):
                 target=tuple(center), lens=lens)
     out = _next_out(st).replace('.png', f'_part_{part_key}.png')
     core.render(out, res=res, samples=(16 if fast else 48))
-    st.update(spec=os.path.relpath(spec_path, ROOT), last_render=os.path.relpath(out, ROOT))
-    save_state(st)
+    _end(st, spec_path, out)
     print(f"OK pièce '{part_key}' ({len(keep)} objets) -> {out}")
 
 
@@ -318,26 +312,29 @@ def do_inspect(spec_path):
           f"~{rep['totals']['verts_est']} sommets, {len(rep['parts'])} groupes de pièces.")
 
 
+# commande -> (fonction, nb d'arguments positionnels après <spec>, passe fast ?)
+COMMANDS = {
+    'forge': (forge, 0, True),
+    'validate': (do_validate, 0, False),
+    'sheet': (do_sheet, 0, True),
+    'sheet4': (do_sheet4, 0, True),
+    'inspect': (do_inspect, 0, False),
+    'part': (do_part, 1, True),
+    'clayhero': (do_clayhero, 0, True),
+    'compare': (do_compare, 1, True),
+    'bake': (do_bake, 0, True),
+}
+
 if __name__ == '__main__':
-    cmd = sys.argv[1] if len(sys.argv) > 1 else 'forge'
-    fast = '--fast' in sys.argv
-    if cmd == 'forge':
-        forge(sys.argv[2], fast=fast)
-    elif cmd == 'validate':
-        do_validate(sys.argv[2])
-    elif cmd == 'sheet':
-        do_sheet(sys.argv[2], fast=fast)
-    elif cmd == 'sheet4':
-        do_sheet4(sys.argv[2], fast=fast)
-    elif cmd == 'inspect':
-        do_inspect(sys.argv[2])
-    elif cmd == 'part':
-        do_part(sys.argv[2], sys.argv[3], fast=fast)
-    elif cmd == 'clayhero':
-        do_clayhero(sys.argv[2], fast=fast)
-    elif cmd == 'compare':
-        do_compare(sys.argv[2], sys.argv[3], fast=fast)
-    elif cmd == 'bake':
-        do_bake(sys.argv[2], fast=fast)
-    else:
-        sys.exit(f"commande inconnue: {cmd}")
+    argv = sys.argv[1:]
+    if not argv or argv[0] in ('-h', '--help', 'help'):
+        sys.exit(__doc__)
+    cmd = argv[0]
+    if cmd not in COMMANDS:
+        sys.exit(f"commande inconnue: {cmd} — commandes : {', '.join(COMMANDS)}\n\n{__doc__}")
+    fn, extra, takes_fast = COMMANDS[cmd]
+    pos = [a for a in argv[1:] if not a.startswith('--')]
+    if len(pos) < 1 + extra:
+        sys.exit(f"'{cmd}' attend <spec.json>{' <arg>' * extra} — cf. python3 pipeline/run.py --help")
+    args = pos[:1 + extra]
+    fn(*args, **({'fast': '--fast' in argv} if takes_fast else {}))
