@@ -21,9 +21,10 @@ miroité sur TOUTES les branches claude/* — tout clone antérieur doit être R
 règle : blends committés aux JALONS seulement (cause de l'ancien gonflement).
 Boucle 20 = SWITCH Drogon → **Krokmou** (Toothless, décision utilisateur) + virage
 SIMPLICITÉ/RAPIDITÉ (feedback mi-boucle, directive permanente ajoutée à CLAUDE.md).
-**FEEDBACK step_380 REÇU (2026-07-13, session locale)** → contrat boucle 21 ci-dessous.
-Session locale Windows : bpy ininstallable (ARM64/3.14) — run.py = conteneur seulement,
-note ajoutée au README ; la boucle 21 s'exécute donc en session conteneur.
+Boucle 21 round GÉOMÉTRIE exécuté EN LOCAL (2026-07-13, shape-smith + micro-fix earplates,
+look non touché) — **EN ATTENTE DE FEEDBACK** sur **step_400_hero/head/eye/wing/tailfin** (HQ).
+Pipeline 100 % local désormais : `bash pipeline/blender_run.sh <cmd> <spec>` (Blender installé,
+bpy embarqué, part ~4 s) — plus besoin de conteneur ; wheel bpy pip impossible (ARM64/3.14).
 Drogon archivé : `specs/dragon_got.json` + maps + `renders/drogon_step297.blend` + jalons.
 
 Cible = photo utilisateur transcrite dans `references/krokmou_ref.md` (pose couchée ailes
@@ -49,7 +50,17 @@ Fait en boucle 20 :
 - SIMPLICITÉ : `docs/ARCHITECTURE.md` (carte stacks pédagogique), `run.py part <spec> <id>`
   (pièce isolée ~20-30 s, `core.isolate` générique), directives CLAUDE.md.
 
-## Contrat boucle 21 (feedback utilisateur step_380, 2026-07-13 — verbatim dans session.json)
+## Contrat boucle 21 — EXÉCUTÉ (round géométrie unique ; à juger sur step_400)
+Fait : œil enfoncé (globe_r .16→.135, paupière inclinée via nouvelle clé générique
+`eye.lid_upper_rot`), museau élargi ×2 (fini la proue), 2 cornes arrière + nubs
+menton/mâchoire (`face_blobs`), earplates épaissies/balayées arrière (étaient des disques),
+corps massif/cou fin (radii body .67→.75 max, .42→.20 côté tête) + dos bombé, base
+tailfin_pros/nat pénétrant le tube de queue (sans fuse), doigts d'aile `finger_bow` .28→.38.
+Annulés (non améliorants) : cornes spiky rise .85, earplate-hélice. validate = 0 mal posés.
+RESTES à l'œil : cornes encore fines/pointues (power_taper finit à rayon ~0 — extension
+builder si l'utilisateur les veut charnues) ; pincement possible à la jonction cou-tête
+(radii .20 très fin) ; earplates à confirmer en HQ.
+Contrat d'origine (feedback step_380, verbatim en session.json) :
 Cadence SIMPLICITÉ : 1 round géométrie + 1 round look max avant de montrer ; HQ en fin seulement.
 - **P0 TÊTE** (« le gros point noir », aspect mécanique/aplati) :
   a. Œil INTÉGRÉ : le crâne doit englober l'arrière du globe (aujourd'hui : sphère parfaite

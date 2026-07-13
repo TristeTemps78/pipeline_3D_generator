@@ -479,6 +479,12 @@ def head(part, mats):
     # builder ni changer la géométrie des autres paupières.
     lus = eyep.get('lid_upper_scale', (0.30, 0.5, 0.24))
     luz = eyep.get('lid_upper_zfrac', 0.74)
+    # lid_upper_rot (boucle 21, feedback P0a « arcade sourcilière = plaque rigide,
+    # pas une courbe fluide type paupière ») : rétro-compat totale (défaut = ancienne
+    # rotation figée (0,0,10)) -- une bascule X légère permet d'incliner le capuchon
+    # de paupière pour qu'il ÉPOUSE la calotte du globe (recessé, cf. `eye.globe_r`/
+    # `socket_r`) au lieu de rester un plan plaqué à plat dessus.
+    lur = eyep.get('lid_upper_rot', (0, 0, 10))
     for s, tag in ((1, 'l'), (-1, 'r')):
         # orientation du globe (feedback boucle 19 chantier C, « iris/pupille non
         # perçus ») : BUG diagnostiqué -- `ops.blob` sans `rot_deg` laisse l'axe
@@ -507,7 +513,8 @@ def head(part, mats):
         materials.assign(g, eye_m)
         out.append(g)
         lu = ops.blob(f'lid_up_{tag}', W((s * ex * 0.72, ey + 0.02, ez + esr * luz)),
-                      (esr * lus[0], esr * lus[1], esr * lus[2]), rot_deg=(0, 0, s * 10))
+                      (esr * lus[0], esr * lus[1], esr * lus[2]),
+                      rot_deg=(lur[0], lur[1], s * lur[2]))
         materials.assign(lu, skin)
         out.append(lu)
         ll = ops.blob(f'lid_lo_{tag}', W((s * ex * 0.72, ey - 0.018, ez - esr * 0.72)),
