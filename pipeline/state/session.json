@@ -1,7 +1,7 @@
 {
- "step": 381,
- "spec": "specs/krokmou.json",
- "last_render": "renders/step_381_part_tailfin_pros.png",
+ "step": 382,
+ "spec": "specs\\krokmou.json",
+ "last_render": "renders\\step_382_part_head.png",
  "feedback": [
   {
    "step": 6,
@@ -61,7 +61,7 @@
   },
   {
    "step": 380,
-   "user": "Feedback step_380 (v1 Krokmou). (1) T\u00caTE+YEUX = le gros point noir, aspect m\u00e9canique et aplati : \u0153il = sph\u00e8re parfaite pos\u00e9e \u00e0 L'EXT\u00c9RIEUR de la t\u00eate, orbite = trou d\u00e9coup\u00e9 agressivement \u2014 le cr\u00e2ne doit ENGLOBER l'arri\u00e8re du globe, arcade sourcili\u00e8re = courbe fluide type paupi\u00e8re naturelle, pas plaque rigide ; cr\u00e2ne trop plat dessus, s'arr\u00eate brusquement \u00e0 l'avant (proue de bateau) \u2192 ellipso\u00efde aplati (salamandre/serpent) avec taper vers l'avant mais museau LARGE et ARRONDI ; cornes/oreilles MANQUANTES : 2 grandes cornes \u00e0 l'arri\u00e8re + petites excroissances c\u00f4t\u00e9s/menton (aspect axolotl). (2) COU/CORPS : cou = long tube conique lisse et rigide qui rentre direct dans la t\u00eate \u2192 vraie distinction cou fin / corps massif via variation de rayon le long de la spine, dos l\u00e9g\u00e8rement bomb\u00e9. (3) AILES = le point le MIEUX r\u00e9ussi (membranes pliss\u00e9es saluées) ; mais doigts = cylindres parfaits rigides \u2192 l\u00e9g\u00e8re courbure vers l'arri\u00e8re (chauve-souris). (4) QUEUE/AILERON (tailfin.png) : logique cylindres+c\u00f4nes visible, pi\u00e8ces qui ne se touchent pas ou se croisent bizarrement ; aileron proth\u00e9tique rouge D\u00c9TACH\u00c9 \u2192 relier \u00e0 l'axe de la queue (base p\u00e9n\u00e9trant le cylindre, ou boolean union \u2014 NB orchestrateur : fuse voxel interdit sur pi\u00e8ces fines, pi\u00e8ge connu)."
+   "user": "Feedback step_380 (v1 Krokmou). (1) T\u00caTE+YEUX = le gros point noir, aspect m\u00e9canique et aplati : \u0153il = sph\u00e8re parfaite pos\u00e9e \u00e0 L'EXT\u00c9RIEUR de la t\u00eate, orbite = trou d\u00e9coup\u00e9 agressivement \u2014 le cr\u00e2ne doit ENGLOBER l'arri\u00e8re du globe, arcade sourcili\u00e8re = courbe fluide type paupi\u00e8re naturelle, pas plaque rigide ; cr\u00e2ne trop plat dessus, s'arr\u00eate brusquement \u00e0 l'avant (proue de bateau) \u2192 ellipso\u00efde aplati (salamandre/serpent) avec taper vers l'avant mais museau LARGE et ARRONDI ; cornes/oreilles MANQUANTES : 2 grandes cornes \u00e0 l'arri\u00e8re + petites excroissances c\u00f4t\u00e9s/menton (aspect axolotl). (2) COU/CORPS : cou = long tube conique lisse et rigide qui rentre direct dans la t\u00eate \u2192 vraie distinction cou fin / corps massif via variation de rayon le long de la spine, dos l\u00e9g\u00e8rement bomb\u00e9. (3) AILES = le point le MIEUX r\u00e9ussi (membranes pliss\u00e9es salu\u00e9es) ; mais doigts = cylindres parfaits rigides \u2192 l\u00e9g\u00e8re courbure vers l'arri\u00e8re (chauve-souris). (4) QUEUE/AILERON (tailfin.png) : logique cylindres+c\u00f4nes visible, pi\u00e8ces qui ne se touchent pas ou se croisent bizarrement ; aileron proth\u00e9tique rouge D\u00c9TACH\u00c9 \u2192 relier \u00e0 l'axe de la queue (base p\u00e9n\u00e9trant le cylindre, ou boolean union \u2014 NB orchestrateur : fuse voxel interdit sur pi\u00e8ces fines, pi\u00e8ge connu)."
   }
  ]
 }

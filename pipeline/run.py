@@ -29,6 +29,12 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'pipeline'))
 
+if '--' in sys.argv:
+    # Lancement via le Blender installé (local Windows, pas de wheel bpy) :
+    #   blender --background --python pipeline/run.py -- <cmd> <spec> [flags]
+    # argv contient d'abord les args de Blender ; ne garder que les nôtres.
+    sys.argv = [sys.argv[0]] + sys.argv[sys.argv.index('--') + 1:]
+
 if __name__ == '__main__' and (len(sys.argv) < 2 or sys.argv[1] in ('-h', '--help', 'help')):
     sys.exit(__doc__)  # l'aide ne doit pas exiger bpy
 try:
