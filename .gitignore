@@ -2,3 +2,8 @@ __pycache__/
 *.pyc
 renders/*.blend1
 renders/*.blend@
+
+# Réfs images © (locales seulement — décision de commit = utilisateur)
+references/krokmou_ortho_side.png
+references/krokmou_ref_front34.png
+references/krokmou_anatomy_skeleton.png

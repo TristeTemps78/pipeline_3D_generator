@@ -25,10 +25,14 @@ Boucle 23 (skin_body/head_galet, rounds 1-3) : committée en checkpoint `48963ba
 
 ## Contrat boucle 24 — « SCULPTEUR v1 » (À DÉMARRER)
 
-P0-A RÉFÉRENCES : obtenir 2-3 vues ortho de Krokmou (profil obligatoire, face/dessus si
-possible) → `references/krokmou_ortho_side.png` etc. Session locale = réseau OK (recherche
-d'images model-sheet/jouet) OU demander à l'utilisateur de déposer les PNG. Sans profil,
-ne pas commencer la cage.
+P0-A RÉFÉRENCES : ✅ FAIT (2026-07-16) — `references/krokmou_ortho_side.png` (profil
+entier debout, fond blanc = cible IoU), `krokmou_ref_front34.png` (HQ 3/4, pas ortho),
+`krokmou_anatomy_skeleton.png` (squelette profil = guide cage). ⚠ LOCALES et GITIGNORÉES
+(© DreamWorks, push sur repo public bloqué — URLs de re-téléchargement dans
+`references/krokmou_ref.md`) → `silh` et la cage ne se travaillent qu'en session LOCALE
+tant que l'utilisateur n'a pas committé les PNG lui-même. Pas de vraie vue face/dessus
+dans les renders officiels — métrique v1 = PROFIL seul. (Piste écartée : STL Thingiverse
+TEXNOme = chibi assis, hors proportions film.)
 P0-B MÉTRIQUE : dans `bx/feedback.py`, score silhouette = IoU entre masque du rendu ortho
 (caméra orthographique par axe) et masque de la réf (créature sombre sur fond clair →
 seuillage), normalisé bbox. Exposer `run.py silh <spec>` (score par vue, delta vs dernier).

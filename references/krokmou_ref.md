@@ -5,6 +5,20 @@ interdit le téléchargement d'images (registres de paquets seulement). L'utilis
 committer la photo en `references/krokmou_pose.png` depuis son clone local pour réactiver
 `run.py compare`. En attendant : jugement visuel orchestrateur + render-critic sur cette fiche.
 
+## Références IMAGES — LOCALES, NON commitées (récupérées 2026-07-16, session locale)
+## © DreamWorks : le push sur repo PUBLIC a été bloqué (garde-fou Claude Code) → fichiers
+## gitignorés. L'utilisateur peut les committer lui-même s'il l'assume, ou les re-télécharger
+## (URLs wiki HTTYD : Toothless-Render.png, Toothless_Render_(bareback)_V2.png,
+## Night_Fury_Skeleton.png sur static.wikia.nocookie.net/howtotrainyourdragon).
+- `krokmou_ortho_side.png` (570×302, fond blanc) : render promo officiel, corps ENTIER en
+  vrai profil (debout, ailes levées derrière, tête légèrement tournée caméra) — CIBLE du
+  score de silhouette (IoU) de la boucle 24. Pose de MODELING (debout neutre), distincte
+  de la pose hero couchée ci-dessous.
+- `krokmou_ref_front34.png` (1800×980) : render HQ 3/4 avant debout sans selle — proportions
+  tête/poitrail, matière peau ; PAS une ortho (caméra à recaler si utilisée en métrique).
+- `krokmou_anatomy_skeleton.png` (1296×617) : squelette officiel superposé, quasi-profil —
+  guide de placement des vertices de cage (colonne, bassin, épaules, crâne).
+
 ## Pose (cadrage cible du shot hero)
 - Couché à plat ventre au sol, corps compact, vu de 3/4 avant surélevé (caméra haute).
 - Tête à DROITE du cadre, posée bas près du sol, face au spectateur, regard vers l'objectif.
