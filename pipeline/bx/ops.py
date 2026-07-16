@@ -90,12 +90,26 @@ def blob(name, loc=(0, 0, 0), scale=(1, 1, 1), rot_deg=(0, 0, 0), seg=32):
     return core.shade_smooth(ob)
 
 
-def spike(name, loc, height=0.3, radius=0.08, rot_deg=(0, 0, 0), seg=8):
-    """Cône pointu (pointes dorsales, dents, griffes)."""
+def spike(name, loc, height=0.3, radius=0.08, rot_deg=(0, 0, 0), seg=8, flatten=None,
+          tip_frac=0.0):
+    """Cône pointu (pointes dorsales, dents, griffes). `flatten` (paire (fx, fy),
+    boucle 23 P0-B « oreilles = plaques charnues pas sucettes » ; défaut None =
+    rétro-compat, base circulaire inchangée) : écrase la base elliptiquement
+    (fx sur X local, fy sur Y local) AVANT rotation -> plaque conique charnue
+    (épaisse à la base, s'affinant vers une pointe) au lieu d'un pic fin rond,
+    sans dupliquer la primitive. `tip_frac` (0..1, défaut 0 = rétro-compat, pointe
+    fine inchangée) : rayon PLANCHER à la pointe (fraction de `radius`, même
+    mécanisme que `blade.tip_frac` des cornes) -> bout ÉMOUSSÉ/arrondi plutôt
+    qu'un pic aigu, pour une plaque charnue (oreilles) au lieu d'une lame/épine."""
     mesh = bpy.data.meshes.new(name)
     bm = bmesh.new()
     bmesh.ops.create_cone(bm, cap_ends=True, segments=seg,
-                          radius1=radius, radius2=0.0, depth=height)
+                          radius1=radius, radius2=radius * tip_frac, depth=height)
+    if flatten is not None:
+        fx, fy = flatten
+        for v in bm.verts:
+            v.co.x *= fx
+            v.co.y *= fy
     bm.to_mesh(mesh)
     bm.free()
     ob = bpy.data.objects.new(name, mesh)

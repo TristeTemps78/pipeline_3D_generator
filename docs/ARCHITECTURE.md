@@ -60,7 +60,82 @@ créature**. `dragon_got.json` et `krokmou.json` passent dans exactement le mêm
 | `bx/feedback.py` | 567 | Tout ce qui MESURE : bbox par pièce, comparaison à la réf, planches. |
 | `bx/detail.py` | 732 | Écailles/reliefs plaqués sur les surfaces. |
 | `bx/materials.py` | 1078 | Les shaders (peau reptile, membrane, œil…). Gros mais indépendant. |
-| `bx/organic.py` | 1854 | LE gros morceau : transforme chaque entrée `parts[]` de la spec en anatomie. Lis-le partie par type (`spine`, `head`, `wing`, `limb`) — chaque type est une fonction. |
+| `bx/organic.py` | ~2100 | LE gros morceau : transforme chaque entrée `parts[]` de la spec en anatomie. Lis-le partie par type (`spine`, `head`, `wing`, `limb`, `skin_body`, `head_galet`) — chaque type est une fonction. |
+
+### Boucle 23 « UNE SEULE PEAU » — squelette SKIN + tête sans booléen (Krokmou)
+
+Deux nouveaux types de partie, en remplacement de `spine`+`head` pour Krokmou (les
+anciens types restent dispo pour d'autres créatures) :
+- `skin_body` : squelette réel (mesh vertices+edges, PAS une NURBS) — colonne
+  vertébrale + membres branchés (`limbs[]`, attache AUTO au vertex de spine le plus
+  proche) — porté par un modifier `SKIN` (rayon PAR VERTEX, `bm.verts.layers.skin`)
+  puis lissé par Subdivision Surface. UN SEUL objet continu corps+cou+queue+pattes.
+  `smooth` réutilise `laws.catmull_rom` mais avec une DÉCIMATION ADAPTATIVE
+  (`_densify_chain`) : le modifier SKIN a besoin d'arêtes plus longues que le rayon
+  local, sinon les anneaux se chevauchent et ça se lit comme des « ailerons » en
+  éventail (bug mesuré) — la densification retombe donc naturellement là où le
+  rayon est grand (torse) et reste fine là où il est petit (cou, queue).
+- `head_galet` : crâne = UV sphere écrasée/étirée puis museau = étirement
+  proportionnel des vertices avant (pas de découpe). Yeux posés EN SURFACE
+  (`_ellipsoid_surface`, calcul analytique) + 1 paupière-plaque par œil. Oreilles =
+  `ops.spike(flatten=..., tip_frac=...)` (cônes écrasés à pointe émoussée),
+  liste générique `ears[]`.
+- `weld_groups` (clé top-level de la spec, générique) : soude en un seul mesh
+  (`ops.boolean_union`, EXACT+TRANSFER) les groupes de parts listés, hors motifs
+  `exclude_like` — utilisé pour souder `head_galet` à `skin_body` sans booléen dans
+  le builder lui-même (`_apply_weld_groups`, même schéma que `fuse_groups` mais
+  boolean exact au lieu de SDF voxel). Piège : un objet consommé par le weld perd
+  son nom d'origine (`classify_object` par préfixe) → un `scene.shots[].frame_part`
+  qui le ciblait doit passer à `frame_match` (sous-chaînes de nom, ex. `eye_`/`lid_`).
+- `limb.skip_tube` (bool) : ne construit que pied/orteils/griffes, le volume de la
+  patte étant porté par une branche `skin_body.limbs` (évite un double tube).
+
+### Boucle 23 round 2 — ancrage des appendices tête, crête dorsale, ailerons plats
+
+- `head_galet.ears[].dir`/`tilt`/`embed_frac` (remplace le `pos`/`rot` brut, resté
+  dispo en repli) : ancre la BASE de chaque plaque d'oreille sur la surface réelle
+  du crâne (`_ellipsoid_surface`, même calcul que les yeux) au lieu d'un point posé
+  à la main qui dérivait facilement en l'air (bug mesuré : nub flottant sous le
+  museau). La base est enfoncée de `embed_frac*height` le long de la normale locale
+  -> la plaque prolonge la coque au lieu de flotter dessus.
+- `_dorsal_spikes` (nouvelle fonction partagée, `spine` ET `skin_body.spikes`
+  l'appellent — même mécanisme, pas de copie) : `rows` (nb de rangées, défaut 2),
+  `shape:'fin'` (triangle court/large/arrondi type aileron de requin, vs `'blade'`
+  = profil historique long/fin), `up_bias` (0..1, défaut 0 rétro-compat) — mélange
+  la normale "suit la courbure" avec un vrai vertical fixe : sur `skin_body`, une
+  colonne qui monte/descend beaucoup (poitrail bombé) rend la perpendiculaire pure
+  presque horizontale -> les piques se couchent à plat (bug mesuré, bbox du groupe
+  ne dépassait quasi pas la coque) ; `up_bias>0` corrige.
+- `wing.skip_bones`/`edge_ridge_height` (fix « ailerons caudaux = assemblage de
+  cônes ») : `skip_bones=true` ne construit plus les tubes os séparés (arm/hand/
+  finger/wclaw) — seulement la membrane (déjà une plane en éventail, `grid_surface`
+  + `col_pts`). `edge_ridge_height` bombe directement les colonnes "doigt" de la
+  membrane (renflement du MÊME mesh) pour simuler la nervure, au lieu d'un tube qui
+  se lisait comme un cône rond posé sur le bord de la plaque.
+- Piège transversal (weld_groups) : tout objet créé dans un groupe soudé
+  (`weld_groups[].parts`) qui ne doit PAS être fusionné (oreilles, piques
+  dorsales…) a besoin d'un motif dans `exclude_like` (ex. `_spike_`) — sinon un
+  booléen EXACT à 40+ opérandes minces peut produire un mesh corrompu (mesuré :
+  torso+tête entièrement disloqués après ajout des piques avant ce fix).
+
+### Boucle 23 round 3 — ancrage réel des ailerons caudaux (`wing.root_curve`), taper des piques
+
+- Piège mesuré (`wing` avec `skip_bones:true`, cf. round 2) : sans `root_curve`,
+  la racine de la membrane (`col_pts`) reste un point UNIQUE fixé au `wrist` —
+  pour un petit aileron dont `shoulder` est proche du corps mais `wrist` est déjà
+  loin dans le vide (c'était l'extrémité de l'os `arm`, supprimé par
+  `skip_bones`), toute la membrane part d'un point qui flotte à ~0.4 unité du
+  corps -> lu comme un « assemblage de pièces posées », pas une greffe. Fix :
+  `root_curve` (mécanisme existant, ex-« aile nageoire ») avec un premier point
+  choisi explicitement SUR la ligne centrale du corps porteur (pas juste
+  `shoulder`, qui peut être quasi au bout d'une pointe fine qui se réduit
+  fortement au modifier SKIN+Subsurf) -> la racine de la membrane traverse
+  réellement le volume solide au lieu de l'effleurer.
+- `_dorsal_spikes.tail_taper` (0..1, défaut 0 rétro-compat) : l'enveloppe `env`
+  (sin(pi·t)) ne redescend presque pas dans la plage utile de la crête quand son
+  pic tombe près de `end_frac` -> piques quasi uniformes (« peigne rectangulaire »
+  au lieu de petits ailerons dégressifs). `tail_taper` ajoute une décroissance
+  linéaire explicite le long de l'index de la crête, par-dessus `env`.
 
 ## Inspecter les pièces (le mode rapide que tu voulais)
 

@@ -26,6 +26,120 @@ def _mat(mats, key):
     return mats.get(key)
 
 
+def _dorsal_spikes(pts, radii, sp, mats, prefix='dorsal'):
+    """Crête dorsale : piques instanciés le long d'une polyligne pts/radii (même
+    format qu'`ops.tube` -- radii scalaire OU [rx,ry]). Factorisé (boucle 23
+    round 2, feedback « le mécanisme spikes existe, adapte-le plutôt que
+    recréer ») : `spine` ET `skin_body` appellent la MÊME fonction, aucune copie.
+    `rows` (défaut 2, rétro-compat = les 2 rangées +/- historiques) : nombre de
+    rangées, alternées côté +/- par paire (row 0=+ 1=- 2=+ 3=-...), chaque paire
+    suivante légèrement réduite (`row_falloff`) -- permet >2 rangées si besoin
+    sans dupliquer le mécanisme.
+    `shape` (défaut 'blade' = profil long/fin historique ; 'fin' = boucle 23
+    round 2, feedback « aiguilles pas ailerons » -- triangle COURT/LARGE au bord
+    ARRONDI type petit aileron de requin) : bascule juste les défauts
+    base_frac/mid_frac/tip_frac_h/flat/h0 vers un profil trapu et épais, MÊME
+    géométrie 3 points + `ops.tube(flat=...)` que le profil historique, aucune
+    primitive neuve. `tip_frac_h` (fraction de `h`, prioritaire sur `tip_r` si
+    présent) donne une pointe ÉMOUSSÉE proportionnelle à la taille du pique
+    (au lieu d'un `tip_r` absolu qui reste fin même sur un grand aileron).
+    `tail_taper` (0..1, défaut 0 = rétro-compat, boucle 23 round 3) : décroissance
+    linéaire explicite de `h` le long de la crête (i0->i1, donc vers la queue),
+    en plus de l'enveloppe `env` existante -- utile car le pic de `env` tombe
+    souvent proche de la fin de la plage utilisée (`end_frac`), donnant un peigne
+    de taille quasi uniforme sans ce paramètre."""
+    n = sp.get('n', 20)
+    path = laws.lerp_path([tuple(p) for p in pts], n)
+    rr = _norm_radii(radii)
+    rads = laws.lerp_path([(rx, ry, 0.0) for rx, ry in rr], n)
+    i0 = sp.get('skip', 2)
+    # end_frac (défaut 1.0 = rétro-compat, court jusqu'au bout) : arrête la crête
+    # avant la fin de la polyligne -- utile sur une queue qui s'enroule vers
+    # l'avant (le bout croise le corps/les pattes, la crête n'a pas à suivre).
+    i1 = max(i0 + 1, int(sp.get('end_frac', 1.0) * (n - 1)))
+    shape = sp.get('shape', 'blade')
+    is_fin = shape == 'fin'
+    # base/pointe et anneaux de croissance (feedback boucle 18 pt5 : piques
+    # dorsales qui lisent comme de la fourrure/des plumes) : `base_frac`/`tip_r`
+    # (rétro-compat, défauts = valeurs historiques 0.22/0.008) élargissent la base
+    # d'implantation ; `rings` (absent par défaut = comportement inchangé) réutilise
+    # `laws.growth_rings` (déjà utilisée par les cornes) sur le profil à 3 points
+    # pour casser la lame lisse et translucide par un renflement médian discret.
+    base_frac = sp.get('base_frac', 0.45 if is_fin else 0.22)
+    mid_frac = sp.get('mid_frac', 0.34 if is_fin else 0.12)
+    tip_r = sp.get('tip_r', 0.008)
+    tip_frac_h = sp.get('tip_frac_h', 0.30 if is_fin else None)
+    flat_default = 0.22 if is_fin else None
+    flat = sp.get('flat', flat_default)
+    h0 = sp.get('h0', 0.32 if is_fin else 0.65)
+    rows = max(1, int(sp.get('rows', 2)))
+    rp = sp.get('rings')
+    # tail_taper (0..1, défaut 0 = rétro-compat) : boucle 23 round 3, feedback
+    # « décroissance de taille plus marquée vers la queue » -- `env` (sin(pi*t))
+    # ne redescend presque pas dans la portion utile de la crête (le pic tombe
+    # souvent proche de la fin de plage utilisée, cf. `end_frac`), donc les piques
+    # lisent comme un peigne uniforme. `tail_taper` ajoute une décroissance
+    # LINÉAIRE explicite le long de l'index de la crête (i0->i1, donc vers la
+    # queue) par-dessus l'enveloppe existante -- 0 = comportement inchangé.
+    tail_taper = max(0.0, min(1.0, sp.get('tail_taper', 0.0)))
+    span = max(1, i1 - i0 - 1)
+    out = []
+    for i in range(i0, i1):
+        p, (rx, ry, _rz) = path[i], rads[i]
+        r = (rx + ry) * 0.5
+        nxt = path[i + 1]
+        dy, dz = nxt[1] - p[1], nxt[2] - p[2]
+        d = math.hypot(dy, dz) or 1e-3
+        uy, uz = dy / d, dz / d          # tangente avant
+        vy, vz = -uz, uy                 # normale « dessus », perpendiculaire à la tangente
+        if vz < 0:                       # toujours du côté "dessus" (z+), pas "dessous"
+            vy, vz = -vy, -vz
+        # up_bias (round 2 boucle 23, bug mesuré : sur `skin_body`, la colonne monte/
+        # descend BEAUCOUP plus qu'une `spine` classique -- au poitrail bombé, la
+        # tangente devient presque verticale -> la perpendiculaire pure devient
+        # presque HORIZONTALE, les piques se couchent à plat au lieu de se dresser
+        # (mesuré : bbox du groupe ne dépassait quasi pas la coque). On mélange donc
+        # la perpendiculaire "suit la courbure" avec un vrai "vers le haut" (z+) fixe
+        # -- défaut 0.0 = RÉTRO-COMPAT totale (comportement historique `spine`
+        # inchangé) ; `skin_body`/krokmou passe une valeur >0 explicitement.
+        up_bias = sp.get('up_bias', 0.0)
+        vy = vy * (1.0 - up_bias)
+        vz = vz * (1.0 - up_bias) + up_bias
+        vn = math.hypot(vy, vz) or 1e-3
+        vy, vz = vy / vn, vz / vn
+        t = i / (n - 1)
+        env = math.sin(math.pi * t) ** 0.6 * min(1.0, r * 2.0 + 0.3)
+        if t > 0.72:  # pas de fondu vers 0 côté tête : fusion avec la couronne de cornes
+            fade = (t - 0.72) / 0.28
+            env = max(env, 0.62 * (1 - fade) + 0.42 * fade)
+        for row in range(rows):
+            sx = 1.0 if row % 2 == 0 else -1.0
+            pair = row // 2
+            row_falloff = 1.0 - 0.22 * pair
+            jit = 1.0 + 0.30 * math.sin(i * 7.3 + row * 2.6)
+            taper = 1.0 - tail_taper * ((i - i0) / span)
+            h = max(0.05, h0 * env * jit * row_falloff * taper * (1.0 if row < 2 else 0.85))
+            bx = p[0] + sx * (0.07 + 0.05 * pair) * rx
+            by, bz = p[1], p[2] + ry * 0.92
+            s_pts = [(bx, by, bz),
+                     (bx, by + vy * h * 0.55 - uy * h * 0.16, bz + vz * h * 0.55 - uz * h * 0.16),
+                     (bx, by + vy * h * 0.92 - uy * h * 0.50, bz + vz * h * 0.92 - uz * h * 0.50)]
+            tip_rad = h * tip_frac_h if tip_frac_h is not None else tip_r
+            s_radii = [h * base_frac, h * mid_frac, tip_rad]
+            if rp and rp.get('depth', 0.0):
+                mod = laws.growth_rings(3, depth=rp.get('depth', 0.12),
+                                        freq=rp.get('freq', 3.0), sharp=rp.get('sharp', 2.0))
+                s_radii = [rr_ * m for rr_, m in zip(s_radii, mod)]
+            # flat (P1 boucle 22, feedback « épines = cônes ronds -> profils plats
+            # type écaille ») : défaut None = rétro-compat (section ronde
+            # inchangée) ; réutilise `ops.tube(flat=...)` (même mécanisme que les
+            # cornes-lames plus bas) pour une pointe en plaque fine.
+            s = ops.tube(f'{prefix}_{i}_{row}', s_pts, s_radii, flat=flat)
+            materials.assign(s, _mat(mats, sp.get('mat', 'bone')))
+            out.append(s)
+    return out
+
+
 @builder('spine')
 def spine(part, mats):
     """Corps principal : tube conique + crête dorsale double rangée, pointes courbées vers l'arrière."""
@@ -49,52 +163,151 @@ def spine(part, mats):
     out = [body]
     sp = part.get('spikes')
     if sp:
-        n = sp.get('n', 20)
-        path = laws.lerp_path(pts, n)
-        rads = laws.lerp_path([(r, 0, 0) for r in radii], n)
-        i0 = sp.get('skip', 2)
-        # base/pointe et anneaux de croissance (feedback boucle 18 pt5 : piques
-        # dorsales qui lisent comme de la fourrure/des plumes) : `base_frac`/`tip_r`
-        # (rétro-compat, défauts = valeurs historiques 0.22/0.008) élargissent la base
-        # d'implantation ; `rings` (absent par défaut = comportement inchangé) réutilise
-        # `laws.growth_rings` (déjà utilisée par les cornes) sur le profil à 3 points
-        # pour casser la lame lisse et translucide par un renflement médian discret.
-        base_frac = sp.get('base_frac', 0.22)
-        mid_frac = sp.get('mid_frac', 0.12)
-        tip_r = sp.get('tip_r', 0.008)
-        rp = sp.get('rings')
-        for i in range(i0, n - 1):
-            p, r = path[i], rads[i][0]
-            nxt = path[i + 1]
-            dy, dz = nxt[1] - p[1], nxt[2] - p[2]
-            d = math.hypot(dy, dz) or 1e-3
-            uy, uz = dy / d, dz / d          # tangente avant
-            vy, vz = -uz, uy                 # normale « dessus »
-            t = i / (n - 1)
-            env = math.sin(math.pi * t) ** 0.6 * min(1.0, r * 2.0 + 0.3)
-            if t > 0.72:  # pas de fondu vers 0 côté tête : fusion avec la couronne de cornes
-                fade = (t - 0.72) / 0.28
-                env = max(env, 0.62 * (1 - fade) + 0.42 * fade)
-            for row, sx in ((0, 1.0), (1, -1.0)):
-                jit = 1.0 + 0.30 * math.sin(i * 7.3 + row * 2.6)
-                h = max(0.07, sp.get('h0', 0.65) * env * jit * (1.0 if row == 0 else 0.85))
-                bx = p[0] + sx * 0.07 * r
-                by, bz = p[1], p[2] + r * 0.92
-                s_pts = [(bx, by, bz),
-                         (bx, by + vy * h * 0.55 - uy * h * 0.16, bz + vz * h * 0.55 - uz * h * 0.16),
-                         (bx, by + vy * h * 0.92 - uy * h * 0.50, bz + vz * h * 0.92 - uz * h * 0.50)]
-                s_radii = [h * base_frac, h * mid_frac, tip_r]
-                if rp and rp.get('depth', 0.0):
-                    mod = laws.growth_rings(3, depth=rp.get('depth', 0.12),
-                                            freq=rp.get('freq', 3.0), sharp=rp.get('sharp', 2.0))
-                    s_radii = [r * m for r, m in zip(s_radii, mod)]
-                # flat (P1 boucle 22, feedback « épines = cônes ronds -> profils plats
-                # type écaille ») : défaut None = rétro-compat (section ronde
-                # inchangée) ; réutilise `ops.tube(flat=...)` (même mécanisme que les
-                # cornes-lames plus bas) pour une pointe en plaque fine.
-                s = ops.tube(f'dorsal_{i}_{row}', s_pts, s_radii, flat=sp.get('flat'))
-                materials.assign(s, _mat(mats, sp.get('mat', 'bone')))
-                out.append(s)
+        out.extend(_dorsal_spikes(pts, radii, sp, mats, prefix='dorsal'))
+    return out
+
+
+def _norm_radii(radii):
+    """Uniformise une liste de rayons (`spine`/`skin_body`) en paires (rx, ry) —
+    un scalaire donne une section ronde (rx=ry), une paire [rx, ry] une section
+    aplatie. Partagé par `skin_body` (corps ET membres)."""
+    return [tuple(r) if isinstance(r, (list, tuple)) else (r, r) for r in radii]
+
+
+def _densify_chain(pts, radii, samples, min_len_ratio=1.15):
+    """Densifie une polyligne de contrôle + ses rayons par Catmull-Rom
+    (`growth.spine_smooth`) AVANT construction du squelette SKIN — passe par les
+    points d'origine avec tangente continue, contrairement à une simple
+    ré-interpolation linéaire (`laws.lerp_path`) : aucune cassure d'angle, même
+    sur un tracé à peu de points de contrôle (queue, membres). `samples<=1` =
+    rétro-compat totale (pas de densification).
+    DÉCIMATION ADAPTATIVE (boucle 23, bug mesuré) : le modifier SKIN a besoin
+    d'arêtes plus LONGUES que le rayon local -- sinon les anneaux successifs se
+    chevauchent, des faces se retournent, et ça se lit comme des « ailerons » en
+    éventail après Subdivision Surface (mesuré sur un poitrail à grand rayon
+    densifié uniformément). On génère la courbe C1 complète puis on retire les
+    points intermédiaires trop rapprochés (`min_len_ratio` * rayon local) --
+    garde la densité fine là où le rayon est PETIT (cou, queue : exactement ce
+    qui doit rester lisse) et retombe naturellement vers l'espacement des points
+    de contrôle d'origine là où le rayon est GRAND (torse -- pas de coude à
+    lisser de toute façon sur un tracé à peu de points)."""
+    radii = _norm_radii(radii)
+    if not (samples and samples > 1 and len(pts) >= 3):
+        return [tuple(p) for p in pts], radii
+    pts_d = apply_law('growth.spine_smooth', pts=[tuple(p) for p in pts], samples=samples)
+    rx = [v[0] for v in apply_law('growth.spine_smooth',
+                                  pts=[(r[0],) for r in radii], samples=samples)]
+    ry = [v[0] for v in apply_law('growth.spine_smooth',
+                                  pts=[(r[1],) for r in radii], samples=samples)]
+    kept_pts, kept_rx, kept_ry = [pts_d[0]], [rx[0]], [ry[0]]
+    last = Vector(pts_d[0])
+    for i in range(1, len(pts_d) - 1):
+        p = Vector(pts_d[i])
+        r_local = max(rx[i], ry[i])
+        if (p - last).length >= r_local * min_len_ratio:
+            kept_pts.append(pts_d[i])
+            kept_rx.append(rx[i])
+            kept_ry.append(ry[i])
+            last = p
+    kept_pts.append(pts_d[-1])
+    kept_rx.append(rx[-1])
+    kept_ry.append(ry[-1])
+    return [tuple(p) for p in kept_pts], list(zip(kept_rx, kept_ry))
+
+
+@builder('skin_body')
+def skin_body(part, mats):
+    """Squelette SKIN unique (boucle 23, thème « UNE SEULE PEAU », remplace le
+    diagnostic « assemblage de primitives posées qui ne converge pas ») : UN SEUL
+    objet continu corps + cou + queue + pattes, construit depuis un VRAI squelette
+    (mesh vertices+edges, pas une NURBS) porté par un modifier SKIN — rayon PAR
+    VERTEX, rx/ry séparés (`bm.verts.layers.skin`, `MeshSkinVertexLayer.radius` =
+    (x, y) -> sections aplaties possibles, pas seulement rondes) — puis lissé par
+    Subdivision Surface. Générique : aucune valeur créature en dur, tout vient de
+    la spec ; réutilisable pour n'importe quelle créature à 4 pattes/queue/cou.
+
+    `pts`/`radii` : colonne vertébrale COMPLÈTE, tête -> bout de queue en un seul
+    tracé continu (même format que `spine` : radii scalaire OU [rx, ry] par
+    point). `smooth` (défaut 0 = rétro-compat, pas de densification) : réutilise
+    `laws.catmull_rom` (`_densify_chain`) pour densifier pts ET radii avant de
+    bâtir le squelette -> aucune cassure d'angle, y compris sur les tracés à peu
+    de points de contrôle (queue).
+    `root_idx` (index dans `pts` D'ORIGINE, avant densification ; défaut = point
+    de plus grand rayon moyen = torse) : le vertex SKIN correspondant est marqué
+    `use_root` -- ancre la géométrie du renflement le plus massif (évite un
+    étranglement au point le plus épais).
+    `limbs` : liste de {id, side('both'|'L'|'R'), pts, radii, smooth}. `pts`/
+    `radii` d'un membre = SA PROPRE polyligne (épaule/hanche -> cheville), x>=0
+    (mirroré si side='both'). Le premier point est relié par une arête au vertex
+    de spine le PLUS PROCHE (attache automatique par distance, pas de recalage
+    d'index manuel si la spine bouge).
+    `subsurf` (défaut 2) = niveaux de Subdivision Surface finale."""
+    pid = part.get('id', 'skin_body')
+    pts, radii = _densify_chain(part['pts'], part['radii'], part.get('smooth', 0))
+
+    bm = bmesh.new()
+    skin_layer = bm.verts.layers.skin.verify()
+    spine_verts = []
+    for p, (rx, ry) in zip(pts, radii):
+        v = bm.verts.new(p)
+        v[skin_layer].radius = (rx, ry)
+        spine_verts.append(v)
+    for i in range(len(spine_verts) - 1):
+        bm.edges.new((spine_verts[i], spine_verts[i + 1]))
+
+    orig_pts = [tuple(p) for p in part['pts']]
+    orig_radii = _norm_radii(part['radii'])
+    if 'root_idx' in part:
+        root_pt = orig_pts[part['root_idx']]
+    else:
+        root_i = max(range(len(orig_radii)), key=lambda i: sum(orig_radii[i]))
+        root_pt = orig_pts[root_i]
+    root_v = min(spine_verts, key=lambda v: (v.co - Vector(root_pt)).length_squared)
+    root_v[skin_layer].use_root = True
+
+    for limb in part.get('limbs', []):
+        side = limb.get('side', 'both')
+        sides = (1, -1) if side == 'both' else ((1,) if side == 'L' else (-1,))
+        lpts, lradii = _densify_chain(limb['pts'], limb['radii'], limb.get('smooth', 0))
+        # attach_used (par membre, PAS partagé entre membres différents) : un membre
+        # mirroré (side='both') a 2 branches dont le 1er point n'a que le signe X qui
+        # change -> sans exclusion, les 2 se raccrochent au MÊME vertex de spine (le
+        # plus proche est identique par symétrie x=0) -> valence 4 (spine avant/
+        # arrière + 2 pattes) que le modifier SKIN blende mal (artefact "ailerons"
+        # triangulaires en éventail, mesuré boucle 23). En excluant le vertex déjà
+        # pris pour le 1er côté, le 2e s'accroche au vertex de spine VOISIN (la
+        # colonne est densifiée, `smooth`, donc un voisin proche existe toujours) ->
+        # valence <=3 par jonction, blend propre.
+        attach_used = set()
+        for s in sides:
+            mpts = [(s * p[0], p[1], p[2]) for p in lpts]
+            attach = Vector(mpts[0])
+            candidates = [v for v in spine_verts if v not in attach_used] or spine_verts
+            prev = min(candidates, key=lambda v: (v.co - attach).length_squared)
+            attach_used.add(prev)
+            for p, (rx, ry) in zip(mpts, lradii):
+                v = bm.verts.new(p)
+                v[skin_layer].radius = (rx, ry)
+                bm.edges.new((prev, v))
+                prev = v
+
+    mesh = bpy.data.meshes.new(pid)
+    bm.to_mesh(mesh)
+    bm.free()
+    ob = bpy.data.objects.new(pid, mesh)
+    core.link(ob)
+    ob.modifiers.new('skin', 'SKIN')
+    core.subsurf(ob, part.get('subsurf', 2))
+    materials.assign(ob, _mat(mats, part.get('mat', 'scales')))
+    out = [core.shade_smooth(ob)]
+    # spikes (boucle 23 round 2, feedback P1 « épines dorsales ») : réutilise
+    # `_dorsal_spikes` (même mécanisme que `spine`, cf. sa docstring pour
+    # `rows`/`shape`) sur la colonne D'ORIGINE (avant `_densify_chain` -- même
+    # convention que `spine`, la polyligne de contrôle brute suffit à `lerp_path`
+    # pour ré-échantillonner la crête, pas besoin de la version densifiée pour SKIN).
+    sp = part.get('spikes')
+    if sp:
+        out.extend(_dorsal_spikes(part['pts'], part['radii'], sp, mats, prefix=f'{pid}_spike'))
     return out
 
 
@@ -895,6 +1108,223 @@ def head(part, mats):
     return out
 
 
+def _ellipsoid_surface(d, size):
+    """Point ANALYTIQUE (pas de raycast) sur la surface d'un ellipsoïde de
+    demi-tailles `size` (x, y, z), dans la direction `d` depuis son centre.
+    Retourne (point, unit_dir). Utilisé par `head_galet` pour poser des éléments
+    (yeux) EN SURFACE d'une tête-galet sans creuser de cavité."""
+    dx, dy, dz = d
+    n = math.sqrt(dx * dx + dy * dy + dz * dz) or 1.0
+    ux, uy, uz = dx / n, dy / n, dz / n
+    denom = (ux / size[0]) ** 2 + (uy / size[1]) ** 2 + (uz / size[2]) ** 2
+    t = 1.0 / math.sqrt(denom) if denom > 1e-9 else 0.0
+    return (ux * t, uy * t, uz * t), (ux, uy, uz)
+
+
+@builder('head_galet')
+def head_galet(part, mats):
+    """Tête « galet-axolotl » (boucle 23 P0-B, thème « UNE SEULE PEAU » — remplace
+    `head`, ZÉRO booléen). Base = UV sphere écrasée en Z / élargie en XY (galet
+    plat, large, arrondi vers les joues), coords bakées directement dans le mesh
+    (pas `object.scale` : le museau suivant a besoin d'unités réelles). Museau =
+    étirement PROPORTIONNEL des vertices avant (falloff lisse selon `y` local,
+    PAS une découpe) -> grand U, presque grenouille. Yeux posés EN SURFACE
+    (`_ellipsoid_surface`, calcul analytique, pas de cavité creusée) + UNE
+    paupière-plaque par œil (portion de sphère aplatie) qui coiffe le dessus.
+    Oreilles/appendices = plaques coniques écrasées (`ops.spike(flatten=...)`)
+    ANCRÉES sur la surface réelle (`ear.dir` -> `_ellipsoid_surface`, base
+    enfoncée `embed_frac*height`), générique via la liste `ears` (nombre/tailles/
+    positions arbitraires -- 2 grandes + 2 moyennes + petites pointes = un CHOIX
+    de spec, pas de code).
+    La tête n'est PAS soudée ici (ce builder ne voit pas les autres parts) :
+    `weld_groups` (voir `_apply_weld_groups`) fait la soudure crâne<->cou après
+    assemblage, comme le faisait `wing weld=true` pour les ailerons caudaux."""
+    L = Vector(part['loc'])
+    pitch = part.get('pitch', 0.0)
+    yaw = part.get('yaw', 0.0)
+    Rp = Euler((math.radians(pitch), 0, math.radians(yaw))).to_matrix()
+    skin = _mat(mats, part.get('mat', 'scales'))
+    out = []
+
+    def W(p):
+        v = Rp @ Vector(p)
+        return (L.x + v.x, L.y + v.y, L.z + v.z)
+
+    seg = part.get('seg', 30)
+    size = tuple(part.get('size', (0.34, 0.30, 0.19)))
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=seg, v_segments=max(4, seg // 2), radius=1.0)
+    for v in bm.verts:
+        v.co.x *= size[0]
+        v.co.y *= size[1]
+        v.co.z *= size[2]
+
+    # --- museau : falloff proportionnel des vertices avant (y local > y0), PAS de
+    # découpe -- pousse vers l'avant (push_y), évase latéralement (push_x, le U
+    # s'élargit vers la pointe) et remonte légèrement le dessous (flatten_z, un
+    # museau plat pas un bec). `power` (>1) concentre l'étirement vers l'avant.
+    sn = part.get('snout', {})
+    y0 = sn.get('y0_frac', 0.20) * size[1]
+    push_y = sn.get('push_y', 0.18)
+    push_x = sn.get('push_x', 0.14)
+    flatten_z = sn.get('flatten_z', 0.05)
+    power = sn.get('power', 1.4)
+    yr = max(size[1] - y0, 1e-4)
+    for v in bm.verts:
+        if v.co.y > y0:
+            f = min(((v.co.y - y0) / yr) ** power, 1.0)
+            v.co.y += push_y * f
+            if abs(v.co.x) > 1e-6:
+                v.co.x += math.copysign(push_x * f * (abs(v.co.x) / max(size[0], 1e-4)), v.co.x)
+            if v.co.z < 0:
+                v.co.z += flatten_z * f * 0.6
+
+    for v in bm.verts:  # bake en MONDE (convention du reste du fichier)
+        v.co = Rp @ v.co + L
+    bm.normal_update()
+    mesh = bpy.data.meshes.new(part.get('id', 'head'))
+    bm.to_mesh(mesh)
+    bm.free()
+    sk = core.link(bpy.data.objects.new(part.get('id', 'head'), mesh))
+    core.shade_smooth(sk)
+    hsub = part.get('subsurf', 1)
+    if hsub:
+        core.subsurf(sk, hsub)
+    materials.assign(sk, skin)
+    out.append(sk)
+
+    # --- yeux : globe posé EN SURFACE (pas de cavité), enfoncé de `surf_offset`
+    # (fraction de son propre rayon) pour paraître enchâssé plutôt que collé --
+    # même convention d'orientation que l'ancien `head` (axe local +X du globe =
+    # direction du regard, cf. `materials.eye_globe`). `dir` place le globe sur
+    # l'ellipsoïde d'origine (zone NON déformée par le museau -> surface exacte) ;
+    # `look_dir` distinct oriente le regard vers l'AVANT (prédateur) indépendamment
+    # de la position latérale du globe. ---
+    eyep = part.get('eye', {})
+    eye_m = _mat(mats, eyep.get('mat', 'eye'))
+    edir = eyep.get('dir', (0.85, 0.30, 0.35))
+    egr = eyep.get('globe_r', 0.115)
+    surf_off = eyep.get('surf_offset', 0.55)
+    lus = eyep.get('lid_scale', (0.55, 0.70, 0.34))
+    luz = eyep.get('lid_z_off', 0.60)
+    lur = eyep.get('lid_rot', (-16, 8, 14))
+    for s, tag in ((1, 'l'), (-1, 'r')):
+        p_local, u_local = _ellipsoid_surface((s * edir[0], edir[1], edir[2]), size)
+        center_local = tuple(c - u * egr * surf_off for c, u in zip(p_local, u_local))
+        ld = eyep.get('look_dir', (0.55, 0.75, 0.25))
+        look_dir = Rp @ Vector((s * ld[0], ld[1], ld[2]))
+        if look_dir.length < 1e-6:
+            look_dir = Vector((s, 0.0, 0.0))
+        eye_quat = look_dir.normalized().to_track_quat('X', 'Z')
+        eye_rot = tuple(math.degrees(a) for a in eye_quat.to_euler())
+        g = ops.blob(f'eye_{tag}', W(center_local), (egr, egr, egr), rot_deg=eye_rot)
+        materials.assign(g, eye_m)
+        out.append(g)
+        lid_pos = (center_local[0], center_local[1] + egr * 0.05, center_local[2] + egr * luz)
+        lid = ops.blob(f'lid_up_{tag}', W(lid_pos), (egr * lus[0], egr * lus[1], egr * lus[2]),
+                       rot_deg=(lur[0], lur[1], s * lur[2]))
+        materials.assign(lid, skin)
+        out.append(lid)
+
+    # --- oreilles/appendices : plaques triangulaires charnues APLATIES, ANCRÉES sur
+    # la coque (round 2 boucle 23, fix « lisent comme des cubes épars/flottants ») --
+    # liste générique, N'IMPORTE quelle spec pilote nombre/tailles/positions (2
+    # grandes + 2 moyennes + petites pointes de mâchoire = choix de spec, pas de
+    # code dédié). `dir` (comme `eye.dir`) place la BASE sur la surface réelle de
+    # l'ellipsoïde-crâne via `_ellipsoid_surface` (calcul analytique, même
+    # convention que les yeux) -- élimine le placement `pos` à la main qui dérive
+    # facilement en l'air (le bug mesuré : nub flottant sous le museau). La base est
+    # ensuite ENFONCÉE dans la coque de `embed_frac*height` le long de la normale
+    # locale (au lieu d'être posée dessus avec un interstice visible) -- la plaque
+    # prolonge donc la surface plutôt que de flotter dessus. L'axe local Z de la
+    # plaque (base->pointe, cf. `ops.spike`) est aligné sur la normale de surface
+    # puis `tilt` (degrés, XYZ, appliqué APRÈS l'alignement -> tourne dans le repère
+    # propre de la plaque) balaie la pointe vers l'arrière/le haut, générique --
+    # aucune valeur figée, tout vient de la spec. `seg` monté par défaut à 16 (au
+    # lieu de 8) : le bord large d'une grande plaque aplatie a besoin de plus de
+    # segments pour lire comme une courbe lisse plutôt qu'un polygone à facettes
+    # visibles (l'effet « cube » du round 1). `pos`/`rot` bruts restent le mode
+    # rétro-compat si `dir` est absent d'une entrée. ---
+    ear_m_default = skin
+    for e in part.get('ears', []):
+        height = e.get('height', 0.16)
+        radius = e.get('radius', 0.11)
+        flat = e.get('flatten', (0.55, 1.0))
+        tip_frac = e.get('tip_frac', 0.32)
+        mirror = e.get('mirror', True)
+        seg = e.get('seg', 16)
+        em = _mat(mats, e.get('mat')) if e.get('mat') else ear_m_default
+        sides = ((1, 'l'), (-1, 'r')) if mirror else ((1, ''),)
+        edir = e.get('dir')
+        if edir is not None:
+            embed = e.get('embed_frac', 0.35)
+            tilt = e.get('tilt', (0.0, 0.0, 0.0))
+            for s, tag in sides:
+                p_local, u_local = _ellipsoid_surface((s * edir[0], edir[1], edir[2]), size)
+                u = Vector(u_local)
+                if u.length < 1e-6:
+                    u = Vector((s, 0.0, 0.0))
+                base = Vector(p_local) - u * (height * embed)
+                center_local = base + u * (height * 0.5)
+                quat = u.normalized().to_track_quat('Z', 'Y')
+                if any(tilt):
+                    tquat = Euler((math.radians(tilt[0]), math.radians(tilt[1]),
+                                   math.radians(s * tilt[2])), 'XYZ').to_quaternion()
+                    quat = quat @ tquat
+                rot = tuple(math.degrees(a) for a in quat.to_euler())
+                ear = ops.spike(f"ear_{e.get('id', 'e')}_{tag}", W(tuple(center_local)),
+                                height, radius, rot, seg=seg, flatten=flat, tip_frac=tip_frac)
+                materials.assign(ear, em)
+                out.append(ear)
+        else:
+            pos = e['pos']
+            rot = e.get('rot', (90, 0, 0))
+            for s, tag in sides:
+                ear = ops.spike(f"ear_{e.get('id', 'e')}_{tag}", W((s * pos[0], pos[1], pos[2])),
+                                height, radius, (rot[0], rot[1], s * rot[2]), seg=seg,
+                                flatten=flat, tip_frac=tip_frac)
+                materials.assign(ear, em)
+                out.append(ear)
+    return out
+
+
+def _apply_weld_groups(spec, groups):
+    """`weld_groups` (générique, boucle 23 — étend le `weld=true` local à `wing`
+    à N'IMPORTE QUELLE paire/liste de groupes, ex. tête<->cou) : liste de
+    `{id, parts:[...], exclude_like:[...]}`. Fusionne en UN SEUL mesh continu
+    (`ops.boolean_union`, solveur EXACT + `material_mode='TRANSFER'` — cf.
+    docstring `ops.boolean_union` pour le bug de fusion de matériaux évité) tous
+    les objets MESH des `parts` listées, hors motifs `exclude_like` (ex. yeux/
+    paupières qui doivent rester des objets séparés posés dessus, pas fusionnés).
+    Le mesh soudé remplace en place le groupe de la PREMIÈRE part listée, même
+    convention que `_apply_fuse_groups` (armor/displace qui ciblent cet id n'ont
+    rien à changer)."""
+    wgs = spec.get('weld_groups', [])
+    if not wgs:
+        return
+    for wg in wgs:
+        parts = wg.get('parts', [])
+        exclude = wg.get('exclude_like', [])
+        for pid in parts:
+            groups[pid] = [core.realize_to_mesh(o) if o.type == 'CURVE' else o
+                          for o in groups.get(pid, [])]
+        seen, objs = set(), []
+        for pid in parts:
+            for o in groups.get(pid, []):
+                if o.type != 'MESH' or o.name in seen or any(x in o.name for x in exclude):
+                    continue
+                seen.add(o.name)
+                objs.append(o)
+        if len(objs) < 2:
+            continue
+        consumed_ids = {id(o) for o in objs}
+        primary = parts[0]
+        fused = ops.boolean_union(primary, objs)
+        for gid in list(groups.keys()):
+            groups[gid] = [o for o in groups[gid] if id(o) not in consumed_ids]
+        groups[primary] = [fused] + groups.get(primary, [])
+
+
 @builder('dewlap')
 def dewlap(part, mats):
     """Fanon de gorge : chaîne CONTINUE de plis charnus qui pendent sous la mâchoire/
@@ -1055,6 +1485,18 @@ def wing(part, mats):
     # os->membrane doit lire comme UNE pièce, pas pour les grandes ailes principales
     # (coût du solveur exact + inutile, membranes déjà validées).
     weld = part.get('weld', False)
+    # skip_bones (round 2 boucle 23, feedback « ailerons caudaux = assemblage de
+    # cônes ») : défaut False = rétro-compat totale (bras/main/doigts/griffes comme
+    # avant). True -> ne construit PLUS aucun tube os séparé (arm/hand/finger/
+    # wclaw/alula) -- seulement la membrane (déjà une PLANE en éventail, cf.
+    # `col_pts`/`grid_surface`) : pour un petit aileron simple, le tube "doigt"
+    # tracé le long du bord de la membrane fait doublon avec le bord lui-même et se
+    # lit comme un cône rond posé dessus plutôt qu'une nervure. `edge_ridge_height`
+    # (défaut 0.0) remplace ce tube par un RENFLEMENT directement dans le maillage
+    # de la membrane (colonnes "doigt", cf. plus bas) -- une nervure = un bombé du
+    # même mesh, pas un objet en plus.
+    skip_bones = part.get('skip_bones', False)
+    edge_ridge_height = part.get('edge_ridge_height', 0.0)
     for s in sides:
         tag = 'L' if s > 0 else 'R'
         weld_start = len(out)
@@ -1080,14 +1522,15 @@ def wing(part, mats):
         # anatomie du bras (épaule/biceps + avant-bras, coude en articulation nette,
         # cf. `_anatomical_tube`) : rétro-compat totale, tube NURBS d'origine si
         # `muscles`/`joints`/`folds` absents de la spec (comportement inchangé).
-        if part.get('muscles') or part.get('joints') or part.get('folds'):
-            arm = _anatomical_tube(f'{pid}_arm_{tag}', [sh, el, wr], arm_radii,
-                                   muscles=part.get('muscles'), joints=part.get('joints'),
-                                   folds=part.get('folds'), mirror_sign=s)
-        else:
-            arm = ops.tube(f'{pid}_arm_{tag}', [sh, el, wr], arm_radii, order=arm_order)
-        materials.assign(arm, _mat(mats, bone_mat_key))
-        out.append(arm)
+        if not skip_bones:
+            if part.get('muscles') or part.get('joints') or part.get('folds'):
+                arm = _anatomical_tube(f'{pid}_arm_{tag}', [sh, el, wr], arm_radii,
+                                       muscles=part.get('muscles'), joints=part.get('joints'),
+                                       folds=part.get('folds'), mirror_sign=s)
+            else:
+                arm = ops.tube(f'{pid}_arm_{tag}', [sh, el, wr], arm_radii, order=arm_order)
+            materials.assign(arm, _mat(mats, bone_mat_key))
+            out.append(arm)
         rays = [tuple((s * p[0], p[1], p[2])) for p in part['tips']]
         tips_dz = pov.get('tips_dz')
         tips_dy = pov.get('tips_dy')
@@ -1131,7 +1574,7 @@ def wing(part, mats):
 
         knuckles = [W + dir_carpe * (knuckle_spread * finger_frac(j)) for j in range(n_fingers)]
 
-        if knuckle_spread > 0 and n_fingers > 0:
+        if not skip_bones and knuckle_spread > 0 and n_fingers > 0:
             hand_r0 = arm_radii[-1] * 1.05
             hand_r1 = max(part.get('finger_r0', 0.085) * 0.9, arm_radii[-1] * 0.5)
             far = knuckles[0]
@@ -1257,6 +1700,20 @@ def wing(part, mats):
 
         cols = [[tuple(v) for v in col_pts(root_at(gi / denom) + col_knuckle[gi], e, u, col_bow[gi])]
                for gi, (e, u) in enumerate(col_defs)]
+        # edge_ridge_height (round 2 boucle 23, cf. `skip_bones` ci-dessus) : bombe
+        # directement les colonnes "racine du doigt" (`col_bow[gi] is not None`,
+        # même repère que le tube `finger` qu'on supprime) le long de Z, profil
+        # sin(pi*t) (nul à la racine ET au bord libre, max au milieu) -> une
+        # nervure EN RELIEF dans le mesh de la membrane, pas un tube collé dessus.
+        if edge_ridge_height:
+            for gi, col in enumerate(cols):
+                if col_bow[gi] is None:
+                    continue
+                m = len(col)
+                for i in range(m):
+                    t = i / (m - 1) if m > 1 else 0.0
+                    x, y, z = col[i]
+                    col[i] = (x, y, z + edge_ridge_height * math.sin(math.pi * t))
         # épaisseur dégradée par rangée : racine (i=0, le long des os) épaisse, bord
         # libre (dernière rangée) fin -> remplace le Solidify constant, donne le
         # volume "planche à voile" au lieu d'une membrane plate.
@@ -1401,25 +1858,26 @@ def wing(part, mats):
         # tiges flottantes séparées -> soulevés de `finger_lift` le long de z (même
         # convention que les lattes) pour lire comme une arête en relief sur la surface.
         # Arqués (finger_bow) en éventail au lieu de rayons rectilignes W->tip.
-        fr = apply_knuckles(laws.power_taper(nt, part.get('finger_r0', 0.085), finger_taper,
-                              part.get('finger_rmin', 0.015)))
-        for j, tip in enumerate(rays):
-            perp = finger_dirs[j]
-            knuckle = knuckles[j]
-            fpts = []
-            for i in range(nt):
-                t = i / (nt - 1)
-                v = knuckle.lerp(Vector(tip), t)
-                if finger_bow:
-                    v = v + perp * (finger_bow * math.sin(math.pi * t))
-                fpts.append((v.x, v.y, v.z + finger_lift))
-            f = ops.tube(f'{pid}_finger_{tag}{j}', fpts, fr)
-            materials.assign(f, _mat(mats, bone_mat_key))
-            out.append(f)
-            claw = ops.spike(f'{pid}_wclaw_{tag}{j}', (tip[0], tip[1], tip[2] + finger_lift),
-                             wclaw_len, wclaw_r, wclaw_rot)
-            materials.assign(claw, _mat(mats, claw_mat_key))
-            out.append(claw)
+        if not skip_bones:
+            fr = apply_knuckles(laws.power_taper(nt, part.get('finger_r0', 0.085), finger_taper,
+                                  part.get('finger_rmin', 0.015)))
+            for j, tip in enumerate(rays):
+                perp = finger_dirs[j]
+                knuckle = knuckles[j]
+                fpts = []
+                for i in range(nt):
+                    t = i / (nt - 1)
+                    v = knuckle.lerp(Vector(tip), t)
+                    if finger_bow:
+                        v = v + perp * (finger_bow * math.sin(math.pi * t))
+                    fpts.append((v.x, v.y, v.z + finger_lift))
+                f = ops.tube(f'{pid}_finger_{tag}{j}', fpts, fr)
+                materials.assign(f, _mat(mats, bone_mat_key))
+                out.append(f)
+                claw = ops.spike(f'{pid}_wclaw_{tag}{j}', (tip[0], tip[1], tip[2] + finger_lift),
+                                 wclaw_len, wclaw_r, wclaw_rot)
+                materials.assign(claw, _mat(mats, claw_mat_key))
+                out.append(claw)
 
         # alula (T18, défaut None -> rétro-compat) : petit "pouce" court partant du
         # poignet vers l'avant/haut (repère générique : côté opposé au bord de fuite,
@@ -1626,21 +2084,28 @@ def limb(part, mats):
     dur ; `foot.dir` permet de forcer l'axe si besoin)."""
     out = []
     sides = [1, -1] if part.get('side', 'both') == 'both' else [1]
+    # skip_tube (boucle 23, thème « UNE SEULE PEAU ») : défaut False = rétro-compat
+    # totale (tube de patte construit ici, comportement historique). True = le
+    # volume de la patte est déjà porté par une branche `skin_body.limbs` (mesh
+    # continu soudé au corps) -- ce builder ne construit alors QUE le pied/orteils/
+    # griffes, ancrés sur `foot.loc` comme avant (aucun changement de ce côté).
+    skip_tube = part.get('skip_tube', False)
     for s in sides:
         tag = 'L' if s > 0 else 'R'
         pts = [(s * p[0], p[1], p[2]) for p in part['pts']]
         radii = part.get('radii') or laws.power_taper(len(pts), part.get('r0', 0.3), 1.0, 0.1)
-        # anatomie (muscles fusiformes/articulations/plis, cf. `_anatomical_tube`) :
-        # rétro-compat totale, un tube rond à rayon interpolé linéairement (comportement
-        # historique) si `muscles`/`joints`/`folds` sont absents de la spec.
-        if part.get('muscles') or part.get('joints') or part.get('folds'):
-            leg = _anatomical_tube(f"{part.get('id', 'leg')}_{tag}", pts, radii,
-                                   muscles=part.get('muscles'), joints=part.get('joints'),
-                                   folds=part.get('folds'), mirror_sign=s)
-        else:
-            leg = ops.tube(f"{part.get('id', 'leg')}_{tag}", pts, radii)
-        materials.assign(leg, _mat(mats, part.get('mat', 'scales')))
-        out.append(leg)
+        if not skip_tube:
+            # anatomie (muscles fusiformes/articulations/plis, cf. `_anatomical_tube`) :
+            # rétro-compat totale, un tube rond à rayon interpolé linéairement (comportement
+            # historique) si `muscles`/`joints`/`folds` sont absents de la spec.
+            if part.get('muscles') or part.get('joints') or part.get('folds'):
+                leg = _anatomical_tube(f"{part.get('id', 'leg')}_{tag}", pts, radii,
+                                       muscles=part.get('muscles'), joints=part.get('joints'),
+                                       folds=part.get('folds'), mirror_sign=s)
+            else:
+                leg = ops.tube(f"{part.get('id', 'leg')}_{tag}", pts, radii)
+            materials.assign(leg, _mat(mats, part.get('mat', 'scales')))
+            out.append(leg)
         if part.get('foot'):
             f = part['foot']
             ax, ay, az = s * f['loc'][0], f['loc'][1], f['loc'][2]
@@ -2051,6 +2516,7 @@ def build(spec):
         count += len(objs)
     _apply_fuse_detail(spec, groups)
     _apply_fuse_groups(spec, groups)
+    _apply_weld_groups(spec, groups)
     _apply_axis_uv(spec, groups)
     _apply_displace(spec, groups)
     _apply_armor(spec, groups)

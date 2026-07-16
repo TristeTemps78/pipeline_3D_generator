@@ -1,11 +1,11 @@
 {
  "name": "krokmou",
- "ref": "Krokmou (Toothless, Night Fury, HTTYD), photo promo fond studio BLANC. Pose : couché à plat ventre, corps compact vu 3/4 avant surélevé ; tête posée bas près du sol, large/plate/arrondie, face au spectateur ; ailes de chauve-souris TRES grandes étalées à plat au sol, drapées, doigts en éventail, bord de fuite ondulé ; queue longue enroulée vers l'avant devant le corps, 2 ailerons caudaux au premier plan (gauche naturel noir, droit = prothèse rouge brique + emblème blanc) ; pattes avant trapues repliées sous le poitrail, à peine visibles. Morphologie féline/salamandre, PAS wyverne (4 pattes + 2 ailes) : pas de museau allongé, pas de cornes dures, dents rétractées (bouche fermée). Peau noir profond bleuté satinée, écailles très fines quasi invisibles sauf quelques plaques plus lisibles crâne/échine. Yeux énormes vert-jaune acide, pupille fente verticale, élément identitaire n°1. Critères de réussite (ordre) : 1) silhouette couchée reconnaissable (tête plate+gros yeux) ; 2) yeux verts lisibles et vivants (hero+head) ; 3) ailes étalées drapées naturellement, pas raides ; 4) queue enroulée devant + prothèse rouge/emblème lisible ; 5) noir profond satiné lisible sur fond blanc, sans écrasement.",
+ "ref": "Krokmou (Toothless, Night Fury, HTTYD), photo promo fond studio BLANC. Pose : couch\u00e9 \u00e0 plat ventre, corps compact vu 3/4 avant sur\u00e9lev\u00e9 ; t\u00eate pos\u00e9e bas pr\u00e8s du sol, large/plate/arrondie, face au spectateur ; ailes de chauve-souris TRES grandes \u00e9tal\u00e9es \u00e0 plat au sol, drap\u00e9es, doigts en \u00e9ventail, bord de fuite ondul\u00e9 ; queue longue enroul\u00e9e vers l'avant devant le corps, 2 ailerons caudaux au premier plan (gauche naturel noir, droit = proth\u00e8se rouge brique + embl\u00e8me blanc) ; pattes avant trapues repli\u00e9es sous le poitrail, \u00e0 peine visibles. Morphologie f\u00e9line/salamandre, PAS wyverne (4 pattes + 2 ailes) : pas de museau allong\u00e9, pas de cornes dures, dents r\u00e9tract\u00e9es (bouche ferm\u00e9e). Peau noir profond bleut\u00e9 satin\u00e9e, \u00e9cailles tr\u00e8s fines quasi invisibles sauf quelques plaques plus lisibles cr\u00e2ne/\u00e9chine. Yeux \u00e9normes vert-jaune acide, pupille fente verticale, \u00e9l\u00e9ment identitaire n\u00b01. Crit\u00e8res de r\u00e9ussite (ordre) : 1) silhouette couch\u00e9e reconnaissable (t\u00eate plate+gros yeux) ; 2) yeux verts lisibles et vivants (hero+head) ; 3) ailes \u00e9tal\u00e9es drap\u00e9es naturellement, pas raides ; 4) queue enroul\u00e9e devant + proth\u00e8se rouge/embl\u00e8me lisible ; 5) noir profond satin\u00e9 lisible sur fond blanc, sans \u00e9crasement.",
  "notes": [
-  "OMIS v1 : sangles/mécanisme de fixation cuir de la prothèse (pas de type de partie adapté, à trancher en BUILD).",
-  "OMIS v1 : selle discrète en cuir sur les épaules/garrot (idem, pas de type existant évident).",
-  "OMIS v1 : emblème blanc peint sur l'aileron prothèse (texture/décalque hors du système de matériaux procéduraux actuel) — v1 = toile rouge brique unie sur 'prosthetic_fabric'.",
-  "OMIS v1 : section 'bake' (normal/AO/curvature) — bake en boucle suivante. fuse_groups TESTÉ puis RETIRÉ boucle 20 (voxel gonfle les tubes fins, cf. pièges CLAUDE.md)."
+  "OMIS v1 : sangles/m\u00e9canisme de fixation cuir de la proth\u00e8se (pas de type de partie adapt\u00e9, \u00e0 trancher en BUILD).",
+  "OMIS v1 : selle discr\u00e8te en cuir sur les \u00e9paules/garrot (idem, pas de type existant \u00e9vident).",
+  "OMIS v1 : embl\u00e8me blanc peint sur l'aileron proth\u00e8se (texture/d\u00e9calque hors du syst\u00e8me de mat\u00e9riaux proc\u00e9duraux actuel) \u2014 v1 = toile rouge brique unie sur 'prosthetic_fabric'.",
+  "OMIS v1 : section 'bake' (normal/AO/curvature) \u2014 bake en boucle suivante. fuse_groups TEST\u00c9 puis RETIR\u00c9 boucle 20 (voxel gonfle les tubes fins, cf. pi\u00e8ges CLAUDE.md)."
  ],
  "materials": {
   "scales_body": {
@@ -311,29 +311,17 @@
  },
  "parts": [
   {
-   "type": "spine",
-   "id": "body",
+   "type": "skin_body",
+   "id": "torso",
    "mat": "scales_body",
+   "root_idx": 2,
+   "smooth": 5,
+   "subsurf": 2,
    "pts": [
     [
-     0.03,
-     -1.6,
-     0.35
-    ],
-    [
-     0.05,
-     -0.9,
-     0.56
-    ],
-    [
-     -0.03,
-     -0.2,
-     0.78
-    ],
-    [
      0.0,
-     0.5,
-     0.71
+     1.6,
+     0.32
     ],
     [
      0.0,
@@ -342,34 +330,19 @@
     ],
     [
      0.0,
-     1.6,
-     0.32
-    ]
-   ],
-   "radii": [
-    0.34,
-    0.6,
-    0.73,
-    0.75,
-    0.36,
-    0.2
-   ],
-   "smooth": 4,
-   "spikes": {
-    "n": 14,
-    "h0": 0.095,
-    "skip": 2,
-    "mat": "scales_head",
-    "base_frac": 0.62,
-    "tip_r": 0.014,
-    "flat": 0.32
-   }
-  },
-  {
-   "type": "spine",
-   "id": "tail",
-   "mat": "scales_body",
-   "pts": [
+     0.5,
+     0.71
+    ],
+    [
+     -0.03,
+     -0.2,
+     0.78
+    ],
+    [
+     0.05,
+     -0.9,
+     0.56
+    ],
     [
      0.03,
      -1.6,
@@ -437,6 +410,11 @@
     ]
    ],
    "radii": [
+    0.2,
+    0.36,
+    0.55,
+    0.52,
+    0.42,
     0.34,
     0.27,
     0.22,
@@ -451,388 +429,161 @@
     0.07,
     0.062
    ],
-   "smooth": 4,
    "spikes": {
-    "n": 13,
-    "h0": 0.05,
-    "skip": 1,
-    "mat": "scales_head",
-    "base_frac": 0.6,
-    "tip_r": 0.011,
-    "flat": 0.32
-   }
-  },
-  {
-   "type": "head",
-   "id": "head",
-   "loc": [
-    0.0,
-    1.75,
-    0.3
-   ],
-   "yaw": 6,
-   "pitch": -6,
-   "profile_smooth": 3,
-   "mat": "scales_head",
-   "axis_mat": "scales_head",
-   "gape": 0,
-   "upper": [
-    [
-     -0.05,
-     0.42,
-     0.2
-    ],
-    [
-     0.1,
-     0.46,
-     0.21
-    ],
-    [
-     0.24,
-     0.42,
-     0.18
-    ],
-    [
-     0.34,
-     0.34,
-     0.14
-    ],
-    [
-     0.42,
-     0.26,
-     0.1
-    ],
-    [
-     0.48,
-     0.2,
-     0.075
-    ]
-   ],
-   "lower": [
-    [
-     0.0,
-     0.3,
-     0.085
-    ],
-    [
-     0.16,
-     0.28,
-     0.075
-    ],
-    [
-     0.28,
-     0.24,
-     0.065
-    ],
-    [
-     0.38,
-     0.19,
-     0.05
-    ],
-    [
-     0.46,
-     0.15,
-     0.035
-    ]
-   ],
-   "snout_curve": {
-    "dip": 0.02,
-    "tip": 0.02,
-    "dip_pos": 0.6,
-    "sharp": 1.4
+    "shape": "fin",
+    "rows": 2,
+    "n": 24,
+    "skip": 3,
+    "end_frac": 0.6,
+    "h0": 0.27,
+    "base_frac": 0.52,
+    "mid_frac": 0.42,
+    "tip_frac_h": 0.40,
+    "flat": 0.28,
+    "up_bias": 0.65,
+    "tail_taper": 0.55,
+    "mat": "scales_body"
    },
-   "jaw_curve": {
-    "dip": -0.015,
-    "tip": 0.02,
-    "dip_pos": 0.5,
-    "sharp": 1.5
-   },
-   "feature_scale": 0.75,
-   "tooth_scale": 1.0,
-   "tooth_seed": 0,
-   "gum_mat": "scales_head",
-   "gum_ridge": {
-    "thickness_upper": 0.01,
-    "thickness_lower": 0.01,
-    "w_frac_upper": 0.72,
-    "w_frac_lower": 0.7,
-    "z_frac_upper": -0.05,
-    "z_frac_lower": 0.05
-   },
-   "gum": {
-    "scale": 1.0,
-    "flatten": 0.5,
-    "seg": 8
-   },
-   "tooth_span_upper": [
-    0.05,
-    1.1
-   ],
-   "teeth_upper": 0,
-   "fang_idx_upper": [],
-   "fang_scale_upper": 1.0,
-   "tooth_span_lower": [
-    0.05,
-    1.0
-   ],
-   "teeth_lower": 0,
-   "fang_idx_lower": [],
-   "fang_scale_lower": 1.0,
-   "face_blobs": [
+   "limbs": [
     {
-     "id": "earplate",
-     "mirror": true,
-     "pos": [
-      0.34,
-      -0.1,
-      0.26
-     ],
-     "scale": [
-      0.065,
-      0.26,
-      0.055
-     ],
-     "rot": [
-      30,
-      0,
-      -25
-     ]
-    },
-    {
-     "id": "chin_nub",
-     "mirror": true,
-     "pos": [
-      0.1,
-      0.34,
-      0.02
-     ],
-     "scale": [
-      0.032,
-      0.045,
-      0.024
-     ],
-     "rot": [
-      0,
-      0,
-      10
-     ]
-    },
-    {
-     "id": "jaw_nub",
-     "mirror": true,
-     "pos": [
-      0.25,
-      0.18,
-      -0.02
-     ],
-     "scale": [
-      0.03,
-      0.04,
-      0.02
-     ],
-     "rot": [
-      0,
-      0,
-      15
-     ]
-    },
-    {
-     "id": "cheekpad",
-     "mirror": true,
-     "pos": [
-      0.32,
-      0.14,
-      0.1
-     ],
-     "scale": [
-      0.1,
-      0.09,
-      0.04
-     ],
-     "rot": [
-      0,
-      0,
-      8
-     ]
-    },
-    {
-     "id": "frontal",
-     "mirror": false,
-     "pos": [
-      0.0,
-      0.1,
-      0.27
-     ],
-     "scale": [
-      0.1,
-      0.12,
-      0.03
-     ]
-    },
-    {
-     "id": "commissure",
-     "mirror": true,
-     "pos": [
-      0.2,
-      -0.05,
-      0.06
-     ],
-     "scale": [
-      0.03,
-      0.05,
-      0.02
-     ],
-     "rot": [
-      0,
-      0,
-      -10
-     ]
-    },
-    {
-     "id": "jaw_hinge",
-     "mirror": true,
-     "pos": [
-      0.22,
-      0.02,
-      0.02
-     ],
-     "scale": [
-      0.06,
-      0.09,
-      0.03
-     ]
-    }
-   ],
-   "eye": {
-    "pos": [
-     0.27,
-     0.075,
-     0.185
-    ],
-    "socket_r": 0.21,
-    "globe_r": 0.135,
-    "look_dir": [
-     0.55,
-     0.65,
-     0.3
-    ],
-    "lid_upper_scale": [
-     0.3,
-     0.46,
-     0.2
-    ],
-    "lid_upper_zfrac": 0.72,
-    "lid_upper_rot": [
-     -14,
-     10,
-     14
-    ],
-    "socket_bevel": 0.035,
-    "globe_recess": 0.02
-   },
-   "nostril": {
-    "pos": [
-     0.05,
-     0.36,
-     0.042
-    ],
-    "size": 0.032
-   },
-   "mouth_carve": {
-    "depth": 0.022,
-    "width_frac": 0.9,
-    "z_frac_upper": -0.22,
-    "z_frac_lower": 0.19,
-    "n": 16,
-    "pad_start": 0.05,
-    "pad_end": 0.03,
-    "bevel": 0.008
-   },
-   "exp": 3.2,
-   "fang_girth_upper": 1.0,
-   "fang_girth_lower": 1.0,
-   "ridges": [
-    {
-     "id": "brow",
-     "mirror": true,
-     "flat": 0.3,
+     "id": "foreleg",
+     "side": "both",
+     "smooth": 3,
      "pts": [
       [
-       0.14,
-       0.16,
-       0.33
+       0.55,
+       0.38,
+       0.3
       ],
       [
-       0.24,
-       0.1,
-       0.37
+       0.6,
+       0.3,
+       0.1
       ],
       [
-       0.34,
-       0.0,
-       0.35
-      ],
-      [
-       0.4,
-       -0.09,
-       0.29
+       0.28,
+       0.27,
+       0.06
       ]
      ],
      "radii": [
-      0.02,
-      0.036,
-      0.046,
-      0.05
+      0.19,
+      0.15,
+      0.12
+     ]
+    },
+    {
+     "id": "hindleg",
+     "side": "both",
+     "smooth": 3,
+     "pts": [
+      [
+       0.55,
+       -1.35,
+       0.42
+      ],
+      [
+       0.5,
+       -1.6,
+       0.15
+      ],
+      [
+       0.34,
+       -1.75,
+       0.06
+      ]
+     ],
+     "radii": [
+      0.24,
+      0.17,
+      0.12
      ]
     }
+   ]
+  },
+  {
+   "type": "head_galet",
+   "id": "head",
+   "loc": [
+    0.0,
+    1.88,
+    0.28
    ],
-   "horns": {
-    "pairs": 2,
-    "master_k": 0.5,
-    "master_w": 1.2,
-    "size_min": 0.55,
-    "size_bump": 0.15,
-    "n": 8,
-    "a": 0.02,
-    "b": 0.03,
-    "turns": 0.05,
-    "rise": 0.22,
-    "r0": 0.045,
-    "pitch": 55,
-    "pitch_spread": 8,
-    "yaw0": 20,
-    "yaw_spread": 12,
-    "fill_n": 0,
-    "base_from": [
-     0.16,
-     -0.08,
-     0.32
+   "pitch": -4,
+   "yaw": 0,
+   "mat": "scales_head",
+   "size": [
+    0.36,
+    0.3,
+    0.2
+   ],
+   "seg": 30,
+   "subsurf": 1,
+   "snout": {
+    "y0_frac": 0.1,
+    "push_y": 0.3,
+    "push_x": 0.24,
+    "flatten_z": 0.06,
+    "power": 1.1
+   },
+   "eye": {
+    "dir": [
+     0.85,
+     0.25,
+     0.35
     ],
-    "base_to": [
-     0.26,
-     -0.32,
-     0.16
+    "look_dir": [
+     0.5,
+     0.78,
+     0.25
     ],
-    "mat": "scales_head",
-    "axis_mat": "scales_head",
-    "seed": 2.0,
-    "tip_wear": 0.0,
-    "scale": 0.9,
-    "curl": 0.05,
-    "curl_power": 1.2,
-    "root_len": 0.045,
-    "root_bulge": 1.4,
-    "blade": {
-     "flat": 0.3,
-     "tip_frac": 0.4,
-     "twist": 10
+    "globe_r": 0.115,
+    "surf_offset": 0.55,
+    "mat": "eye",
+    "lid_scale": [
+     0.56,
+     0.72,
+     0.34
+    ],
+    "lid_z_off": 0.6,
+    "lid_rot": [
+     -16,
+     8,
+     14
+    ]
+   },
+   "ears": [
+    {
+     "id": "big",
+     "dir": [0.5, -0.55, 0.75],
+     "tilt": [-55, 0, -12],
+     "height": 0.30,
+     "radius": 0.155,
+     "embed_frac": 0.4,
+     "flatten": [1.0, 0.16],
+     "tip_frac": 0.3
     },
-    "secondary": {
-     "n": 5,
-     "root_len": 0.01,
-     "root_bulge": 1.05
+    {
+     "id": "mid",
+     "dir": [0.68, -0.42, 0.30],
+     "tilt": [-58, 0, -14],
+     "height": 0.22,
+     "radius": 0.115,
+     "embed_frac": 0.4,
+     "flatten": [1.0, 0.16],
+     "tip_frac": 0.32
+    },
+    {
+     "id": "tip",
+     "dir": [0.85, 0.1, -0.55],
+     "tilt": [-35, 0, -16],
+     "height": 0.10,
+     "radius": 0.05,
+     "embed_frac": 0.4,
+     "flatten": [1.0, 0.22],
+     "tip_frac": 0.4
     }
-   }
+   ]
   },
   {
    "type": "wing",
@@ -1003,6 +754,8 @@
    "mat": "membrane",
    "bone_mat": "wing_bone",
    "weld": true,
+   "skip_bones": true,
+   "edge_ridge_height": 0.03,
    "shoulder": [
     -1.19,
     0.605,
@@ -1035,26 +788,22 @@
     0.605,
     0.068
    ],
+   "root_curve": [
+    [-1.0, 0.52, 0.092],
+    [-1.32, 0.785, 0.098],
+    [-1.44, 0.955, 0.088]
+   ],
+   "root_offset": 0.0,
    "sag": 0.0,
    "samples": 8,
-   "columns_between": 1,
-   "thickness_root": 0.022,
-   "thickness_edge": 0.005,
-   "finger_r0": 0.044,
-   "finger_rmin": 0.004,
-   "finger_taper": 1.5,
+   "columns_between": 2,
+   "thickness_root": 0.028,
+   "thickness_edge": 0.006,
    "finger_lift": 0.0,
    "finger_bow": 0.0,
    "panel_billow": 0.0,
-   "camber": 0.0,
-   "festoon": 0.0,
-   "wclaw_len": 0.018,
-   "wclaw_r": 0.005,
-   "wclaw_rot": [
-    140,
-    0,
-    20
-   ]
+   "camber": 0.02,
+   "festoon": 0.0
   },
   {
    "type": "wing",
@@ -1063,6 +812,8 @@
    "mat": "prosthetic_fabric",
    "bone_mat": "prosthetic_bone",
    "weld": true,
+   "skip_bones": true,
+   "edge_ridge_height": 0.03,
    "shoulder": [
     -1.19,
     0.605,
@@ -1095,32 +846,29 @@
     0.605,
     0.068
    ],
+   "root_curve": [
+    [-1.0, 0.52, 0.092],
+    [-1.06, 0.785, 0.098],
+    [-0.94, 0.955, 0.088]
+   ],
+   "root_offset": 0.0,
    "sag": 0.0,
    "samples": 8,
-   "columns_between": 1,
-   "thickness_root": 0.022,
-   "thickness_edge": 0.005,
-   "finger_r0": 0.044,
-   "finger_rmin": 0.004,
-   "finger_taper": 1.5,
+   "columns_between": 2,
+   "thickness_root": 0.028,
+   "thickness_edge": 0.006,
    "finger_lift": 0.0,
    "finger_bow": 0.0,
    "panel_billow": 0.0,
-   "camber": 0.0,
-   "festoon": 0.0,
-   "wclaw_len": 0.018,
-   "wclaw_r": 0.005,
-   "wclaw_rot": [
-    140,
-    0,
-    20
-   ]
+   "camber": 0.02,
+   "festoon": 0.0
   },
   {
    "type": "limb",
    "id": "foreleg",
    "side": "both",
    "mat": "scales_legs",
+   "skip_tube": true,
    "pts": [
     [
      0.26,
@@ -1169,6 +917,7 @@
    "id": "hindleg",
    "side": "both",
    "mat": "scales_legs",
+   "skip_tube": true,
    "pts": [
     [
      0.35,
@@ -1399,14 +1148,14 @@
    },
    {
     "id": "head",
-    "frame_part": "head",
+    "frame_match": ["eye_", "lid_", "ear_"],
     "dir": [
      0.9,
      1.0,
      0.4
     ],
     "lens": 60,
-    "margin": 1.15
+    "margin": 1.4
    },
    {
     "id": "eye",
@@ -1459,5 +1208,20 @@
    "clamp_indirect": 3.0,
    "fast_sss": true
   }
- }
+ },
+ "weld_groups": [
+  {
+   "id": "weld_head_body",
+   "parts": [
+    "torso",
+    "head"
+   ],
+   "exclude_like": [
+    "eye_",
+    "lid_",
+    "ear_",
+    "_spike_"
+   ]
+  }
+ ]
 }
