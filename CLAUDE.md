@@ -1,17 +1,25 @@
 # Pipeline 3D — Claude + Blender (bpy headless)
 
-## But & directives permanentes (utilisateur, 2026-07-08)
-- BUT : pipeline GÉNÉRIQUE phrase/texte/vidéo → modèle 3D précis et complexe, Python+Blender
-  seulement. La créature en cours = banc d'essai ; toute mécanique nouvelle doit rester
-  pilotée par la spec JSON, jamais du code spécifique à une créature.
+## But & directives permanentes (utilisateur, 2026-07-08 ; PIVOT 2026-07-16)
+- BUT (pivot « PIPELINE SCULPTEUR », 2026-07-16) : modèles 3D PREMIUM par moyens GRATUITS
+  et ILLIMITÉS (services à crédits type Meshy/Tripo REJETÉS par l'utilisateur). Constat :
+  l'assemblage de primitives paramétriques a plafonné (jalons 400/432/456 rejetés, b21-23).
+  Méthode = modéliser comme un artiste : CAGE basse résolution au niveau vertex + subsurf
+  (une seule peau par construction), jugée contre des VUES ORTHO de référence (score de
+  silhouette), avec auto-critique visuelle haute fréquence. Code/données SPÉCIFIQUES à la
+  créature AUTORISÉS — la généricité s'extrait A POSTERIORI des techniques qui marchent.
+  Bases mesh CC0/CC-BY autorisées comme point de départ. La spec JSON reste le véhicule
+  (elle peut porter une cage : vertices/faces/creases).
 - ÉCONOMIE : l'orchestrateur délègue le gros du travail à des agents SONNET (`model: sonnet`
   imposé dans le frontmatter de `.claude/agents/*.md` — vérifier qu'il y reste) ; auto-audit
   régulier via `bash pipeline/audit.sh`. Budget lecture : boot session = CLAUDE.md (auto) +
   HANDOFF.md, RIEN d'autre ; gros fichiers (bx/organic.py, materials.py, specs) JAMAIS en
-  Read complet — Grep ciblé/offset, spec éditée par patchs ; images : 1 planche
-  (`sheet`/`compare`) par round de jugement, pas N PNG séparés ; rendu HQ = long → le lancer
-  UNE fois en fin de boucle, pas au milieu d'allers-retours (chaque pause >5 min casse le
-  cache de prompt et refacture tout le contexte).
+  Read complet — Grep ciblé/offset, spec éditée par patchs ; images : depuis le pivot,
+  l'AUTO-critique visuelle est le moteur (regarder des rendus multi-vues rapides à chaque
+  micro-étape, en local part ~4 s) MAIS en planches assemblées (1 image lue = 4-6 vues),
+  jamais N PNG séparés ; pour l'UTILISATEUR : jalons seulement ; rendu HQ = long → le
+  lancer UNE fois en fin de boucle, pas au milieu d'allers-retours (chaque pause >5 min
+  casse le cache de prompt et refacture tout le contexte).
 - COMPACITÉ : dossier léger — purger les renders sauf jalons référencés, logs compacts,
   CLAUDE.md court. Conseil clone local léger : `git clone --depth 1`.
 - BLENDS : toujours garder les 2 derniers modèles ouvrables (`renders/scene.blend` +
@@ -44,17 +52,19 @@ Drogon archivé : spec+maps+`renders/drogon_step297.blend`, réfs `references/dr
 - voxel fuse ≥.04 gonfle ×3 les tubes fins (r~.05), <.033 = mesh vide → pas de fuse sur pièces fines.
 
 ## Métriques
-`run.py compare` (planche réf|rendu + deltas, normalisé h=512) dès que la réf PNG existe.
+SIGNAL PRINCIPAL (pivot sculpteur) : score de SILHOUETTE par vue ortho (IoU rendu vs
+`references/krokmou_ortho_<face|side|top>.png`) — dense, mesurable, optimisable sans
+attendre le feedback utilisateur. `run.py compare` (planche réf|rendu + deltas) en appoint.
 Krokmou (noir sur fond blanc) : copper_fraction NON pertinent — juger luminance p5/p50/p95
 dans la créature + densité de bords. (Cibles Drogon archivées : couleur (0.33,0.27,0.26),
 cuivre .42, bords .36 ; priorité utilisateur = densité de détail, pas la couleur.)
 
 ## Règles
-- Spec = source de vérité (`specs/krokmou.json`). Jamais de bpy brut hors `pipeline/bx/`.
+- Spec = source de vérité (`specs/krokmou.json`), y compris les données de cage (vertex-level
+  spécifique-créature OK depuis le pivot). Jamais de bpy brut hors `pipeline/bx/`.
 - Géométrie d'abord (clay), look ensuite. Chaque pas jugé par métrique + œil ; pas non améliorant → annulé.
-- Écailles = GÉOMÉTRIE plaquée/imbriquée (`detail.armor`), pas du bruit.
-- La tête suit la fin de spine (continuité, pas de couture) ; ancres absolues (dewlap,
-  masks, ailes) à recaler après tout déplacement de spine.
+- Corps/tête/membres = UNE cage subsurf continue ; écailles/détail = GÉOMÉTRIE plaquée
+  (`detail.armor`) par-dessus, pas du bruit, et pas de boolean dans les formes organiques.
 - Éditions par petits patchs ; --fast pour itérer, HQ pour présenter ; CLAUDE.md court.
 
 ## Cmds & modules

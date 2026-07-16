@@ -43,8 +43,27 @@ manquait, c'est cette carte, et un mode d'inspection rapide pièce par pièce (`
  └─────────────────┘
 ```
 
-Règle d'or qui tient tout : **le JSON de spec pilote tout, le code ne connaît aucune
-créature**. `dragon_got.json` et `krokmou.json` passent dans exactement le même code.
+Règle d'or historique : **le JSON de spec pilote tout, le code ne connaît aucune
+créature**. AMENDÉE au pivot 2026-07-16 (« pipeline sculpteur ») : le travail au niveau
+vertex spécifique à une créature est désormais AUTORISÉ — la spec porte des données de
+cage (vertices/faces/creases) propres à Krokmou, et la généricité s'extrait a posteriori
+des techniques qui marchent, au lieu d'être imposée d'avance.
+
+## PIVOT boucle 24 — « pipeline sculpteur » (2026-07-16)
+
+Pourquoi : 3 jalons rejetés d'affilée (step_400/432/456) — l'assemblage de primitives
+paramétriques (tubes, booleans, skin modifier) a un plafond de qualité pour l'organique.
+Nouvelle méthode, celle des artistes : **cage basse résolution + Subdivision Surface**.
+- `bx/cage.py` (à créer, b24) : part type `cage` — maillage grossier (~100-250 vertices
+  posés explicitement, symétrie X) lu depuis la spec, + Subsurf ×2 = surface organique
+  continue, UNE seule peau sans boolean ni soudure.
+- Cible mesurable : vues ortho de référence (`references/krokmou_ortho_*.png`) + score
+  de **silhouette** (IoU rendu ortho vs réf, dans `bx/feedback.py`, cmd `run.py silh`).
+- Boucle interne : éditer cage → planche 4 vues (~15 s) → auto-critique + score → répéter,
+  des dizaines de fois AVANT de montrer quoi que ce soit à l'utilisateur.
+- Bases mesh CC0/CC-BY autorisées comme point de départ ou comparaison.
+Les types `skin_body`/`head_galet` ci-dessous (boucle 23) restent documentés comme état
+de REPLI (checkpoint `48963ba`) — ne plus itérer dessus.
 
 ## Qui fait quoi (fichier par fichier, du plus simple au plus gros)
 

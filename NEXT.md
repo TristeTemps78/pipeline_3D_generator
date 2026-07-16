@@ -3,8 +3,21 @@
 Priorisé, à recadrer à chaque feedback. Le « fait » vit dans git log + HANDOFF, pas ici.
 Nettoyé 2026-07-13 : items Drogon archivés en bas, « 2e créature » RETIRÉ (fait — Krokmou,
 boucle 20, prouve la généricité dragon→autre morphologie).
+PIVOT 2026-07-16 « pipeline sculpteur » (voir CLAUDE.md/HANDOFF.md) : la liste
+« mécanismes génériques » ci-dessous est GELÉE — à REJUGER item par item une fois la base
+cage validée (plusieurs deviennent inutiles : lissage spine, plis de tubes… la cage les
+couvre nativement).
 
-## Mécanismes génériques à construire (valables toute créature)
+## Post-pivot (nouvelle colonne vertébrale du backlog)
+1. Extraction de généricité A POSTERIORI : quand la cage Krokmou marche, en tirer le
+   schéma (cage dans la spec, outils d'édition de cage, miroir/creases) — PAS avant.
+2. TripoSR CPU local (MIT, gratuit illimité) comme générateur d'ébauche photo→mesh à
+   raffiner en cage — pari 30 min, jamais bloquant.
+3. Bibliothèque de bases mesh CC0/CC-BY (quadrupèdes, dragons) + workflow « déformer une
+   base propre vers la cible » (garde-fou 5 sauté).
+4. Retopo/decimate outillé si les cages grossissent (rester éditable).
+
+## Mécanismes génériques à construire (GELÉ post-pivot — rejuger après cage validée)
 1. Décalque/texture localisée (emblème blanc prothèse Krokmou, cicatrices, marquages) —
    seul manque bloquant identifié en boucle 20 (note « OMIS v1 » de la spec).
 2. Accessoires portés : selle/sangles cuir (nouveau type de partie ou courbe d'attache
