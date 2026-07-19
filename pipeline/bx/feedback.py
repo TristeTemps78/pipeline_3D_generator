@@ -113,23 +113,38 @@ def mask_from_image(path, threshold=0.5, invert=True, size=None):
     return mask
 
 
-def _bbox_normalize(mask, out_shape=(256, 256)):
+def _bbox_normalize(mask, out_shape=(256, 256), keep_aspect=False):
     """Recadre sur la bounding box de la silhouette puis rééchantillonne (nearest)
-    vers une taille commune : compare les FORMES, pas le cadrage des deux images."""
+    vers une taille commune : compare les FORMES, pas le cadrage des deux images.
+    keep_aspect=True (pivot sculpteur) : conserve le ratio du crop (fit + padding
+    centré) — sinon l'étirement vers le carré efface les erreurs de proportion
+    longueur/hauteur, qui sont précisément ce que la cage doit corriger."""
     ys, xs = np.nonzero(mask)
     if len(ys) == 0:
         return np.zeros(out_shape, dtype=bool)
     crop = mask[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
-    yi = (np.arange(out_shape[0]) * crop.shape[0] / out_shape[0]).astype(int)
-    xi = (np.arange(out_shape[1]) * crop.shape[1] / out_shape[1]).astype(int)
-    return crop[yi][:, xi]
+    if keep_aspect:
+        s = min(out_shape[0] / crop.shape[0], out_shape[1] / crop.shape[1])
+        target = (max(1, round(crop.shape[0] * s)), max(1, round(crop.shape[1] * s)))
+    else:
+        target = out_shape
+    yi = (np.arange(target[0]) * crop.shape[0] / target[0]).astype(int)
+    xi = (np.arange(target[1]) * crop.shape[1] / target[1]).astype(int)
+    out = crop[yi][:, xi]
+    if keep_aspect:
+        canvas = np.zeros(out_shape, dtype=bool)
+        oy, ox = (out_shape[0] - target[0]) // 2, (out_shape[1] - target[1]) // 2
+        canvas[oy:oy + target[0], ox:ox + target[1]] = out
+        out = canvas
+    return out
 
 
-def iou(mask_a, mask_b, normalize=True):
+def iou(mask_a, mask_b, normalize=True, keep_aspect=False):
     """Intersection over Union des deux silhouettes. 1.0 = formes identiques.
     Objectif de convergence des specs : > 0.85 (doc 2)."""
     if normalize:
-        mask_a, mask_b = _bbox_normalize(mask_a), _bbox_normalize(mask_b)
+        mask_a = _bbox_normalize(mask_a, keep_aspect=keep_aspect)
+        mask_b = _bbox_normalize(mask_b, keep_aspect=keep_aspect)
     union = np.logical_or(mask_a, mask_b).sum()
     if union == 0:
         return 0.0

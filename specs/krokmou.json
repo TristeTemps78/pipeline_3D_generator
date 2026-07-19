@@ -1095,6 +1095,11 @@
    ],
    "lens": 32
   },
+  "silh": {
+   "ref": "references/krokmou_ortho_side_body.png",
+   "axis": "side",
+   "ortho_scale": 8.0
+  },
   "hero": {
    "cam": [
     2.3,

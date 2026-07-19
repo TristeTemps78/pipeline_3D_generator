@@ -14,6 +14,9 @@
                                                   (head, wing, tail, tailfin_pros…) — le mode
                                                   « inspecter les pièces » rapide (~20-30 s)
   clayhero <spec.json> [--fast]                  clay + caméra hero (géométrie seule, cadrage macro)
+  silh <spec.json>                               score IoU silhouette (clay, ortho side) vs réf
+                                                  corps-seul locale — persiste delta dans
+                                                  pipeline/state/silh.json + planche renders/silh.png
   compare <spec.json> <ref.png> [--fast]         réf | rendu rim-lit + deltas couleur/bords (I2)
   bake <spec.json> [--fast]                      étage HIGH->LOW générique (bx.bake) : shell
                                                   voxel temporaire + couches détail -> bake
@@ -224,6 +227,49 @@ def do_compare(spec_path, ref_path, fast=False):
     print(json.dumps({'sheet': rep['sheet'], 'ref': rep['ref'], 'render': rep['render']}, indent=1))
 
 
+def do_silh(spec_path):
+    """Pivot sculpteur (b24) : score de silhouette IoU du modèle (clay, vue ortho) contre
+    la réf CORPS SEUL (locale, gitignorée ©). Persiste score+delta dans
+    pipeline/state/silh.json + planche réf|rendu|XOR dans renders/silh.png. L'orientation
+    (réf regarde à gauche) est levée en scorant aussi le rendu miroir : score = max."""
+    import numpy as np
+    spec, st, _ = _begin(spec_path, clay=True)
+    cfg = spec.get('scene', {}).get('silh', {})
+    ref_path = os.path.join(ROOT, cfg.get('ref', 'references/krokmou_ortho_side_body.png'))
+    if not os.path.exists(ref_path):
+        raise SystemExit(f"réf silhouette absente : {ref_path} — locale/gitignorée, "
+                         "à régénérer via references/krokmou_ref.md + krokmou_silh_trace.txt")
+    tgt = tuple(cfg.get('target', spec.get('scene', {}).get('camera', {}).get('target', (0, 0, 1.5))))
+    render = feedback.silhouette(target=tgt, axis=cfg.get('axis', 'side'),
+                                 ortho_scale=cfg.get('ortho_scale', 8.0))
+    ref = feedback.mask_from_image(ref_path)
+    both = {'raw': render, 'flip': np.fliplr(render)}
+    scores = {k: feedback.iou(m, ref, keep_aspect=True) for k, m in both.items()}
+    orient = max(scores, key=scores.get)
+    score = scores[orient]
+    a = feedback._bbox_normalize(ref, keep_aspect=True)
+    b = feedback._bbox_normalize(both[orient], keep_aspect=True)
+    tiles = []
+    for m in (a, b, np.logical_xor(a, b)):
+        t = np.zeros(m.shape + (4,), dtype=np.float32)
+        t[..., :3], t[..., 3] = m[..., None], 1.0
+        tiles.append(t)
+    sep = np.ones((a.shape[0], 4, 4), dtype=np.float32)
+    sep[..., :3] = 0.5
+    out = os.path.join(ROOT, 'renders', 'silh.png')
+    feedback._save_png(out, np.hstack([tiles[0], sep, tiles[1], sep, tiles[2]]))
+    sp = os.path.join(ROOT, 'pipeline', 'state', 'silh.json')
+    prev = json.load(open(sp)).get('score') if os.path.exists(sp) else None
+    delta = None if prev is None else round(score - prev, 4)
+    with open(sp, 'w') as f:
+        json.dump({'score': round(score, 4), 'prev': prev, 'delta': delta,
+                   'orient': orient, 'step': st['step']}, f, indent=1)
+    _end(st, spec_path, out)
+    print(f"IoU silhouette side corps-seul = {score:.4f} (orient {orient}, "
+          f"raw {scores['raw']:.4f} / flip {scores['flip']:.4f}) "
+          f"delta = {'—' if delta is None else f'{delta:+.4f}'} -> {out}")
+
+
 def do_clayhero(spec_path, fast=False):
     """Clay + caméra hero : juge la GÉOMÉTRIE seule dans le cadrage macro de `compare`,
     sans matériaux ni rim. C'est le rendu de validation entre deux éditions d'écailles/reliefs."""
@@ -327,6 +373,7 @@ COMMANDS = {
     'inspect': (do_inspect, 0, False),
     'part': (do_part, 1, True),
     'clayhero': (do_clayhero, 0, True),
+    'silh': (do_silh, 0, False),
     'compare': (do_compare, 1, True),
     'bake': (do_bake, 0, True),
 }
