@@ -28,6 +28,17 @@ def subsurf(ob, levels=2):
     return ob
 
 
+def mirror(ob, axis='X'):
+    """Modifier MIRROR sur un axe local avec clip+merge : une moitié éditée au niveau
+    vertex (cage sculpteur, b24) devient un volume symétrique fermé. À appeler AVANT
+    subsurf pour que le lissage traverse la couture sans pli."""
+    m = ob.modifiers.new('mirror', 'MIRROR')
+    m.use_axis = tuple(a == axis.upper() for a in 'XYZ')
+    m.use_clip = True
+    m.merge_threshold = 1e-4
+    return ob
+
+
 def realize_to_mesh(ob):
     """Convertit un objet CURVE (tube bevelé, cornes/dents/spine) en un nouvel objet MESH
     évalué — bake du profil bevel_depth/radius par point via le depsgraph (sans bpy.ops,

@@ -54,13 +54,19 @@ des techniques qui marchent, au lieu d'être imposée d'avance.
 Pourquoi : 3 jalons rejetés d'affilée (step_400/432/456) — l'assemblage de primitives
 paramétriques (tubes, booleans, skin modifier) a un plafond de qualité pour l'organique.
 Nouvelle méthode, celle des artistes : **cage basse résolution + Subdivision Surface**.
-- `bx/cage.py` (à créer, b24) : part type `cage` — maillage grossier (~100-250 vertices
-  posés explicitement, symétrie X) lu depuis la spec, + Subsurf ×2 = surface organique
-  continue, UNE seule peau sans boolean ni soudure.
-- Cible mesurable : vues ortho de référence (`references/krokmou_ortho_*.png`) + score
-  de **silhouette** (IoU rendu ortho vs réf, dans `bx/feedback.py`, cmd `run.py silh`).
-- Boucle interne : éditer cage → planche 4 vues (~15 s) → auto-critique + score → répéter,
-  des dizaines de fois AVANT de montrer quoi que ce soit à l'utilisateur.
+- FAIT (b24) : part type `cage` dans `bx/organic.py` (builder ~25 l.) — `verts`/`faces`
+  lus tels quels depuis la spec, `mirror_x` (helper `core.mirror`, clip+merge, AVANT le
+  subsurf), normales recalculées, Subsurf ×`subsurf` = surface organique continue, UNE
+  seule peau sans boolean. Cage de dev : `specs/krokmou_cage.json` (source de vérité,
+  éditée à la main ; amorçage archivé : `research/tests/gen_krokmou_cage.py`, ÉCRASE la
+  spec si relancé).
+- FAIT (b24) : score de **silhouette** — `run.py silh <spec>` : clay → rendu ortho side
+  (`feedback.silhouette`) → IoU vs réf corps-seul (`iou(keep_aspect=True)` : fit+padding,
+  les proportions comptent) → delta persisté `pipeline/state/silh.json` + planche
+  réf|rendu|XOR `renders/silh.png`. Réf = `references/krokmou_ortho_side_body.png`
+  (LOCALE gitignorée © ; décalque figé dans `references/krokmou_silh_trace.txt`).
+- Boucle interne : éditer cage → `silh` (~15 s) + analyse des poches XOR → répéter.
+  Jalon b24 : IoU 0.36 (modèle b23) → **0.9031** en 8 itérations de cage.
 - Bases mesh CC0/CC-BY autorisées comme point de départ ou comparaison.
 Les types `skin_body`/`head_galet` ci-dessous (boucle 23) restent documentés comme état
 de REPLI (checkpoint `48963ba`) — ne plus itérer dessus.
@@ -169,6 +175,8 @@ python3 pipeline/run.py part specs/krokmou.json wing --fast --clay   # géométr
 
 # Toute la bête, vite :
 python3 pipeline/run.py clayhero specs/krokmou.json --fast    # géométrie seule, ~30 s
+python3 pipeline/run.py silh specs/krokmou_cage.json          # score IoU silhouette + planche XOR
+                                                              # (réf locale gitignorée requise)
 python3 pipeline/run.py forge specs/krokmou.json --fast       # avec matériaux, ~1-3 min
 python3 pipeline/run.py sheet4 specs/krokmou.json --fast      # 6 vues + couleur par pièce, 1 PNG
 

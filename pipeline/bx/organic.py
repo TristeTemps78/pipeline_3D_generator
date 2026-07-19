@@ -2154,6 +2154,31 @@ def ground(part, mats):
     return [g]
 
 
+@builder('cage')
+def cage(part, mats):
+    """Pivot sculpteur (b24) : cage basse résolution posée VERTEX PAR VERTEX dans la spec
+    (`verts` [[x,y,z],...] + `faces` [[i,...],...], quads de préférence), miroir X
+    optionnel (`mirror_x`, défaut True : la spec ne porte que la moitié +X) puis subsurf.
+    UNE SEULE PEAU par construction — ni boolean ni primitive ; les proportions se jugent
+    à la silhouette (`run.py silh`), le détail vient APRÈS (detail.armor), pas ici."""
+    me = bpy.data.meshes.new(part['id'])
+    me.from_pydata([tuple(v) for v in part['verts']], [], [tuple(f) for f in part['faces']])
+    me.update()
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new(part['id'], me)
+    core.link(ob)
+    if part.get('mirror_x', True):
+        core.mirror(ob)
+    core.shade_smooth(ob)
+    core.subsurf(ob, part.get('subsurf', 2))
+    materials.assign(ob, _mat(mats, part.get('mat', 'scales_body')))
+    return [ob]
+
+
 def _apply_fuse_detail(spec, groups):
     """Étapes post-assemblage validées (research/convergence.md) : fusion voxel du corps
     puis détail (displace + écailles). Optionnelles, pilotées par la spec.

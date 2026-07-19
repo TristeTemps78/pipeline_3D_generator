@@ -1,7 +1,7 @@
 {
- "step": 457,
- "spec": "specs\\krokmou.json",
- "last_render": "renders\\silh.png",
+ "step": 469,
+ "spec": "specs\\krokmou_cage.json",
+ "last_render": "renders\\step_469.png",
  "feedback": [
   {
    "step": 6,
