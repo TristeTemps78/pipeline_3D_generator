@@ -2179,6 +2179,32 @@ def cage(part, mats):
     return [ob]
 
 
+@builder('globe')
+def globe(part, mats):
+    """Blob de surface générique (b25 : yeux/paupières posés SUR la cage — objets
+    séparés, convention b23 conservée : ids préfixés `eye_`/`lid_`, déjà filtrés par
+    detail.armor & co). `pos` = centre, `r` = rayon scalaire ou [rx,ry,rz], `look_dir`
+    aligne l'axe local +X (direction du regard, cf. materials.eye_globe), `rot` =
+    Euler degrés appliqué à défaut de look_dir, `mirror_x` duplique en ±X (_l/_r)."""
+    r = part.get('r', 0.1)
+    scale = tuple(r) if isinstance(r, (list, tuple)) else (r, r, r)
+    px, py, pz = part['pos']
+    sides = ((1, '_l'), (-1, '_r')) if part.get('mirror_x', True) else ((1, ''),)
+    out = []
+    for s, suf in sides:
+        ld = part.get('look_dir')
+        if ld:
+            q = Vector((s * ld[0], ld[1], ld[2])).normalized().to_track_quat('X', 'Z')
+            rot = tuple(math.degrees(a) for a in q.to_euler())
+        else:
+            rx, ry, rz = part.get('rot', (0, 0, 0))
+            rot = (rx, ry, s * rz)
+        g = ops.blob(part['id'] + suf, (s * px, py, pz), scale, rot_deg=rot)
+        materials.assign(g, _mat(mats, part.get('mat', 'scales_body')))
+        out.append(g)
+    return out
+
+
 def _apply_fuse_detail(spec, groups):
     """Étapes post-assemblage validées (research/convergence.md) : fusion voxel du corps
     puis détail (displace + écailles). Optionnelles, pilotées par la spec.

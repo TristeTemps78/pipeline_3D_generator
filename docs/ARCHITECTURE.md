@@ -68,6 +68,9 @@ Nouvelle méthode, celle des artistes : **cage basse résolution + Subdivision S
 - Boucle interne : éditer cage → `silh` (~15 s) + analyse des poches XOR → répéter.
   Jalon b24 : IoU 0.36 (modèle b23) → **0.9031** en 8 itérations de cage.
 - Bases mesh CC0/CC-BY autorisées comme point de départ ou comparaison.
+- FAIT (b25) : builder `globe` (organic.py) — blob de surface générique posé SUR la
+  cage (yeux `eye_*`/paupières `lid_*`, look_dir = axe du regard, mirror_x) ; la
+  spec cage porte aussi l'éclairage studio + `scene.shots` (full/head).
 Les types `skin_body`/`head_galet` ci-dessous (boucle 23) restent documentés comme état
 de REPLI (checkpoint `48963ba`) — ne plus itérer dessus.
 

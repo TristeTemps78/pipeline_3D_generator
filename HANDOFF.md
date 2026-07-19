@@ -47,15 +47,24 @@ P0-C CAGE : ✅ JALON ATTEINT.
 - Changement non améliorant → REVERT immédiat (une baisse de -0.015 attrapée ainsi) ;
   changer UN groupe de choses à la fois pour pouvoir attribuer.
 
-## Contrat boucle 25 (proposition, à confirmer par l'utilisateur)
+## Boucle 25 — « du visible d'abord » (recadrée par l'utilisateur 2026-07-19 : trop de
+## tokens pour un blob gris → tête/yeux/look AVANT la soudure des membres)
 
-P1 INTÉGRATION : souder pattes/oreilles à la peau du corps (extrusions dans la MÊME cage
-ou weld à la construction — PAS de boolean), puis ailes + ailerons caudaux (grandes
-plaques cage membraneuses). Ensuite : vue face (pas de réf ortho face — juger à l'œil
-+ planche), tête détaillée (yeux/mâchoire dans la cage), et seulement après → look
-(matériaux noirs satinés, yeux verts) sur la nouvelle surface.
-Règles inchangées : itérer local avec silh + XOR, check.sh vert avant commit, montrer
-uniquement les jalons, HQ une fois en fin.
+FAIT (2026-07-19) : builder `globe` (blob de surface générique, look_dir = axe du regard,
+mirror_x) ; yeux verts b23 (`materials.eye_globe`, copié dans la spec cage) + paupières
+plaques posés sur la cage ; éclairage studio + `scene.shots` (full/head) copiés du spec
+b23 ; oreilles balayées vers l'arrière. Silhouette TENUE : IoU 0.9026 (-0.0005 vs jalon,
+les globes ne débordent pas du profil). Rendus HQ jalon : `renders/step_475_full.png` +
+`step_475_head.png`, blend : `renders/scene.blend`. Leçon placement œil : itérer avec
+`forge --fast --shot head` (~30 s), 3 passes ont suffi (enfoui → sorti/regard avant).
+
+RESTE boucle 25+ (dans l'ordre de visibilité) : ligne de bouche + narines (géométrie
+décalque sur la cage tête) ; oreilles en cônes charnus (les plaques lisent « boîtes » en
+3/4 — reprendre le mécanisme `ears[]` de head_galet ou affiner les plaques) ; souder
+pattes/oreilles à la peau (extrusions dans la cage ou weld — PAS de boolean) ; ailes +
+ailerons caudaux (grandes plaques cage membraneuses) ; vue face à l'œil (pas de réf ortho
+face). Règles inchangées : itérer local silh + XOR + shots --fast, check.sh vert avant
+commit, montrer uniquement les jalons, HQ une fois en fin.
 
 ## Restes hors contrat (reportés, ne pas redécouvrir)
 
