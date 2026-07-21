@@ -102,6 +102,27 @@ WING = [
     (1.29, 1.47, 1.11),     # creux
     (0.42, 1.20, 0.92),     # racine du bord de fuite (hanche)
 ]
+# Rotation d'ensemble autour de la racine (axe Z) : en balayage arriere trop marque,
+# l'aile COTE CAMERA disparait derriere le corps au 3/4. -18 deg = ailes plus ouvertes,
+# les deux lisent dans le meme cadre. La forme de la membrane, elle, ne change pas.
+SWEEP = -18.0
+
+
+def _sweep(pts, deg=SWEEP):
+    a = math.radians(deg)
+    cx, cy = pts[0][0], pts[0][1]
+    out = []
+    for x, y, z in pts:
+        dx, dy = x - cx, y - cy
+        out.append((cx + dx * math.cos(a) - dy * math.sin(a),
+                    cy + dx * math.sin(a) + dy * math.cos(a), z))
+    return out
+
+
+# Diedre : les racines restent collees au flanc, tout le reste monte -> la membrane
+# passe AU-DESSUS de la ligne de dos au lieu de la traverser (lecture brouillonne au 3/4).
+WING = [(x, y, z + (0.0 if i in (0, len(WING) - 1) else 0.26))
+        for i, (x, y, z) in enumerate(_sweep(WING))]
 ARM = [WING[0], WING[1], WING[2], WING[3]]
 ARM_R = [0.19, 0.135, 0.09, 0.03]
 # CREUX : le festonnage ne peut pas etre plus PROFOND que la corde poignet->pointe

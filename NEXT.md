@@ -30,12 +30,11 @@ couvre nativement).
    JAMAIS de volume scatter par défaut (piège CLAUDE.md : ×30-100 sur CPU).
 6. Membrane niveau 2 : réseau veines/tendons sous la peau (shader), micro-plis,
    translucidité sans taches (cf. pièges CLAUDE.md).
-7. Découpage `bx/organic.py` (1854 l.) en un fichier par type de partie — SEULEMENT si
+7. Découpage `bx/organic.py` (2616 l.) en un fichier par type de partie — SEULEMENT si
    l'utilisateur veut lire ce code.
 8. Doctrine SDF v1 (`research/doctrine_sdf_v1.md`) : SDF backbone complet.
-9. Maintenance dépôt : `.git` pèse ~400 Mo (historique de renders) — proposer à
-   l'utilisateur une réécriture d'historique (destructif, décision à lui) ou vivre avec
-   `git clone --depth 1`.
+9. ~~Maintenance dépôt : `.git` à 400 Mo~~ — RÉGLÉ (audit 2026-07-21 : 42 Mo, clone
+   complet de 72 commits). Rien à réécrire ; garder la règle « blends aux jalons ».
 
 ## Archivé avec Drogon (reprendre SEULEMENT si retour au dragon)
 - PBR patine cuivre/vert-de-gris dans les creux, reflets dorés (roadmap step_141 d/e).

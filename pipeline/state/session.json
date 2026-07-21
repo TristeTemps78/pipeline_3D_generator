@@ -1,7 +1,7 @@
 {
- "step": 486,
+ "step": 510,
  "spec": "specs\\krokmou_cage.json",
- "last_render": "renders\\step_486_full.png",
+ "last_render": "renders\\step_510_head_side.png",
  "feedback": [
   {
    "step": 6,

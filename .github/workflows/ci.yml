@@ -35,6 +35,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: QA statique du pipeline (check.sh — compile + coherence specs + audit)
+        shell: bash
+        run: bash pipeline/check.sh   # ne demande que python3 : pas de bpy en CI
+
       - name: Detecter et lancer les tests
         shell: bash
         run: |

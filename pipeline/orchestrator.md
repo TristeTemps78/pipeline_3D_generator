@@ -20,11 +20,12 @@ Boucle : **GROUND → BUILD → RENDER → CRITIQUE → FEEDBACK utilisateur →
    ses retours précis avant toute suite. Consigner le feedback dans `pipeline/state/session.json`
    et les décisions actionnables dans `NEXT.md` (contrat de la boucle suivante, avec cibles chiffrées).
 
-## Boucle mesurée (doctrine depuis research/inversions.md)
-- Chaque changement visuel est jugé contre une CIBLE CHIFFRÉE (couleur moyenne, densité de bords,
-  IoU silhouette) issue de `references/`, jamais « à l'œil » seul.
-- Géométrie d'abord (clay), look ensuite ; on ne mélange pas les deux dans une même itération.
-- Un pas qui n'améliore pas sa métrique est annulé (git checkout de la spec), pas « compensé ».
+## Boucle mesurée
+Les règles (cible chiffrée, géométrie avant look, pas non améliorant annulé) vivent dans
+CLAUDE.md — **ne pas les dupliquer ici** (audit 2026-07-21 : elles y étaient en double).
+Spécifique à l'orchestration : la cible chiffrée est choisie AU CADRAGE de la boucle, et
+une métrique dont la référence ne couvre pas ce qu'on ajoute doit être neutralisée
+explicitement (ex. `scene.silh.exclude_like` pour les ailes) plutôt que subie.
 
 ## Multi-sessions / branches
 - `main` = source de vérité unique. Boot : `git fetch origin main` puis partir de

@@ -76,15 +76,53 @@ FAIT (2026-07-21) — TÊTE LISIBLE, **IoU 0.9089** (+0.0063, au-dessus du jalon
 - Shot `head_side` ajouté (`frame_match mouth_`, lens 70) : la bouche NE SE JUGE PAS au 3/4.
 - Repère mesuré (`run.py inspect`) : la surface lissée = cage/1.06 EXACTEMENT (bbox
   body_cage x_max 0.6363 = 0.653/1.06) ; museau lisse à y=-1.984 (cage -1.988).
-Rendus HQ jalon : `renders/step_484_head_side.png`, `step_485_head.png`,
-`step_486_full.png`, blend `renders/scene.blend`.
+Rendus jalon b25 purgés (superseded b26) — ils restent dans l'historique git.
 
-RESTE boucle 25+ (dans l'ordre de visibilité) : souder pattes/oreilles à la peau
-(extrusions dans la cage ou weld — PAS de boolean ; la base d'`ear_plate` lit encore
-« plaque collée » en HQ) ; ailes + ailerons caudaux (grandes plaques cage membraneuses) ;
-nubs de mâchoire/menton de la réf ; vue face à l'œil (pas de réf ortho face). Règles
-inchangées : itérer local silh + XOR + shots --fast, check.sh vert avant commit, montrer
-uniquement les jalons, HQ une fois en fin.
+## Boucle 26 (2026-07-21) — AILES, AILERONS, SOUDURE DES PATTES + audit + hook
+
+Rendus jalon : `renders/step_509_full.png` (hero), `renders/step_510_head_side.png`
+(tête de profil), `renders/step_502.png` (planche clay 6 vues, montre la soudure).
+Blend : `renders/scene.blend`. **IoU silhouette 0.8977** (0.9090 avant la soudure).
+
+FAIT :
+- `research/tests/gen_appendages.py` — 2 briques génériques : `plate()` (polygone 3D
+  fermé → plaque étanche, normale de Newell) et `tube_along()` (polyligne → tube fermé).
+- AILES : membrane `plate` subsurf 0 + bras + 2 doigts (`tube_along`), miroir X, ±18° de
+  balayage et dièdre pour que les DEUX ailes lisent au 3/4. AILERONS caudaux : gauche
+  noir, droit = **prothèse rouge brique** (materiau `membrane`, transmission 0).
+- NUBS mâchoire/menton (`spike` + `skin_matte`).
+- SOUDURE des 4 pattes dans la cage : `research/tests/gen_body_weld.py` — miroir cuit,
+  **Catmull-Clark EXACT** ×1 (conserve la surface limite ; CC×1 + subsurf 1 == subsurf 2
+  sur la cage grossière), perçage de 2 quads voisins sous le ventre, pontage du trou
+  hexagonal sur l'anneau de GENOU (hanche jetée). Corps + pattes = UNE peau, sans
+  booléen. `body_cage` = 722 verts, `mirror_x: false`, subsurf 1 (les 4 parts `leg_*`
+  ont disparu de la spec).
+- MÉTRIQUE : `scene.silh.exclude_like` (+ `feedback.silhouette`) masque ailes/ailerons
+  pendant le rendu ortho (la réf est un décalque CORPS SEUL) ; `scene.silh.target` figé.
+- HOOK git : `.push-test` = `bash pipeline/check.sh` → le pre-push refuse tout push non
+  vert (le kit de hooks ne détectait aucun test). `check.sh` ajouté aussi à la CI.
+- AUDIT complet : voir corrections dans NEXT.md (item 9 périmé : `.git` fait 42 Mo, pas
+  400), `docs/ARCHITECTURE.md` (b25+b26), `orchestrator.md` (dédoublonné avec CLAUDE.md).
+
+PIÈGES PAYÉS CETTE BOUCLE (ne pas redécouvrir) :
+- Plaque fine → **subsurf 0** : le Catmull-Clark rogne le contour et avale les festons
+  d'une membrane (les doigts dépassaient de l'aile).
+- Un creux de membrane ne peut pas être plus profond que la corde poignet→pointe
+  suivante, sinon le doigt (segment droit) sort de la membrane.
+- Raffiner une cage par subdivision LINÉAIRE la gonfle vers son polygone de contrôle
+  (IoU −0.02 avant même de souder) : utiliser Catmull-Clark exact.
+- Trou d'attache trop GROS (2 quads de la cage grossière) → la cuisse rend en JUPE qui
+  comble le vide sous le ventre (IoU −0.08). Percer après raffinement.
+- Reculer la patte avant lointaine par cisaillement crée une cuisse diagonale qui bouche
+  le vide poitrail/patte (IoU −0.09) : la réf a bien cette patte avancée (tête basse).
+- Épaissir les pattes soudées (×1.18) n'aide pas (−0.005) : ce n'est pas l'épaisseur.
+
+RESTE (ordre de visibilité) : la soudure coûte 0.011 d'IoU (le ventre descend plus bas
+que la réf entre les pattes) — récupérable en remontant la ligne de ventre entre les
+attaches ; base d'`ear_plate` encore « plaque collée » en HQ (même méthode de soudure
+applicable) ; `validate` signale 30 tris auto-intersectés dans `body_cage` (cuisses qui
+frôlent le ventre, sans effet visible) ; emblème blanc de la prothèse (décalque/texture,
+mécanisme absent) ; selle/sangles ; vue face à l'œil (pas de réf ortho face).
 
 ## Restes hors contrat (reportés, ne pas redécouvrir)
 

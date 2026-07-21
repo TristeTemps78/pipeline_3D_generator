@@ -71,6 +71,30 @@ Nouvelle méthode, celle des artistes : **cage basse résolution + Subdivision S
 - FAIT (b25) : builder `globe` (organic.py) — blob de surface générique posé SUR la
   cage (yeux `eye_*`/paupières `lid_*`, look_dir = axe du regard, mirror_x) ; la
   spec cage porte aussi l'éclairage studio + `scene.shots` (full/head).
+- FAIT (b25) : builder `spike` (organic.py) — enveloppe spec d'`ops.spike` (`pos`,
+  `dir`, `tilt`, `height`, `radius`, `flatten`, `tip_frac`, `mirror_x`) : plaques
+  charnues posées sur la cage (oreilles, appendices sensoriels, nubs de mâchoire).
+  Ligne de bouche = décalque `cage` subsurf 0 en **lèvre en surplomb** (bord haut qui
+  sort, bord bas sous la peau) + matériau `skin_matte` : sur du noir, une ligne se voit
+  par l'OMBRE et la rugosité, pas par l'albédo. Générateur : `research/tests/gen_mouth.py`
+  (imprime le JSON, n'écrit pas la spec). Shot `head_side` pour la juger de profil.
+- FAIT (b26) : appendices — `research/tests/gen_appendages.py` donne deux briques
+  génériques : `plate()` (polygone 3D fermé → plaque étanche, normale de Newell) et
+  `tube_along()` (polyligne → tube fermé). Ailes (membrane + bras + doigts), ailerons
+  caudaux dont la **prothèse rouge**. Règles apprises : plaque fine → subsurf 0 (le
+  Catmull-Clark rogne le contour et avale les festons) ; un creux de membrane ne peut
+  pas être plus profond que la corde poignet→pointe suivante, sinon le doigt en sort.
+- FAIT (b26) : **soudure des pattes** — `research/tests/gen_body_weld.py` cuit le miroir
+  du corps (anneaux fermés), applique N passes de **Catmull-Clark EXACT** (conserve la
+  surface limite : CC×1 + subsurf 1 == subsurf 2 sur la cage grossière — un raffinement
+  LINÉAIRE, lui, gonfle le corps vers le polygone de contrôle), perce 2 quads voisins
+  sous le ventre et ponte le trou hexagonal sur l'anneau de genou (la hanche est jetée,
+  le subsurf fabrique le congé). Appariement des boucles par force brute. Corps + 4
+  pattes = UNE peau, sans booléen.
+- FAIT (b26) : `scene.silh.exclude_like` (+ `feedback.silhouette(exclude_like=)`) masque
+  ailes/ailerons pendant le rendu ortho — la référence est un décalque CORPS SEUL, la
+  métrique ne doit pas punir ce qu'on ajoute ; `scene.silh.target` figé pour qu'un
+  recadrage de caméra ne bouge plus le score.
 Les types `skin_body`/`head_galet` ci-dessous (boucle 23) restent documentés comme état
 de REPLI (checkpoint `48963ba`) — ne plus itérer dessus.
 
