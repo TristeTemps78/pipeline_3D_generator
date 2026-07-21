@@ -2205,6 +2205,41 @@ def globe(part, mats):
     return out
 
 
+@builder('spike')
+def spike(part, mats):
+    """Plaque conique charnue posée SUR la cage (b25 : oreilles/appendices de Krokmou —
+    les plaques `cage` subsurf 0 lisaient « boîtes »). Enveloppe spec de `ops.spike`,
+    la primitive créée en b23 pour les oreilles de `head_galet` : `pos` = centre,
+    `dir` = axe base->pointe (aligne le +Z local), `tilt` = Euler degrés appliqué APRÈS
+    l'alignement (balaie la pointe dans le repère propre de la plaque), `flatten` [fx,fy]
+    écrase la base en palette, `tip_frac` émousse le bout, `mirror_x` duplique en ±X
+    (_l/_r). Base à ENFOUIR dans la peau (la soudure viendra plus tard)."""
+    px, py, pz = part['pos']
+    sides = ((1, '_l'), (-1, '_r')) if part.get('mirror_x', True) else ((1, ''),)
+    flat = part.get('flatten')
+    out = []
+    for s, suf in sides:
+        d = part.get('dir')
+        if d:
+            u = Vector((s * d[0], d[1], d[2])).normalized()
+            quat = u.to_track_quat('Z', 'Y')
+            tilt = part.get('tilt', (0.0, 0.0, 0.0))
+            if any(tilt):
+                quat = quat @ Euler((math.radians(tilt[0]), math.radians(tilt[1]),
+                                     math.radians(s * tilt[2])), 'XYZ').to_quaternion()
+            rot = tuple(math.degrees(a) for a in quat.to_euler())
+        else:
+            rx, ry, rz = part.get('rot', (0, 0, 0))
+            rot = (rx, ry, s * rz)
+        sp = ops.spike(part['id'] + suf, (s * px, py, pz), part.get('height', 0.3),
+                       part.get('radius', 0.1), rot, seg=part.get('seg', 16),
+                       flatten=tuple(flat) if flat else None,
+                       tip_frac=part.get('tip_frac', 0.0))
+        materials.assign(sp, _mat(mats, part.get('mat', 'scales_body')))
+        out.append(sp)
+    return out
+
+
 def _apply_fuse_detail(spec, groups):
     """Étapes post-assemblage validées (research/convergence.md) : fusion voxel du corps
     puis détail (displace + écailles). Optionnelles, pilotées par la spec.

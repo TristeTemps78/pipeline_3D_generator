@@ -53,18 +53,38 @@ P0-C CAGE : ✅ JALON ATTEINT.
 FAIT (2026-07-19) : builder `globe` (blob de surface générique, look_dir = axe du regard,
 mirror_x) ; yeux verts b23 (`materials.eye_globe`, copié dans la spec cage) + paupières
 plaques posés sur la cage ; éclairage studio + `scene.shots` (full/head) copiés du spec
-b23 ; oreilles balayées vers l'arrière. Silhouette TENUE : IoU 0.9026 (-0.0005 vs jalon,
-les globes ne débordent pas du profil). Rendus HQ jalon : `renders/step_475_full.png` +
-`step_475_head.png`, blend : `renders/scene.blend`. Leçon placement œil : itérer avec
+b23. Silhouette TENUE : IoU 0.9026. Leçon placement œil : itérer avec
 `forge --fast --shot head` (~30 s), 3 passes ont suffi (enfoui → sorti/regard avant).
 
-RESTE boucle 25+ (dans l'ordre de visibilité) : ligne de bouche + narines (géométrie
-décalque sur la cage tête) ; oreilles en cônes charnus (les plaques lisent « boîtes » en
-3/4 — reprendre le mécanisme `ears[]` de head_galet ou affiner les plaques) ; souder
-pattes/oreilles à la peau (extrusions dans la cage ou weld — PAS de boolean) ; ailes +
-ailerons caudaux (grandes plaques cage membraneuses) ; vue face à l'œil (pas de réf ortho
-face). Règles inchangées : itérer local silh + XOR + shots --fast, check.sh vert avant
-commit, montrer uniquement les jalons, HQ une fois en fin.
+FAIT (2026-07-21) — TÊTE LISIBLE, **IoU 0.9089** (+0.0063, au-dessus du jalon b24) :
+- Builder générique `spike` dans organic.py (enveloppe spec d'`ops.spike` : `pos`, `dir`,
+  `tilt`, `height`, `radius`, `flatten`, `tip_frac`, `mirror_x`) — même primitive « plaque
+  charnue » que les oreilles de `head_galet`, sans dupliquer de code.
+- Oreilles : les 2 boîtes `cage` remplacées par `ear_plate` (spike aplati balayé arrière)
+  + `ear_nub_hi/lo` (appendices sensoriels de la réf). Réglages qui marchent :
+  `flatten [0.42,1.0]` (mince en X = face large visible de PROFIL, c'est la lecture
+  Krokmou), `tip_frac 0.22`, `dir [0.28,0.78,0.48]` (~31° vers le haut : plus vertical
+  = « cornes », plus couché = la plaque se fond dans le dos), height 0.62.
+- `mouth_line` : décalque `cage` subsurf 0 généré par `research/tests/gen_mouth.py`
+  (IMPRIME le JSON, n'écrit PAS la spec). Sur du noir la ligne se voit par l'OMBRE, pas
+  par l'albédo → section en **lèvre en surplomb** (bord haut +0.020, bord bas -0.006,
+  face interne -0.030), pas une corniche symétrique (round 1 : invisible + effet ledge).
+  Station de tête SUR l'axe → pas de bouchon avant (2 ngons coïncidents = non manifold ;
+  le mirror clip+merge referme). Matériau `skin_matte` (reptile_scales rough 0.72,
+  spec_level 0.08) : contraste par la RUGOSITÉ.
+- `nostril` : 2 `globe` aplatis (r [0.05,0.08,0.03]) mats sur le dessus du museau.
+- Shot `head_side` ajouté (`frame_match mouth_`, lens 70) : la bouche NE SE JUGE PAS au 3/4.
+- Repère mesuré (`run.py inspect`) : la surface lissée = cage/1.06 EXACTEMENT (bbox
+  body_cage x_max 0.6363 = 0.653/1.06) ; museau lisse à y=-1.984 (cage -1.988).
+Rendus HQ jalon : `renders/step_484_head_side.png`, `step_485_head.png`,
+`step_486_full.png`, blend `renders/scene.blend`.
+
+RESTE boucle 25+ (dans l'ordre de visibilité) : souder pattes/oreilles à la peau
+(extrusions dans la cage ou weld — PAS de boolean ; la base d'`ear_plate` lit encore
+« plaque collée » en HQ) ; ailes + ailerons caudaux (grandes plaques cage membraneuses) ;
+nubs de mâchoire/menton de la réf ; vue face à l'œil (pas de réf ortho face). Règles
+inchangées : itérer local silh + XOR + shots --fast, check.sh vert avant commit, montrer
+uniquement les jalons, HQ une fois en fin.
 
 ## Restes hors contrat (reportés, ne pas redécouvrir)
 
