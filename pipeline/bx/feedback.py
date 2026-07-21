@@ -87,17 +87,26 @@ def contact_sheet(path, views=None, res=(512, 384), samples=12, target=(0, 0, 1.
 
 
 def silhouette(loc=None, target=(0, 0, 1.5), ortho_scale=7.0, res=(512, 384),
-               axis='side', dist=9.0):
+               axis='side', dist=9.0, exclude_like=()):
     """Masque binaire de silhouette : rendu ortho à fond transparent, seuil sur l'alpha.
-    Insensible à l'éclairage et aux matériaux (contrairement à un seuil de luminance)."""
+    Insensible à l'éclairage et aux matériaux (contrairement à un seuil de luminance).
+    `exclude_like` (b26) : sous-chaînes de noms d'objets MASQUÉS le temps du rendu — la
+    référence de score est un décalque CORPS SEUL, donc tout appendice absent du masque
+    (ailes, ailerons) doit sortir du calcul, sinon la métrique punit ce qu'on ajoute."""
     if loc is None:
         tx, ty, tz = target
         loc = {'side': (tx + dist, ty, tz), 'front': (tx, ty - dist, tz),
                'top': (tx, ty - 0.001, tz + dist)}[axis]
+    hidden = [o for o in bpy.data.objects
+              if any(p in o.name for p in exclude_like) and not o.hide_render]
+    for o in hidden:
+        o.hide_render = True
     cam = _place_cam(loc, target, ortho_scale=ortho_scale)
     tmp = bpy.app.tempdir or '/tmp'
     px = _render_pixels(os.path.join(tmp, '_sil.png'), res, samples=8, transparent=True)
     bpy.data.objects.remove(cam)
+    for o in hidden:
+        o.hide_render = False
     return px[..., 3] > 0.5
 
 

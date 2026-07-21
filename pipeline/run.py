@@ -241,7 +241,8 @@ def do_silh(spec_path):
                          "à régénérer via references/krokmou_ref.md + krokmou_silh_trace.txt")
     tgt = tuple(cfg.get('target', spec.get('scene', {}).get('camera', {}).get('target', (0, 0, 1.5))))
     render = feedback.silhouette(target=tgt, axis=cfg.get('axis', 'side'),
-                                 ortho_scale=cfg.get('ortho_scale', 8.0))
+                                 ortho_scale=cfg.get('ortho_scale', 8.0),
+                                 exclude_like=tuple(cfg.get('exclude_like', ())))
     ref = feedback.mask_from_image(ref_path)
     both = {'raw': render, 'flip': np.fliplr(render)}
     scores = {k: feedback.iou(m, ref, keep_aspect=True) for k, m in both.items()}
