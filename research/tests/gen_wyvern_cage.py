@@ -26,7 +26,10 @@ from gen_wyvern_trace import BODY, LEG, S, X0, Y0  # noqa: E402
 # rogne d'autant PLUS que la section est PETITE (le rayon de courbure impose la perte).
 # D'ou une compensation qui suit la taille de la section au lieu d'un facteur global —
 # c'est ce qui rattrape la tete et le cou, systematiquement trop maigres a 1.06.
-GROW_A, GROW_B = 1.040, 2.0  # grow = A + B/taille_px   (mesures : cf. HANDOFF b27)
+GROW_A, GROW_B = 1.012, 2.0  # grow = A + B/taille_px   (mesures : cf. HANDOFF b27)
+#   A est tombe de 1.040 a 1.012 avec le profil « squircle » : un sommet PLAT resiste
+#   bien mieux au Catmull-Clark que l'apex d'une ellipse, donc il faut nettement
+#   moins compenser (mesure : 2.3 % d'EXCES en bande le long du dos).
 #   B est passe de 3.6 a 2.0 en v2 : le cou et la queue sont devenus BEAUCOUP plus fins
 #   (proportions realistes), donc la loi en 1/taille sur-corrigeait -> 7.4 % d'EXCES.
 
@@ -136,9 +139,9 @@ def main():
             # il faut ~1.35. C'est le relief qui fait la peau, pas la couleur.
             "hide": {"builder": "reptile_scales", "p": {
                 "scale": 14, "scale2": 40, "bump": 1.35,
-                "base": [0.016, 0.014, 0.013], "tint": [0.065, 0.038, 0.024],
+                "base": [0.011, 0.0095, 0.009], "tint": [0.038, 0.024, 0.016],
                 "rough": 0.66, "rough_edge": 0.28, "sss": 0.04, "micro": 0.45,
-                "edge_copper": 0.20, "edge_width": 0.012, "instance_variation": 0.22,
+                "edge_copper": 0.12, "edge_width": 0.012, "instance_variation": 0.22,
                 "patina_amount": 0.0, "spec_level": 0.14, "sheen": 0.03,
                 "aniso": 0.05, "specular_tint": [0.86, 0.84, 0.8]}},
             "rock": {"builder": "rock", "p": {
@@ -150,8 +153,12 @@ def main():
             # CONTRE-PLONGEE : l'objectif est SOUS la ligne des yeux (z 0.85 pour une
             # tete a z 1.4) — c'est le cadrage qui fait dominer le sujet. Une prise de
             # vue a hauteur d'epaule d'homme rendrait la meme bete inoffensive.
-            "camera": {"loc": [6.3, -9.8, 0.85], "target": [-0.10, -0.35, 1.42],
-                       "lens": 48, "fstop": 3.0},
+            # 3/4 AVANT, tres bas, serre sur l'avant du corps. Le frontal pur faisait lire
+            # les ailes comme deux parapluies (eventail vu de face) ; le lateral pur cache
+            # la queue derriere l'aile. Le 3/4 avant garde le regard, montre l'envergure
+            # en raccourci et laisse la croupe filer dans le flou.
+            "camera": {"loc": [4.6, -8.6, 0.55], "target": [-0.35, -1.90, 1.22],
+                       "lens": 55, "fstop": 2.8},
             "silh": {"ref": "references/wyvern_ortho_side.png", "axis": "side",
                      "ortho_scale": 9.0, "target": [0.0, 0.5, 1.4],
                      "exclude_like": ["wing", "horn", "tooth", "ridge", "brow",

@@ -53,10 +53,10 @@ def on_skin(x_img, frac, out=0.78):
 # v2 : hauteurs DIVISEES PAR ~1.8. Une crete de 0.50 u sur un dos de 1.0 u, c'est du
 # fantasy illustre ; les osteodermes d'un crocodile ou d'un varan depassent a peine.
 RIDGE = [
-    (198, 0.09), (222, 0.12), (248, 0.15), (274, 0.18), (300, 0.21), (326, 0.24),
-    (352, 0.26), (380, 0.28), (408, 0.29), (438, 0.29), (468, 0.28), (498, 0.26),
-    (528, 0.24), (558, 0.22), (588, 0.20), (620, 0.18), (652, 0.15), (686, 0.13),
-    (720, 0.11), (754, 0.09), (788, 0.07), (822, 0.05),
+    (220, 0.11), (244, 0.15), (268, 0.19), (292, 0.23), (316, 0.27), (340, 0.30),
+    (364, 0.33), (390, 0.35), (416, 0.37), (444, 0.38), (472, 0.37), (500, 0.35),
+    (530, 0.32), (560, 0.29), (590, 0.26), (620, 0.23), (652, 0.20), (686, 0.17),
+    (720, 0.14), (754, 0.11), (788, 0.08), (822, 0.06),
 ]
 
 
@@ -76,9 +76,9 @@ def ridge_parts():
 def horn_parts():
     """Grande paire occipitale balayee vers l'arriere PAR-DESSUS le cou (la lecture
     « dragon » nº1 en silhouette) + petite paire a l'angle de la machoire."""
-    pts = [[0.16, Y(174), Z(378)], [0.24, Y(196), Z(348)], [0.32, Y(226), Z(318)],
-           [0.38, Y(262), Z(300)], [0.41, Y(300), Z(298)]]
-    radii = [0.075, 0.060, 0.044, 0.025, 0.007]
+    pts = [[0.19, Y(194), Z(372)], [0.27, Y(220), Z(342)], [0.35, Y(252), Z(312)],
+           [0.41, Y(288), Z(294)], [0.44, Y(326), Z(292)]]
+    radii = [0.085, 0.068, 0.050, 0.028, 0.008]
     out = []
     # ASYMETRIE VOULUE : la corne droite est CASSEE net. Une bete parfaitement
     # symetrique et intacte lit « figurine neuve » ; une usure suffit a dire « ca vit,
@@ -90,9 +90,9 @@ def horn_parts():
                               up=(1, 0, 0), subsurf=2, mat="horn", mirror_x=False,
                               miter=True))
     out.append(tube_along("horn_jaw",
-                          [[0.21, Y(158), Z(424)], [0.26, Y(176), Z(416)],
-                           [0.29, Y(194), Z(412)]],
-                          [0.036, 0.022, 0.006],
+                          [[0.24, Y(178), Z(436)], [0.29, Y(198), Z(428)],
+                           [0.32, Y(216), Z(424)]],
+                          [0.040, 0.024, 0.006],
                           up=(1, 0, 0), subsurf=2, mat="horn", mirror_x=True,
                           miter=True))
     return out
@@ -100,14 +100,14 @@ def horn_parts():
 
 # --------------------------------------------------------------- tete : arcade, oeil
 def head_parts():
-    xe, ye, ze = on_skin(128, 0.32, out=0.88)     # oeil, ENFONCE (out < 1)
+    xe, ye, ze = on_skin(148, 0.30, out=0.88)     # oeil, ENFONCE (out < 1)
     # Round 1 : l'arcade etait un `spike` aplati -> une PLAQUE HEXAGONALE collee sur le
     # crane, l'artefact le plus voyant de la tete. Une arcade est une CRETE osseuse : un
     # tube a demi enfoui qui longe le haut de l'orbite le fait, et son ombre portee
     # tombe pile dans l'oeil — le levier de peur recherche.
     brow_pts, brow_r = [], []
-    for x_img, frac, r in ((112, 0.32, 0.032), (130, 0.21, 0.046),
-                           (148, 0.16, 0.050), (166, 0.19, 0.034)):
+    for x_img, frac, r in ((130, 0.31, 0.034), (150, 0.20, 0.050),
+                           (168, 0.15, 0.056), (188, 0.18, 0.038)):
         bx, by, bz = on_skin(x_img, frac, out=0.90)
         brow_pts.append([round(bx, 3), by, bz])
         brow_r.append(r)
@@ -117,13 +117,26 @@ def head_parts():
         # Narines : 2 fentes aplaties sur le dessus du museau (b25). Sans elles, le
         # museau se termine en bloc lisse et la tete lit « jouet ».
         {"type": "globe", "id": "nostril", "mirror_x": True,
-         "pos": [round(on_skin(80, 0.22, out=0.70)[0], 3), Y(80), Z(410)],
+         "pos": [round(on_skin(78, 0.22, out=0.70)[0], 3), Y(78), Z(408)],
          "r": [0.028, 0.048, 0.018], "rot": [0, 0, -14], "mat": "hide_matte"},
         # Oeil PETIT (r 0.085 sur un crane de 1.7 u) : c'est le rapport oeil/crane qui
         # fait lire un GROS animal — l'oeil de Krokmou faisait 0.21 pour l'effet inverse.
         {"type": "globe", "id": "eye", "mirror_x": True,
-         "pos": [round(xe, 3), ye, ze], "r": 0.055,
+         "pos": [round(xe, 3), ye, ze], "r": 0.072,
          "look_dir": [0.52, -0.80, 0.30], "mat": "eye"},
+        # PAUPIERE : un globe nu se lit « bille de verre collee ». Une plaque de peau
+        # qui mord sur le haut de l'oeil suffit a l'inscrire dans le crane — et son
+        # ombre portee retrecit la fente, ce qui durcit le regard.
+        # MASSE DE MACHOIRE : sans elle, museau et crane forment un seul fuseau lisse et
+        # la tete lit « chausson ». Le renflement des adducteurs, juste derriere la
+        # commissure, cree le DECROCHEMENT qui separe les deux — et donne au crane sa
+        # forme en coin vue de dessus.
+        {"type": "globe", "id": "jaw_mass", "mirror_x": True,
+         "pos": [round(on_skin(180, 0.44, out=0.82)[0], 3), Y(180), Z(424)],
+         "r": [0.075, 0.155, 0.115], "rot": [0, 0, 6], "mat": "hide"},
+        {"type": "globe", "id": "lid_up", "mirror_x": True,
+         "pos": [round(xe - 0.012, 3), ye, round(ze + 0.058, 3)],
+         "r": [0.055, 0.098, 0.040], "rot": [-16, 0, -8], "mat": "hide"},
     ]
 
 
@@ -132,8 +145,8 @@ def head_parts():
 # crane se creuse vers l'arriere, la commissure remontait -> un SOURIRE, et toute la bete
 # lisait « amicale ». La bouche est donc definie par une altitude EXPLICITE, qui descend
 # vers l'arriere : commissure basse = gueule fermee sur quelque chose.
-LIP = [(62, 422), (80, 425), (100, 428), (120, 431), (140, 433), (160, 434),
-       (178, 430)]
+LIP = [(54, 428), (72, 431), (92, 434), (112, 437), (134, 440), (156, 442),
+       (178, 443), (196, 438)]
 
 
 def lip_frac(x_img):
@@ -154,8 +167,8 @@ def lip_frac(x_img):
 # v2 : crocs proportionnes au NOUVEAU crane (1.06 u) — ~8-10 % de sa longueur, comme
 # un theropode reel. Un croc a 18 % du crane, c'est un dessin anime. Le 3e superieur est
 # CASSE (h 0.030) : meme logique d'usure que la corne droite.
-FANGS_UP = [(72, 0.055), (92, 0.095), (112, 0.030), (132, 0.080), (152, 0.062)]
-FANGS_LO = [(82, 0.070), (104, 0.050), (126, 0.058), (148, 0.044)]
+FANGS_UP = [(66, 0.060), (88, 0.105), (110, 0.032), (134, 0.095), (158, 0.072)]
+FANGS_LO = [(76, 0.080), (100, 0.056), (124, 0.066), (150, 0.050)]
 
 
 def fang_parts():
@@ -180,7 +193,7 @@ def fang_parts():
 
 
 # -------------------------------------------------------------- ligne de levre (b25)
-LIP_XS = [64, 82, 100, 120, 140, 160, 176]
+LIP_XS = [56, 74, 94, 114, 136, 158, 178, 194]
 
 
 def lip_part():
@@ -196,8 +209,8 @@ def lip_part():
         xc, yc, zc = on_skin(x_img, f + 0.08, out=1.0)
         rings.append([
             (round(xa + 0.016, 4), ya, round(za + 0.006, 4)),   # haut, sorti
-            (round(xb + 0.030, 4), yb, zb),                     # arete du surplomb
-            (round(xc - 0.026, 4), yc, zc),                     # bas, RENTRE sous la peau
+            (round(xb + 0.050, 4), yb, zb),                     # arete du surplomb
+            (round(xc - 0.038, 4), yc, zc),                     # bas, RENTRE sous la peau
             (round(xa - 0.014, 4), ya, round(za - 0.004, 4)),   # retour interne
         ])
     verts = [list(v) for r in rings for v in r]

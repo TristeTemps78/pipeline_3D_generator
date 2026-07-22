@@ -53,9 +53,50 @@ PIÈGES PAYÉS (ne pas redécouvrir) :
   ce sont les **capuchons** qui rentrent sous subsurf → prolonger la chaîne et les enfouir
   (+0.0283).
 
-RESTE : ailes encore un peu anguleuses (grille plus dense ou bord de fuite courbe) ;
-pattes NON soudées au corps (la machinerie `gen_body_weld.py` est là, non appliquée) ;
-tête lisse au close-up (écailles de crâne, plis) ; pas de selle/décor.
+### v2/v3 — réponse au feedback utilisateur « il est trop cartoon » (2026-07-22)
+
+Diagnostic en 3 causes, traitées dans cet ordre (la 1re domine largement) :
+1. **PROPORTIONS** — v1 : tête 22 % de la longueur, queue 26 %, pattes courtes = la
+   grammaire du dessin animé (grosse tête = mignon). v2/v3 : tête 17 %, cou 19 %,
+   tronc 32 %, queue 35 % tenue à l'**horizontale** (contrepoids de théropode), pattes
+   plus longues et plus fines. Crocs ramenés de 18 % à ~9 % de la longueur du crâne.
+2. **SECTIONS EN BALLON** — le corps était un loft d'ELLIPSES. Remplacé par un profil
+   « squircle » 7 points (dos/ventre aplatis, flancs plats, arêtes dorso- et
+   ventro-latérales) : un animal a des PLANS, pas un tube.
+3. **PERFECTION** — corne droite CASSÉE net (2 cornes séparées au lieu d'un `mirror_x`),
+   un croc cassé. Une bête symétrique et intacte lit « figurine neuve ».
+
+PIÈGES SUPPLÉMENTAIRES PAYÉS EN v2/v3 :
+- **Rétrécir une forme sans densifier ses stations la détruit** : la tête v2 (14 %,
+  9 stations) rendait un « chausson » — le subsurf 2 lisse d'autant plus qu'une forme
+  est petite ET grossièrement stationnée. v3 : 14 stations rien que pour le crâne.
+- Un œil nu se lit « bille de verre collée » : il faut une **paupière** qui mord dessus.
+- Le profil squircle **résiste mieux au Catmull-Clark** que l'apex d'une ellipse → il
+  faut nettement MOINS compenser (`GROW_A` 1.040 → 1.012 ; symptôme : 2.3 % d'excès en
+  bande le long du dos).
+- **Aile à demi pliée = impasse** (2 échecs) : les panneaux tombent en plans quasi
+  verticaux lus « rideau de carton ». Une membrane pliée est un exercice de drapé, très
+  dur en peu de polygones. Une membrane TENDUE est physiquement plate entre ses doigts :
+  ailes déployées (envergure 9.2 u) + 3 mécanismes dans `web()` — affaissement par
+  **gravité** (une membrane pend, elle ne se creuse pas perpendiculairement à elle-même),
+  **plis radiaux** en éventail depuis le poignet (visibles en silhouette, ce que le
+  `wrinkle_*` du shader ne fait pas), et `drop` qui recule la nappe sous le plan des os
+  pour que les doigts **ressortent en nervures** au lieu d'affleurer. C'est ce trio qui
+  a fait basculer la lecture.
+- **Profondeur de champ** ajoutée (`core.camera(fstop=, focus=)` + `fstop` par shot dans
+  `run.py`, défaut None = rétro-compatible) : une image nette du museau au bout de la
+  queue est un marqueur « CG » fort, aucun appareil ne fait ça sur un sujet de plusieurs
+  mètres.
+- Cadrage : avec 9.2 u d'envergure pour 7.5 u de corps, **toute vue latérale occlut** (la
+  queue disparaît derrière l'aile). La prise qui marche est quasi-frontale, très basse,
+  au grand-angle (40 mm) — les ailes sortent du cadre, donc la bête « ne tient pas dedans ».
+- `sheet4` devient inutilisable dès qu'un sol est dans la spec (il cadre sur la bbox
+  globale) : juger avec `forge --shot`.
+
+RESTE : tête encore lisse au close-up (le crâne manque d'un décrochement museau/crâne et
+d'une masse de mâchoire distincte — c'est le prochain défaut le plus visible) ; pattes NON
+soudées au corps (`gen_body_weld.py` est là, non appliqué) ; albédo uniforme (pas de
+contre-ombrage ventre/dos, pas de marquages) ; pas de selle/décor.
 
 ## Où on en est — BOUCLE 24 « SCULPTEUR v1 » : JALON ATTEINT (2026-07-19)
 

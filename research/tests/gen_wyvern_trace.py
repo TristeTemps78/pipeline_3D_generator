@@ -55,23 +55,31 @@ X0, Y0 = 420, SOL  # x_img 420 -> Y=0 (centre la bete) ; sol -> Z=0
 # LONGUE queue de contrepoids. v2 : tete 14 %, cou 19 %, tronc 32 %, queue 35 %, et
 # la queue est tenue a l'HORIZONTALE (theropode) au lieu de plonger au sol.
 BODY = [
-    (60,  410, 430, 7),    # bout du museau
-    (76,  404, 434, 10),   # narines
-    (94,  405, 438, 13),   # CREUX du chanfrein
-    (112, 398, 442, 16),
-    (130, 388, 446, 20),   # orbite
-    (148, 380, 448, 24),   # arcade + machoire : 68 px, crane 1.64:1 (etait 1.28 = bulldog)
-    (164, 376, 442, 26),   # sommet du crane
-    (178, 382, 428, 22),   # occiput
-    (192, 390, 414, 16),   # ENCOCHE : le cou fait 24 px, la tete 68 -> elle se detache
-    (212, 372, 400, 17),
-    (234, 348, 380, 19),
-    (258, 318, 356, 21),   # cou LONG et sec
-    (282, 288, 330, 23),
-    (306, 262, 306, 26),
-    (330, 244, 288, 29),   # crete du cou
-    (352, 240, 284, 33),
-    (376, 244, 296, 39),   # base du cou
+    # v3 : la tete de v2 (14 % de la longueur, 9 stations) etait TROP PETITE et surtout
+    # TROP PEU ECHANTILLONNEE — le subsurf 2 lisse d'autant plus qu'une forme est petite
+    # et grossierement stationnee : crane, arcade et chanfrein etaient avales, la tete
+    # lisait « chausson ». v3 : 17 % de la longueur et 14 stations rien que pour le crane.
+    (52,  414, 434, 6),    # bout du museau
+    (64,  408, 437, 9),
+    (78,  403, 440, 12),   # narines
+    (92,  404, 443, 14),   # CREUX du chanfrein (le profil remonte : reptile)
+    (106, 400, 446, 16),
+    (120, 394, 449, 19),
+    (134, 386, 452, 22),   # avant de l'orbite
+    (148, 376, 455, 26),   # ORBITE : le crane se creuse
+    (162, 368, 457, 30),   # ARCADE + machoire : 89 px de profondeur
+    (176, 364, 452, 32),   # sommet du crane, muscles de la machoire
+    (188, 366, 444, 31),
+    (200, 374, 430, 27),   # occiput
+    (212, 384, 414, 21),   # ENCOCHE : c'est elle qui detache la tete
+    (226, 380, 402, 18),   # depart du cou
+    (246, 362, 388, 19),
+    (268, 340, 368, 21),   # cou LONG et sec
+    (292, 312, 344, 23),
+    (316, 284, 320, 25),
+    (340, 258, 300, 28),   # crete du cou
+    (364, 242, 288, 32),
+    (386, 240, 288, 37),   # base du cou
     (402, 250, 322, 45),   # garrot / omoplates
     (430, 252, 352, 51),
     (462, 254, 366, 55),   # QUILLE sternale (112 px)
