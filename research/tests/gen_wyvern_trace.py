@@ -47,15 +47,17 @@ X0, Y0 = 420, SOL  # x_img 420 -> Y=0 (centre la bete) ; sol -> Z=0
 
 # --- LE CORPS : une seule chaine museau -> bout de la queue -------------------------
 # (x_img, y_haut, y_bas, demi-largeur px)   x STRICTEMENT croissant (loft valide)
+# La demi-largeur ne change PAS le decalque 2D : museau etroit -> crane large est un
+# coin vu de dessus, la lecture « predateur » que la vue de profil ne peut pas porter.
 BODY = [
-    (72,  380, 424, 16),   # museau CARRE (44 px) : un museau qui s'effile = herbivore
-    (94,  372, 428, 22),   # bosse des narines
-    (118, 374, 432, 27),   # CREUX du chanfrein : le profil concave fait le reptile
-    (146, 366, 438, 33),
-    (176, 348, 442, 41),   # le crane se creuse vers l'orbite
-    (206, 328, 444, 48),   # arcade sourciliere + machoire : 116 px de PROFONDEUR
+    (72,  380, 424, 12),   # museau CARRE (44 px) : un museau qui s'effile = herbivore
+    (94,  372, 428, 15),   # bosse des narines
+    (118, 374, 432, 18),   # CREUX du chanfrein : le profil concave fait le reptile
+    (146, 366, 438, 23),
+    (176, 348, 442, 32),   # le crane se creuse vers l'orbite
+    (206, 328, 444, 45),   # arcade sourciliere + machoire : 116 px de PROFONDEUR
     (232, 320, 434, 50),   # sommet du crane
-    (256, 328, 414, 45),   # occiput
+    (256, 328, 414, 43),   # occiput
     (276, 340, 384, 34),   # ENCOCHE derriere le crane : c'est elle qui DETACHE la tete
     (300, 316, 360, 33),   # cou (44 px seulement : sec et tendu)
     (324, 284, 338, 34),

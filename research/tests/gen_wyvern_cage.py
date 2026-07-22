@@ -106,7 +106,11 @@ def leg_part():
 
 
 def main():
-    parts = [body_part(), leg_part()]
+    # SOL : sans lui la bete flotte dans le vide, perd son echelle et son ombre
+    # portee — le rendu lit « figurine ». Un sol sombre et mat suffit : c'est le
+    # CONTACT (pieds + ombre) qui fait le poids, pas le decor.
+    ground = {"type": "ground", "id": "ground", "size": 70, "mat": "rock"}
+    parts = [body_part(), leg_part(), ground]
     spec = {
         "name": "wyvern",
         "ref": "Wyverne originale (conception maison, 2026-07-22) : predateur bipede sec, "
@@ -114,26 +118,68 @@ def main():
                "notre propre decalque (voir references/wyvern_ref.md). Spec de DEV : "
                "editee a la main apres cet amorcage.",
         "materials": {
+            # PIEGE PAYE EN 3 ROUNDS : `scale` est en CELLULES PAR UNITE MONDE
+            # (docstring de reptile_scales), pas un nombre d'ecailles. A 28 puis 62 les
+            # plaques faisaient 3.5 puis 1.6 cm : invisibles au rendu -> peau
+            # « plastique chocolat ». A 14 (plaques de 7 cm sur une bete de 7.5 m) elles
+            # se lisent. Et le bump doit etre FRANC : mesure, 0.55 ne donne RIEN,
+            # il faut ~1.35. C'est le relief qui fait la peau, pas la couleur.
             "hide": {"builder": "reptile_scales", "p": {
-                "scale": 28, "scale2": 74, "bump": 0.14,
-                "base": [0.021, 0.018, 0.016], "tint": [0.03, 0.022, 0.016],
-                "rough": 0.56, "rough_edge": 0.4, "sss": 0.05, "micro": 0.16,
-                "edge_copper": 0.0, "edge_width": 0.015, "instance_variation": 0.16,
-                "patina_amount": 0.0, "spec_level": 0.18, "sheen": 0.02,
-                "aniso": 0.06, "specular_tint": [0.86, 0.84, 0.8]}},
+                "scale": 14, "scale2": 40, "bump": 1.35,
+                "base": [0.016, 0.014, 0.013], "tint": [0.065, 0.038, 0.024],
+                "rough": 0.66, "rough_edge": 0.28, "sss": 0.04, "micro": 0.45,
+                "edge_copper": 0.20, "edge_width": 0.012, "instance_variation": 0.22,
+                "patina_amount": 0.0, "spec_level": 0.14, "sheen": 0.03,
+                "aniso": 0.05, "specular_tint": [0.86, 0.84, 0.8]}},
+            "rock": {"builder": "rock", "p": {
+                "color": [0.0042, 0.0038, 0.0036], "scale": 2.2, "bump": 1.8,
+                "burnt": [0.006, 0.005, 0.005], "ember": [0.05, 0.02, 0.008]}},
         },
         "parts": parts,
         "scene": {
-            "camera": {"loc": [7.0, -8.5, 1.6], "target": [0.0, -0.4, 1.5], "lens": 50},
+            # CONTRE-PLONGEE : l'objectif est SOUS la ligne des yeux (z 0.85 pour une
+            # tete a z 1.4) — c'est le cadrage qui fait dominer le sujet. Une prise de
+            # vue a hauteur d'epaule d'homme rendrait la meme bete inoffensive.
+            "camera": {"loc": [5.3, -8.7, 0.70], "target": [-0.10, -0.85, 1.48],
+                       "lens": 52},
             "silh": {"ref": "references/wyvern_ortho_side.png", "axis": "side",
                      "ortho_scale": 9.0, "target": [0.0, 0.5, 1.4],
-                     "exclude_like": ["wing", "horn", "tooth", "ridge", "brow"]},
+                     "exclude_like": ["wing", "horn", "tooth", "ridge", "brow",
+                                      "mouth_", "claw", "toe"]},
+            # Low-key : le fond reste presque noir, la bete est DECOUPEE par deux
+            # contre-jours. Sur une peau quasi noire, c'est le seul schema qui donne
+            # une lecture — un eclairage studio a plat la transforme en tache grise.
+            "world": {"color": [0.007, 0.008, 0.012], "color_top": [0.021, 0.024, 0.034],
+                      "strength": 0.40, "visible_strength": 0.95},
+            "sun": {"direction": [-0.30, 0.55, -0.80], "energy": 1.0,
+                    "color": [0.72, 0.80, 1.0]},
+            "area_lights": [
+                {"loc": [4.2, -6.6, 2.6], "target": [-0.6, -1.6, 1.5], "energy": 340,
+                 "size": 2.0, "color": [1.0, 0.84, 0.62]},          # key chaude, DISCRETE
+                {"loc": [-4.0, 5.8, 3.2], "target": [0.0, 0.2, 1.9], "energy": 3400,
+                 "size": 1.4, "color": [0.52, 0.68, 1.0]},          # rim froid DUR
+                {"loc": [5.2, 4.2, 2.4], "target": [1.4, 0.8, 1.9], "energy": 2600,
+                 "size": 1.8, "color": [0.95, 0.58, 0.34]},         # rim chaud, membranes
+                {"loc": [-4.5, -6.0, 2.0], "target": [0.0, -1.0, 1.4], "energy": 110,
+                 "size": 6.0, "color": [0.60, 0.72, 1.0]},          # fill : pas de noir mort
+            ],
+            "shots": [
+                {"id": "hero"},
+                {"id": "head", "frame_match": "eye_", "margin": 2.6,
+                 "dir": [0.80, -1.0, 0.06], "lens": 80},
+                {"id": "wide", "frame_match": "body_cage", "margin": 1.02,
+                 "dir": [0.55, -1.0, 0.10], "lens": 45},
+            ],
+            "render": {"device": "AUTO", "samples": 48, "denoise": True,
+                       "adaptive_threshold": 0.02, "max_bounces": 6,
+                       "diffuse_bounces": 3, "glossy_bounces": 3, "volume_bounces": 0,
+                       "clamp_indirect": 4.0, "fast_sss": True},
         },
     }
     out = os.path.join(ROOT, 'specs', 'wyvern.json')
     with open(out, 'w') as f:
         json.dump(spec, f, indent=1)
-    print("cage :", {p["id"]: len(p["verts"]) for p in parts})
+    print("cage :", {p["id"]: len(p.get("verts", ())) for p in parts})
     print("ecrit", out)
 
 
