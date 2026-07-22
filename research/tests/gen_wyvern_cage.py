@@ -26,7 +26,9 @@ from gen_wyvern_trace import BODY, LEG, S, X0, Y0  # noqa: E402
 # rogne d'autant PLUS que la section est PETITE (le rayon de courbure impose la perte).
 # D'ou une compensation qui suit la taille de la section au lieu d'un facteur global —
 # c'est ce qui rattrape la tete et le cou, systematiquement trop maigres a 1.06.
-GROW_A, GROW_B = 1.045, 3.6  # grow = A + B/taille_px   (mesures : cf. HANDOFF b27)
+GROW_A, GROW_B = 1.040, 2.0  # grow = A + B/taille_px   (mesures : cf. HANDOFF b27)
+#   B est passe de 3.6 a 2.0 en v2 : le cou et la queue sont devenus BEAUCOUP plus fins
+#   (proportions realistes), donc la loi en 1/taille sur-corrigeait -> 7.4 % d'EXCES.
 
 
 def _grow(size_px, cap=1.35):
@@ -46,22 +48,30 @@ def Z(y_img):
     return (Y0 - y_img) * S
 
 
+# Profil de demi-section, en fractions de (demi-largeur, demi-hauteur). v1 utilisait
+# 5 points sur une ELLIPSE : un tube en ballon du museau a la queue, une des trois causes
+# du « trop cartoon ». v2 : 7 points en « squircle » — dessus et dessous APLATIS, flancs
+# PLATS, transitions marquees. Un animal reel n'est pas un cylindre : il a des plans
+# (le flanc, le dos) separes par des aretes ou courent les reperes osseux.
+SECTION = [
+    (0.00,  1.00),   # ligne dorsale
+    (0.50,  0.95),   # dos PLAT jusqu'a mi-largeur
+    (0.92,  0.60),   # arete dorso-laterale : c'est elle qui attrape la lumiere
+    (1.00,  0.02),   # flanc, point le plus large
+    (0.90, -0.58),   # arete ventro-laterale
+    (0.46, -0.92),   # ventre plat
+    (0.00, -1.00),   # ligne ventrale
+]
+
+
 def half_ring(x_img, yt, yb, w_px):
-    """Demi-section (moitie +X) a 5 points, comme Krokmou b24 : haut, epaule haute,
-    flanc, epaule basse, bas. Le subsurf + mirror_x en font une section ovale continue."""
+    """Demi-section (moitie +X). Le subsurf + mirror_x en font une peau continue."""
     y = Y(x_img)
     zt, zb = Z(yt), Z(yb)
     zm = (zt + zb) / 2.0
-    gz = _grow(yb - yt)
-    zt, zb = zm + (zt - zm) * gz, zm - (zm - zb) * gz
+    hz = (zt - zb) / 2.0 * _grow(yb - yt)
     w = w_px * S * _grow(2 * w_px)
-    return [
-        (0.0, y, zt),
-        (0.75 * w, y, zm + 0.65 * (zt - zm)),
-        (w, y, zm),
-        (0.75 * w, y, zm - 0.65 * (zm - zb)),
-        (0.0, y, zb),
-    ]
+    return [(fx * w, y, zm + fz * hz) for fx, fz in SECTION]
 
 
 def loft(rings, close=False):
@@ -140,8 +150,8 @@ def main():
             # CONTRE-PLONGEE : l'objectif est SOUS la ligne des yeux (z 0.85 pour une
             # tete a z 1.4) — c'est le cadrage qui fait dominer le sujet. Une prise de
             # vue a hauteur d'epaule d'homme rendrait la meme bete inoffensive.
-            "camera": {"loc": [5.3, -8.7, 0.70], "target": [-0.10, -0.85, 1.48],
-                       "lens": 52},
+            "camera": {"loc": [6.3, -9.8, 0.85], "target": [-0.10, -0.35, 1.42],
+                       "lens": 48, "fstop": 3.0},
             "silh": {"ref": "references/wyvern_ortho_side.png", "axis": "side",
                      "ortho_scale": 9.0, "target": [0.0, 0.5, 1.4],
                      "exclude_like": ["wing", "horn", "tooth", "ridge", "brow",
@@ -166,7 +176,7 @@ def main():
             "shots": [
                 {"id": "hero"},
                 {"id": "head", "frame_match": "eye_", "margin": 2.6,
-                 "dir": [0.80, -1.0, 0.06], "lens": 80},
+                 "dir": [0.80, -1.0, 0.06], "lens": 80, "fstop": 2.2},
                 {"id": "wide", "frame_match": "body_cage", "margin": 1.02,
                  "dir": [0.55, -1.0, 0.10], "lens": 45},
             ],

@@ -49,54 +49,65 @@ X0, Y0 = 420, SOL  # x_img 420 -> Y=0 (centre la bete) ; sol -> Z=0
 # (x_img, y_haut, y_bas, demi-largeur px)   x STRICTEMENT croissant (loft valide)
 # La demi-largeur ne change PAS le decalque 2D : museau etroit -> crane large est un
 # coin vu de dessus, la lecture « predateur » que la vue de profil ne peut pas porter.
+# v2 (feedback utilisateur : « il est trop cartoon ») — LES PROPORTIONS D'ABORD.
+# v1 : tete 22 % de la longueur, queue 26 %, pattes courtes. C'est la grammaire du
+# dessin anime (grosse tete = mignon). Un predateur reel a une PETITE tete et une
+# LONGUE queue de contrepoids. v2 : tete 14 %, cou 19 %, tronc 32 %, queue 35 %, et
+# la queue est tenue a l'HORIZONTALE (theropode) au lieu de plonger au sol.
 BODY = [
-    (72,  380, 424, 12),   # museau CARRE (44 px) : un museau qui s'effile = herbivore
-    (94,  372, 428, 15),   # bosse des narines
-    (118, 374, 432, 18),   # CREUX du chanfrein : le profil concave fait le reptile
-    (146, 366, 438, 23),
-    (176, 348, 442, 32),   # le crane se creuse vers l'orbite
-    (206, 328, 444, 45),   # arcade sourciliere + machoire : 116 px de PROFONDEUR
-    (232, 320, 434, 50),   # sommet du crane
-    (256, 328, 414, 43),   # occiput
-    (276, 340, 384, 34),   # ENCOCHE derriere le crane : c'est elle qui DETACHE la tete
-    (300, 316, 360, 33),   # cou (44 px seulement : sec et tendu)
-    (324, 284, 338, 34),
-    (348, 252, 316, 37),
-    (372, 232, 302, 41),   # crete du cou
-    (394, 230, 300, 45),
-    (416, 244, 310, 50),   # base du cou (creux au garrot -> la crete se detache)
-    (444, 246, 344, 58),   # garrot / omoplates
-    (478, 246, 382, 64),   # QUILLE sternale (136 px de profondeur)
-    (512, 246, 388, 66),   # cage thoracique la plus large (142 px)
-    (548, 250, 372, 58),
-    (582, 254, 350, 46),   # taille PINCEE (96 px) : le contraste fait la faim
-    (616, 244, 332, 52),   # bassin
-    (648, 236, 320, 54),   # hanche / sacrum, point haut du tronc
-    (680, 246, 302, 36),   # base de queue epaisse
-    (712, 264, 308, 30),
-    (744, 290, 330, 25),
-    (778, 318, 358, 20),
-    (812, 350, 390, 15),
-    (846, 386, 422, 11),
-    (874, 418, 450, 7),
-    (894, 448, 468, 4),    # pointe de la queue
+    (60,  410, 430, 7),    # bout du museau
+    (76,  404, 434, 10),   # narines
+    (94,  405, 438, 13),   # CREUX du chanfrein
+    (112, 398, 442, 16),
+    (130, 388, 446, 20),   # orbite
+    (148, 380, 448, 24),   # arcade + machoire : 68 px, crane 1.64:1 (etait 1.28 = bulldog)
+    (164, 376, 442, 26),   # sommet du crane
+    (178, 382, 428, 22),   # occiput
+    (192, 390, 414, 16),   # ENCOCHE : le cou fait 24 px, la tete 68 -> elle se detache
+    (212, 372, 400, 17),
+    (234, 348, 380, 19),
+    (258, 318, 356, 21),   # cou LONG et sec
+    (282, 288, 330, 23),
+    (306, 262, 306, 26),
+    (330, 244, 288, 29),   # crete du cou
+    (352, 240, 284, 33),
+    (376, 244, 296, 39),   # base du cou
+    (402, 250, 322, 45),   # garrot / omoplates
+    (430, 252, 352, 51),
+    (462, 254, 366, 55),   # QUILLE sternale (112 px)
+    (494, 256, 364, 55),   # cage thoracique
+    (526, 260, 352, 49),
+    (556, 264, 338, 41),   # taille PINCEE (74 px)
+    (588, 256, 324, 45),   # bassin
+    (618, 248, 314, 49),   # hanche / sacrum
+    (650, 258, 300, 32),   # base de queue epaisse
+    (684, 268, 302, 27),
+    (718, 282, 312, 22),
+    (752, 300, 328, 18),
+    (786, 322, 348, 14),
+    (818, 346, 370, 11),
+    (850, 372, 394, 8),
+    (876, 398, 418, 5),
+    (892, 420, 436, 3),    # pointe de la queue, tenue HAUT
 ]
 
 # --- LA PATTE ARRIERE : chaine de disques (x, y, rayon), les 2 pattes superposees ----
 # Z digitigrade : hanche -> genou EN AVANT -> talon EN ARRIERE et HAUT -> metatarse
-# long -> orteils au sol vers l'avant.
+# long -> orteils au sol vers l'avant. v2 : plus LONGUE et plus FINE — une patte courte
+# et epaisse sous un corps massif, c'est une peluche ; un bipede rapide est haut sur
+# pattes et ses masses musculaires s'arretent au genou.
 LEG = [
-    (628, 318, 52),   # hanche (enfouie dans le bassin)
-    (580, 360, 48),   # femur MASSIF (le plus gros muscle d'un bipede)
-    (534, 394, 36),   # GENOU (pointe vers l'avant)
-    (568, 440, 29),   # tibia
-    (602, 476, 25),   # TALON (haut, en arriere — digitigrade)
-    (590, 508, 21),   # metatarse
-    (574, 526, 17),   # cou-de-pied
-    (550, 530, 15),   # orteils
-    (518, 532, 12),
-    (488, 534, 9),
-    (466, 536, 6),    # pointe des griffes
+    (605, 296, 42),   # hanche (enfouie dans le bassin)
+    (556, 348, 40),   # femur (le muscle s'arrete la)
+    (512, 392, 27),   # GENOU (pointe vers l'avant)
+    (548, 444, 22),   # tibia — fin, tendineux
+    (585, 486, 18),   # TALON (haut, en arriere — digitigrade)
+    (572, 516, 16),   # metatarse long
+    (556, 532, 13),   # cou-de-pied
+    (532, 536, 12),   # orteils
+    (502, 538, 10),
+    (474, 540, 7),
+    (454, 541, 5),    # pointe des griffes
 ]
 
 

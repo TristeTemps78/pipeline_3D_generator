@@ -99,11 +99,18 @@ def remove_light(ob):
         bpy.data.lights.remove(data)
 
 
-def camera(loc, target=(0, 0, 2), lens=45, roll=0.0):
+def camera(loc, target=(0, 0, 2), lens=45, roll=0.0, fstop=None, focus=None):
     """`roll` (degrés, défaut 0 = rétro-compat) : rotation autour de l'axe de visée
     (local -Z), appliquée APRÈS `aim` — incline l'horizon sans changer le cadrage
     (position/cible), utile pour une prise dynamique (virage banqué) sans retoucher
-    loc/target. Mécanisme générique, aucune valeur dragon en dur."""
+    loc/target. Mécanisme générique, aucune valeur dragon en dur.
+
+    `fstop` (b27, défaut None = tout net, rétro-compat) : PROFONDEUR DE CHAMP. Une image
+    entièrement nette de la pointe du museau au bout de la queue est un marqueur « CG »
+    fort — aucun appareil photo ne fait ça sur un sujet de plusieurs mètres. Mettre au
+    point sur la tête et laisser fondre le reste rapproche le rendu de la photo animalière
+    et, accessoirement, PARDONNE le détail approximatif du fond. `focus` = distance en
+    unités (défaut : la distance à `target`, ce qu'on veut presque toujours)."""
     cam = bpy.data.cameras.new('cam')
     cam.lens = lens
     ob = bpy.data.objects.new('cam', cam)
@@ -113,6 +120,10 @@ def camera(loc, target=(0, 0, 2), lens=45, roll=0.0):
     if roll:
         ob.rotation_euler = (ob.rotation_euler.to_matrix()
                              @ Matrix.Rotation(math.radians(roll), 3, 'Z')).to_euler()
+    if fstop:
+        cam.dof.use_dof = True
+        cam.dof.aperture_fstop = fstop
+        cam.dof.focus_distance = focus if focus else (Vector(target) - Vector(loc)).length
     bpy.context.scene.camera = ob
     return ob
 

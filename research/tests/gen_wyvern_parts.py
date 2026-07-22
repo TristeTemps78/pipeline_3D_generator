@@ -50,11 +50,13 @@ def on_skin(x_img, frac, out=0.78):
 # ----------------------------------------------------------------- epines dorsales
 # Rangee mediane occiput -> queue. Profil de hauteur : discret sur le crane, MAXIMUM sur
 # le garrot (c'est la que la bete parait large), degressif sur la queue.
+# v2 : hauteurs DIVISEES PAR ~1.8. Une crete de 0.50 u sur un dos de 1.0 u, c'est du
+# fantasy illustre ; les osteodermes d'un crocodile ou d'un varan depassent a peine.
 RIDGE = [
-    (264, 0.20), (288, 0.28), (312, 0.35), (338, 0.41), (364, 0.45), (394, 0.47),
-    (420, 0.48), (450, 0.50), (482, 0.50), (514, 0.47), (548, 0.43), (582, 0.38),
-    (616, 0.34), (650, 0.30), (682, 0.25), (714, 0.21), (748, 0.17), (782, 0.13),
-    (816, 0.09), (848, 0.06),
+    (198, 0.09), (222, 0.12), (248, 0.15), (274, 0.18), (300, 0.21), (326, 0.24),
+    (352, 0.26), (380, 0.28), (408, 0.29), (438, 0.29), (468, 0.28), (498, 0.26),
+    (528, 0.24), (558, 0.22), (588, 0.20), (620, 0.18), (652, 0.15), (686, 0.13),
+    (720, 0.11), (754, 0.09), (788, 0.07), (822, 0.05),
 ]
 
 
@@ -65,8 +67,8 @@ def ridge_parts():
         lean = 0.30 + 0.55 * (i / (len(RIDGE) - 1))   # de plus en plus couchee vers l'arriere
         out.append({"type": "spike", "id": f"ridge_{i:02d}", "mirror_x": False,
                     "pos": [0.0, y, round(z - 0.06, 3)], "dir": [0.0, lean, 1.0],
-                    "height": h, "radius": round(0.055 + 0.30 * h, 3),
-                    "flatten": [0.30, 1.35], "tip_frac": 0.06, "seg": 12, "mat": "horn"})
+                    "height": h, "radius": round(0.030 + 0.34 * h, 3),
+                    "flatten": [0.26, 1.45], "tip_frac": 0.06, "seg": 12, "mat": "horn"})
     return out
 
 
@@ -74,30 +76,38 @@ def ridge_parts():
 def horn_parts():
     """Grande paire occipitale balayee vers l'arriere PAR-DESSUS le cou (la lecture
     « dragon » nº1 en silhouette) + petite paire a l'angle de la machoire."""
-    big = tube_along("horn_main",
-                     [[0.20, Y(248), Z(336)], [0.29, Y(276), Z(296)],
-                      [0.38, Y(312), Z(262)], [0.46, Y(352), Z(240)],
-                      [0.50, Y(392), Z(236)]],
-                     [0.110, 0.088, 0.064, 0.036, 0.009],
-                     up=(1, 0, 0), subsurf=2, mat="horn", mirror_x=True, miter=True)
-    jaw = tube_along("horn_jaw",
-                     [[0.30, Y(228), Z(408)], [0.37, Y(252), Z(396)],
-                      [0.41, Y(276), Z(390)]],
-                     [0.055, 0.034, 0.008],
-                     up=(1, 0, 0), subsurf=2, mat="horn", mirror_x=True, miter=True)
-    return [big, jaw]
+    pts = [[0.16, Y(174), Z(378)], [0.24, Y(196), Z(348)], [0.32, Y(226), Z(318)],
+           [0.38, Y(262), Z(300)], [0.41, Y(300), Z(298)]]
+    radii = [0.075, 0.060, 0.044, 0.025, 0.007]
+    out = []
+    # ASYMETRIE VOULUE : la corne droite est CASSEE net. Une bete parfaitement
+    # symetrique et intacte lit « figurine neuve » ; une usure suffit a dire « ca vit,
+    # ca se bat ». D'ou 2 cornes separees au lieu d'un mirror_x.
+    for side, suf, keep, tip_r in ((1, "_l", 5, 0.007), (-1, "_r", 3, 0.030)):
+        out.append(tube_along("horn_main" + suf,
+                              [[side * x, y, z] for x, y, z in pts[:keep]],
+                              radii[:keep - 1] + [tip_r],
+                              up=(1, 0, 0), subsurf=2, mat="horn", mirror_x=False,
+                              miter=True))
+    out.append(tube_along("horn_jaw",
+                          [[0.21, Y(158), Z(424)], [0.26, Y(176), Z(416)],
+                           [0.29, Y(194), Z(412)]],
+                          [0.036, 0.022, 0.006],
+                          up=(1, 0, 0), subsurf=2, mat="horn", mirror_x=True,
+                          miter=True))
+    return out
 
 
 # --------------------------------------------------------------- tete : arcade, oeil
 def head_parts():
-    xe, ye, ze = on_skin(194, 0.30, out=0.92)     # oeil, ENFONCE (out < 1)
+    xe, ye, ze = on_skin(128, 0.32, out=0.88)     # oeil, ENFONCE (out < 1)
     # Round 1 : l'arcade etait un `spike` aplati -> une PLAQUE HEXAGONALE collee sur le
     # crane, l'artefact le plus voyant de la tete. Une arcade est une CRETE osseuse : un
     # tube a demi enfoui qui longe le haut de l'orbite le fait, et son ombre portee
     # tombe pile dans l'oeil — le levier de peur recherche.
     brow_pts, brow_r = [], []
-    for x_img, frac, r in ((168, 0.30, 0.055), (186, 0.20, 0.080),
-                           (206, 0.15, 0.088), (226, 0.17, 0.062)):
+    for x_img, frac, r in ((112, 0.32, 0.032), (130, 0.21, 0.046),
+                           (148, 0.16, 0.050), (166, 0.19, 0.034)):
         bx, by, bz = on_skin(x_img, frac, out=0.90)
         brow_pts.append([round(bx, 3), by, bz])
         brow_r.append(r)
@@ -107,12 +117,12 @@ def head_parts():
         # Narines : 2 fentes aplaties sur le dessus du museau (b25). Sans elles, le
         # museau se termine en bloc lisse et la tete lit « jouet ».
         {"type": "globe", "id": "nostril", "mirror_x": True,
-         "pos": [round(on_skin(101, 0.22, out=0.72)[0], 3), Y(101), Z(383)],
-         "r": [0.045, 0.075, 0.028], "rot": [0, 0, -14], "mat": "hide_matte"},
+         "pos": [round(on_skin(80, 0.22, out=0.70)[0], 3), Y(80), Z(410)],
+         "r": [0.028, 0.048, 0.018], "rot": [0, 0, -14], "mat": "hide_matte"},
         # Oeil PETIT (r 0.085 sur un crane de 1.7 u) : c'est le rapport oeil/crane qui
         # fait lire un GROS animal — l'oeil de Krokmou faisait 0.21 pour l'effet inverse.
         {"type": "globe", "id": "eye", "mirror_x": True,
-         "pos": [round(xe, 3), ye, ze], "r": 0.075,
+         "pos": [round(xe, 3), ye, ze], "r": 0.055,
          "look_dir": [0.52, -0.80, 0.30], "mat": "eye"},
     ]
 
@@ -122,8 +132,8 @@ def head_parts():
 # crane se creuse vers l'arriere, la commissure remontait -> un SOURIRE, et toute la bete
 # lisait « amicale ». La bouche est donc definie par une altitude EXPLICITE, qui descend
 # vers l'arriere : commissure basse = gueule fermee sur quelque chose.
-LIP = [(84, 406), (104, 410), (126, 414), (150, 418), (176, 421), (200, 423),
-       (222, 422), (242, 417)]
+LIP = [(62, 422), (80, 425), (100, 428), (120, 431), (140, 433), (160, 434),
+       (178, 430)]
 
 
 def lip_frac(x_img):
@@ -141,8 +151,11 @@ def lip_frac(x_img):
 # ------------------------------------------------------------------------- crocs
 # Peu nombreux, GROS et IRREGULIERS : une rangee reguliere se lit « peigne » ou « dents
 # de dessin anime ». Tailles alternees + une canine nettement plus longue que les autres.
-FANGS_UP = [(108, 0.10), (134, 0.19), (162, 0.12), (190, 0.155)]
-FANGS_LO = [(120, 0.13), (150, 0.09), (178, 0.11)]
+# v2 : crocs proportionnes au NOUVEAU crane (1.06 u) — ~8-10 % de sa longueur, comme
+# un theropode reel. Un croc a 18 % du crane, c'est un dessin anime. Le 3e superieur est
+# CASSE (h 0.030) : meme logique d'usure que la corne droite.
+FANGS_UP = [(72, 0.055), (92, 0.095), (112, 0.030), (132, 0.080), (152, 0.062)]
+FANGS_LO = [(82, 0.070), (104, 0.050), (126, 0.058), (148, 0.044)]
 
 
 def fang_parts():
@@ -167,7 +180,7 @@ def fang_parts():
 
 
 # -------------------------------------------------------------- ligne de levre (b25)
-LIP_XS = [86, 106, 128, 152, 178, 202, 224, 240]
+LIP_XS = [64, 82, 100, 120, 140, 160, 176]
 
 
 def lip_part():
@@ -201,13 +214,17 @@ def lip_part():
 
 
 # -------------------------------------------------------------------------- ailes
-# Aile de MANTEL (le rapace qui recouvre sa proie) : coude haut et en avant, poignet
-# ramene en arriere, doigts qui retombent -> menace, pas vol.
-W_ROOT = (0.45, 0.25, 2.30)
-ELBOW = (1.30, -0.90, 3.05)       # coude HAUT et EN AVANT de l'epaule
-WRIST = (1.70, 0.55, 3.30)        # poignet ramene en arriere : l'aile reste pliee
-TIPS = [(2.65, -0.60, 2.45), (3.10, 0.35, 1.55), (3.00, 1.40, 0.75), (2.50, 2.35, 0.28)]
-HIP = (0.62, 2.05, 1.25)          # attache arriere de la membrane, sur le flanc
+# v4. Les v1-v3 cherchaient une aile A DEMI PLIEE (« mantel ») : a chaque fois les
+# panneaux tombaient en plans quasi verticaux et lisaient « rideau de carton ». Une
+# membrane PLIEE est un exercice de drape, tres dur a faire tenir en quelques polygones.
+# Une membrane TENDUE, elle, est physiquement plate entre ses doigts : c'est sa vraie
+# forme, et ce sont les DOIGTS en relief + le feston du bord de fuite qui la font lire.
+# D'ou : ailes deployees, envergure 9.2 u pour un corps de 7.5 u.
+W_ROOT = (0.42, -0.15, 2.28)
+ELBOW = (1.60, -0.90, 2.85)       # coude tendu vers l'EXTERIEUR
+WRIST = (2.90, 0.10, 3.10)        # poignet loin, l'aile est ouverte
+TIPS = [(3.90, -0.75, 3.05), (4.55, 0.25, 2.55), (4.60, 1.45, 1.85), (4.10, 2.65, 1.05)]
+HIP = (0.60, 1.90, 1.15)          # attache arriere de la membrane, sur le flanc
 
 
 def _notch(a, b, k=0.12):
@@ -216,8 +233,8 @@ def _notch(a, b, k=0.12):
     return [(a[i] + b[i]) / 2.0 * (1 - k) + WRIST[i] * k for i in range(3)]
 
 
-def web(pid, apex, edge_a, edge_b, notch=0.13, sag=0.30, nu=7, nv=6, mat="membrane",
-        normal=None):
+def web(pid, apex, edge_a, edge_b, notch=0.13, sag=0.30, nu=9, nv=8, mat="membrane",
+        normal=None, crease=0.055, folds=2.5, drop=0.0):
     """Panneau de membrane entre DEUX doigts, en grille — pas en polygone.
 
     Rounds 1 et 2 (plaque unique, puis une plaque par inter-doigt) ont echoue de la meme
@@ -238,15 +255,29 @@ def web(pid, apex, edge_a, edge_b, notch=0.13, sag=0.30, nu=7, nv=6, mat="membra
                    ea[0] * eb[1] - ea[1] * eb[0]])
     if n[2] > 0:                       # l'affaissement va toujours vers le BAS
         n = [-c for c in n]
+    # v3 (feedback « trop cartoon ») : deux ajouts qui font passer la membrane de
+    # « carton » a « peau ».
+    # 1. l'affaissement suit la GRAVITE, pas la normale du panneau : une membrane au
+    #    repos PEND, elle ne se creuse pas perpendiculairement a elle-meme ;
+    # 2. PLIS RADIAUX (`crease`/`folds`) : une membrane alaire se froisse en eventail
+    #    depuis le poignet. C'est le detail qui casse la facette plane, et il se voit
+    #    en silhouette comme en speculaire — le shader `wrinkle_*` ne fait ni l'un ni
+    #    l'autre, il ne joue que sur la normale.
+    g = _norm([n[0] * 0.35, n[1] * 0.35, n[2] * 0.35 - 1.0])
     verts = []
     for j in range(nv + 1):
         v = j / nv
         far = [edge_a[k] + (edge_b[k] - edge_a[k]) * v for k in range(3)]
         scal = 1.0 - notch * math.sin(math.pi * v)
+        rip = crease * math.sin(folds * 2.0 * math.pi * v) * math.sin(math.pi * v)
         for i in range(nu + 1):
             u = i / nu
-            amp = sag * math.sin(math.pi * v) * u
-            verts.append([round(apex[k] + (far[k] - apex[k]) * u * scal + n[k] * amp, 4)
+            amp = sag * math.sin(math.pi * v) * u * u
+            # `drop` : toute la nappe est reculee sous le plan des os -> les doigts
+            # (tubes poses sur les bords) RESSORTENT en nervures au lieu d'affleurer.
+            # Sans ca, os et membrane se confondent et il ne reste qu'une facette.
+            verts.append([round(apex[k] + (far[k] - apex[k]) * u * scal
+                                + g[k] * amp + n[k] * (rip * (u ** 1.4) - drop), 4)
                           for k in range(3)])
     faces = []
     for j in range(nv):
@@ -270,31 +301,32 @@ def wing_parts():
     # Propatagium : le voile CONCAVE tendu devant le bras (epaule->coude->poignet).
     # Le round 3 mettait une plaque plate a cet endroit : c'etait le grand triangle de
     # papier qu'on voyait de profil. Un voile creux, lui, dessine le bord d'attaque.
-    out = [web("wing_lead", ELBOW, W_ROOT, WRIST, notch=0.34, sag=0.10, nu=5, nv=5,
-               normal=nrm)]
+    out = [web("wing_lead", ELBOW, W_ROOT, WRIST, notch=0.34, sag=0.06, nu=6, nv=6,
+               normal=nrm, crease=0.02, folds=1.5, drop=0.05)]
     for i, (a, b) in enumerate(zip(TIPS, TIPS[1:])):
-        out.append(web(f"wing_web{i}", WRIST, a, b, sag=0.38, normal=nrm))
+        out.append(web(f"wing_web{i}", WRIST, a, b, sag=0.16, normal=nrm,
+                       crease=0.045, folds=2.0 + 0.5 * i, drop=0.055))
     # Plagiopatagium : le grand pan qui redescend du dernier doigt jusqu'au flanc. Feston
     # discret (il porte le poids) et affaissement plus marque : c'est lui qui fait le
     # « manteau » qui recouvre la proie.
-    out.append(web("wing_flank", WRIST, TIPS[3], HIP, notch=0.06, sag=0.55, nv=7,
-                   normal=nrm))
+    out.append(web("wing_flank", WRIST, TIPS[3], HIP, notch=0.06, sag=0.30, nv=9,
+                   normal=nrm, crease=0.065, folds=3.0, drop=0.055))
     out.append(tube_along("wing_arm", [list(W_ROOT), list(ELBOW), list(WRIST)],
-                          [0.17, 0.12, 0.08], up=(0, 0, 1), subsurf=2, mat="hide",
+                          [0.20, 0.145, 0.105], up=(0, 0, 1), subsurf=2, mat="hide",
                           mirror_x=True, miter=True))
     for i, tip in enumerate(TIPS):
         mid = [WRIST[k] + (tip[k] - WRIST[k]) * 0.5 for k in range(3)]
         mid[2] += 0.10                                   # le doigt s'arque vers le haut
         out.append(tube_along(f"wing_finger{i}", [list(WRIST), mid, list(tip)],
-                              [0.075, 0.042, 0.012], up=(0, 0, 1), subsurf=2,
+                              [0.105, 0.058, 0.014], up=(0, 0, 1), subsurf=2,
                               mat="horn", mirror_x=True, miter=True))
     return out
 
 
 # ------------------------------------------------------------------ orteils, griffes
 def foot_parts():
-    ball = [0.33, Y(552), Z(529)]
-    toes = {"toe_out": [0.52, Y(488), Z(538)], "toe_in": [0.15, Y(492), Z(538)]}
+    ball = [0.33, Y(558), Z(534)]
+    toes = {"toe_out": [0.50, Y(478), Z(541)], "toe_in": [0.16, Y(482), Z(541)]}
     out = []
     for pid, tip in toes.items():
         mid = [(ball[k] + tip[k]) / 2 for k in range(3)]
@@ -303,14 +335,14 @@ def foot_parts():
                               up=(0, 0, 1), subsurf=2, mat="hide", mirror_x=True,
                               miter=True))
     # ergot arriere (hallux) : la petite pointe qui dit « ca s'ancre dans le sol »
-    out.append(tube_along("toe_spur", [[0.33, Y(566), Z(522)], [0.31, Y(600), Z(528)],
-                                       [0.30, Y(626), Z(536)]],
-                          [0.062, 0.038, 0.016], up=(0, 0, 1), subsurf=2, mat="hide",
+    out.append(tube_along("toe_spur", [[0.33, Y(572), Z(528)], [0.31, Y(604), Z(534)],
+                                       [0.30, Y(630), Z(540)]],
+                          [0.050, 0.031, 0.013], up=(0, 0, 1), subsurf=2, mat="hide",
                           mirror_x=True, miter=True))
-    claws = {"claw_mid": ([0.33, Y(470), Z(536)], [0.33, Y(430), Z(524)]),
-             "claw_out": ([0.52, Y(490), Z(538)], [0.55, Y(452), Z(526)]),
-             "claw_in": ([0.15, Y(494), Z(538)], [0.12, Y(456), Z(526)]),
-             "claw_spur": ([0.30, Y(622), Z(534)], [0.29, Y(652), Z(524)])}
+    claws = {"claw_mid": ([0.33, Y(458), Z(541)], [0.33, Y(418), Z(529)]),
+             "claw_out": ([0.50, Y(480), Z(541)], [0.53, Y(442), Z(529)]),
+             "claw_in": ([0.16, Y(484), Z(541)], [0.13, Y(446), Z(529)]),
+             "claw_spur": ([0.30, Y(626), Z(538)], [0.29, Y(656), Z(528)])}
     for pid, (a, b) in claws.items():
         mid = [(a[k] + b[k]) / 2 for k in range(3)]
         mid[2] -= 0.02

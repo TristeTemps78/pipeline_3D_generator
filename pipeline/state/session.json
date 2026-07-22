@@ -1,7 +1,7 @@
 {
- "step": 510,
- "spec": "specs\\krokmou_cage.json",
- "last_render": "renders\\step_510_head_side.png",
+ "step": 538,
+ "spec": "specs\\wyvern.json",
+ "last_render": "renders\\step_538_hero.png",
  "feedback": [
   {
    "step": 6,
