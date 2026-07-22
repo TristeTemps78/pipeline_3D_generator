@@ -23,6 +23,7 @@ sys.path.insert(0, HERE)
 
 from gen_appendages import _norm, plate, tube_along  # noqa: E402
 from gen_wyvern_trace import BODY, S  # noqa: E402
+from gen_appendages import _norm as _n2  # noqa: E402,F401
 from gen_wyvern_cage import Y, Z  # noqa: E402
 
 
@@ -60,15 +61,62 @@ RIDGE = [
 ]
 
 
+def crystal(pid, base, tip, r, sides=6, waist=0.62, twist=0.0, mat="ice"):
+    """Prisme FACETTE effile : anneau de base -> anneau d'epaulement -> pointe.
+
+    Un cristal de glace ne se modelise pas comme une epine charnue : ce sont des PLANS
+    qui se coupent en aretes vives, et c'est l'arete qui accroche la lumiere. D'ou
+    `subsurf: 0` — le Catmull-Clark arrondirait justement ce qui fait la lecture. Le
+    `waist` (epaulement) evite le cone parfait : un vrai cristal a un fut puis une
+    pointe, pas une pente unique."""
+    d = [tip[k] - base[k] for k in range(3)]
+    ln = math.sqrt(sum(c * c for c in d)) or 1.0
+    t = [c / ln for c in d]
+    up = (0.0, 0.0, 1.0) if abs(t[2]) < 0.9 else (1.0, 0.0, 0.0)
+    s_ = _norm([t[1] * up[2] - t[2] * up[1], t[2] * up[0] - t[0] * up[2],
+                t[0] * up[1] - t[1] * up[0]])
+    u_ = _norm([s_[1] * t[2] - s_[2] * t[1], s_[2] * t[0] - s_[0] * t[2],
+                s_[0] * t[1] - s_[1] * t[0]])
+    verts, faces = [], []
+    for ring, (frac, rad, rot) in enumerate(((0.0, r, 0.0), (waist, r * 0.78, twist))):
+        c = [base[k] + d[k] * frac for k in range(3)]
+        for j in range(sides):
+            a = rot + 2.0 * math.pi * j / sides
+            verts.append([round(c[k] + (s_[k] * math.cos(a) + u_[k] * math.sin(a)) * rad, 4)
+                          for k in range(3)])
+    verts.append([round(v, 4) for v in tip])
+    for j in range(sides):
+        k = (j + 1) % sides
+        faces.append([j, k, sides + k, sides + j])
+        faces.append([sides + j, sides + k, 2 * sides])
+    faces.append(list(reversed(range(sides))))
+    return {"type": "cage", "id": pid, "mirror_x": False, "subsurf": 0,
+            "mat": mat, "verts": verts, "faces": faces}
+
+
 def ridge_parts():
+    """Type GLACE : la crete dorsale n'est plus une rangee d'osteodermes de keratine
+    mais un CHAMP DE CRISTAUX pousses hors de la peau — c'est le trait d'espece le plus
+    lisible en silhouette. Chaque station porte une pointe maitresse plus deux eclats
+    lateraux plus petits et divergents : une pousse cristalline n'est jamais alignee."""
     out = []
     for i, (x_img, h) in enumerate(RIDGE):
         _, y, z = on_skin(x_img, 0.0)
-        lean = 0.30 + 0.55 * (i / (len(RIDGE) - 1))   # de plus en plus couchee vers l'arriere
-        out.append({"type": "spike", "id": f"ridge_{i:02d}", "mirror_x": False,
-                    "pos": [0.0, y, round(z - 0.06, 3)], "dir": [0.0, lean, 1.0],
-                    "height": h, "radius": round(0.030 + 0.34 * h, 3),
-                    "flatten": [0.26, 1.45], "tip_frac": 0.06, "seg": 12, "mat": "horn"})
+        lean = 0.30 + 0.55 * (i / (len(RIDGE) - 1))
+        base = [0.0, y, z - 0.05]
+        n = _norm([0.0, lean, 1.0])
+        out.append(crystal(f"ridge_{i:02d}", base,
+                           [base[k] + n[k] * h * 1.45 for k in range(3)],
+                           round(0.016 + 0.115 * h, 3), twist=0.4 * i))
+        if i % 2 == 0 and h > 0.14:      # eclats lateraux, une station sur deux
+            for sgn in (1, -1):
+                d2 = _norm([sgn * 0.55, lean * 0.8, 1.0])
+                out.append(crystal(f"ridge_{i:02d}_s{'l' if sgn > 0 else 'r'}",
+                                   [sgn * 0.045, y - 0.02, z - 0.04],
+                                   [sgn * 0.045 + d2[0] * h * 0.80,
+                                    y - 0.02 + d2[1] * h * 0.80,
+                                    z - 0.04 + d2[2] * h * 0.80],
+                                   round(0.011 + 0.075 * h, 3), sides=5, twist=0.9 * i))
     return out
 
 
@@ -87,13 +135,13 @@ def horn_parts():
         out.append(tube_along("horn_main" + suf,
                               [[side * x, y, z] for x, y, z in pts[:keep]],
                               radii[:keep - 1] + [tip_r],
-                              up=(1, 0, 0), subsurf=2, mat="horn", mirror_x=False,
+                              up=(1, 0, 0), subsurf=2, mat="ice", mirror_x=False,
                               miter=True))
     out.append(tube_along("horn_jaw",
                           [[0.24, Y(178), Z(436)], [0.29, Y(198), Z(428)],
                            [0.32, Y(216), Z(424)]],
                           [0.040, 0.024, 0.006],
-                          up=(1, 0, 0), subsurf=2, mat="horn", mirror_x=True,
+                          up=(1, 0, 0), subsurf=2, mat="ice", mirror_x=True,
                           miter=True))
     return out
 
@@ -332,7 +380,7 @@ def wing_parts():
         mid[2] += 0.10                                   # le doigt s'arque vers le haut
         out.append(tube_along(f"wing_finger{i}", [list(WRIST), mid, list(tip)],
                               [0.105, 0.058, 0.014], up=(0, 0, 1), subsurf=2,
-                              mat="horn", mirror_x=True, miter=True))
+                              mat="ice", mirror_x=True, miter=True))
     return out
 
 
@@ -360,7 +408,7 @@ def foot_parts():
         mid = [(a[k] + b[k]) / 2 for k in range(3)]
         mid[2] -= 0.02
         out.append(tube_along(pid, [a, mid, b], [0.048, 0.032, 0.007],
-                              up=(0, 0, 1), subsurf=2, mat="talon", mirror_x=True,
+                              up=(0, 0, 1), subsurf=2, mat="ice_claw", mirror_x=True,
                               miter=True))
     return out
 
@@ -376,34 +424,30 @@ MATS = {
         "edge_copper": 0.0, "edge_width": 0.015, "instance_variation": 0.14,
         "patina_amount": 0.0, "spec_level": 0.07, "sheen": 0.0,
         "aniso": 0.0, "specular_tint": [0.86, 0.84, 0.8]}},
-    "horn": {"builder": "horn", "p": {
-        "color": [0.045, 0.035, 0.030], "rough": 0.42, "stripe_scale": 34,
-        "stripe_strength": 0.28, "aniso": 0.35, "var": 0.16, "spec_level": 0.32}},
-    "talon": {"builder": "horn", "p": {
-        "color": [0.028, 0.022, 0.020], "rough": 0.30, "stripe_scale": 46,
-        "stripe_strength": 0.20, "aniso": 0.45, "var": 0.12, "spec_level": 0.45}},
     "fang": {"builder": "enamel", "p": {
-        "color": [0.44, 0.40, 0.33], "root_color": [0.14, 0.10, 0.07],
+        "color": [0.62, 0.68, 0.72], "root_color": [0.16, 0.22, 0.28],
         "rough": 0.28, "sss": 0.10, "root_frac": 0.38}},
     # Transmission FAIBLE (0.14) et pas 0 : c'est elle qui allume la membrane a
     # contre-jour — le vrai « effet dragon ». Le piege CLAUDE.md (taches blanches
     # transmises sur coque fine) frappe au-dela de ~0.3 avec des rim tres fortes ;
     # a 0.14 avec un rim a 1500 on garde le glow sans cramer.
     "membrane": {"builder": "membrane", "p": {
-        # PIEGE : le gradient de bord du builder `membrane` eclaircit vers le contour.
-    # Sur de GRANDS panneaux c'est joli ; sur nos petits webs inter-doigts, tout le
-    # panneau est « bord » -> membrane rose pale, l'element le plus clair de l'image.
-    # On rapproche donc edge_color de color : le contraste passe par la LUMIERE.
-    "color": [0.012, 0.006, 0.005], "edge_color": [0.021, 0.009, 0.006],
-        "rough": 0.62, "transmission": 0.07, "sss": 0.07,
-        "sss_radius": [0.30, 0.06, 0.04],
-        "vein_scale": 9.0, "vein_strength": 0.46, "vein_width": 0.035, "vein_bump": 0.55,
-        "vein_radial_n": 5, "vein_radial_strength": 0.28, "vein_radial_width": 0.26,
+        "color": [0.115, 0.170, 0.235], "edge_color": [0.30, 0.40, 0.53],
+        "rough": 0.48, "transmission": 0.20, "sss": 0.22,
+        "sss_radius": [0.10, 0.18, 0.26],
+        "vein_scale": 9.0, "vein_strength": 0.42, "vein_width": 0.035, "vein_bump": 0.55,
+        "vein_dark": [0.10, 0.22, 0.38],
+        "vein_radial_n": 5, "vein_radial_strength": 0.26, "vein_radial_width": 0.26,
         "wrinkle_scale": 26.0, "wrinkle_strength": 0.22}},
+    "ice": {"builder": "ice", "p": {}},
+    "ice_claw": {"builder": "ice", "p": {
+        "color": [0.60, 0.74, 0.90], "deep": [0.10, 0.24, 0.42],
+        "transmission": 0.22, "sss": 0.62, "rough_clear": 0.10, "rough_frost": 0.60,
+        "frost_scale": 11.0, "fracture_scale": 22.0}},
     # Iris AMBRE + pupille FENDUE tres etroite : l'oeil de predateur diurne.
     "eye": {"builder": "eye_globe", "p": {
-        "sclera_color": [0.035, 0.022, 0.012], "iris_color": [0.52, 0.24, 0.02],
-        "iris_color2": [0.74, 0.45, 0.05], "pupil_color": [0.004, 0.004, 0.004],
+        "sclera_color": [0.055, 0.070, 0.085], "iris_color": [0.30, 0.55, 0.72],
+        "iris_color2": [0.68, 0.86, 0.96], "pupil_color": [0.004, 0.004, 0.004],
         "pupil_width": 0.17, "pupil_length": 2.1, "pupil_edge": 0.012,
         "iris_r": 0.42, "rough": 0.10, "clearcoat": 0.12, "spec_level": 0.2,
         "glow": 0.04, "catchlight": 0.85, "catchlight_pos": [0.46, 0.40],

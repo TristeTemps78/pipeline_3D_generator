@@ -341,6 +341,32 @@ def render(path, res=(1152, 864), samples=48, throttle=True, settings=None):
     random walk par défaut, différence visuelle minime sur écailles)."""
     rs = settings or {}
     sc = bpy.context.scene
+    # MOTEUR (b28, animation) : Cycles reste le defaut — c'est lui qui donne les images
+    # de presentation. Mais une animation, c'est 30 a 60 images PAR seconde de video :
+    # a ~25 s l'image en Cycles, un cycle de battement coute 15 min. EEVEE rend la meme
+    # scene en ~1 s. On perd les caustiques et la transmission fine (la glace y est
+    # moins convaincante), on garde la lecture du mouvement — qui est le sujet.
+    if str(rs.get('engine', 'CYCLES')).upper().startswith('EEVEE'):
+        for eng in ('BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE'):
+            try:
+                sc.render.engine = eng
+                break
+            except TypeError:
+                continue
+        ee = getattr(sc, 'eevee', None)
+        if ee is not None:
+            for attr, val in (('taa_render_samples', int(rs.get('samples', 32))),
+                              ('use_raytracing', True),
+                              ('use_shadow_jitter_viewport', True)):
+                if hasattr(ee, attr):
+                    setattr(ee, attr, val)
+        scale = float(rs.get('res_scale', 1.0))
+        sc.render.resolution_x = int(res[0] * scale)
+        sc.render.resolution_y = int(res[1] * scale)
+        sc.render.filepath = path
+        sc.render.film_transparent = bool(rs.get('transparent', False))
+        bpy.ops.render.render(write_still=True)
+        return path
     sc.render.engine = 'CYCLES'
     cy = sc.cycles
     cy.samples = int(rs.get('samples', samples))

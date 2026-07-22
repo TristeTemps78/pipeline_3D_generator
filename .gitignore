@@ -9,3 +9,8 @@ references/krokmou_ref_front34.png
 references/krokmou_anatomy_skeleton.png
 references/krokmou_silh_trace.txt
 references/krokmou_ortho_side_body.png
+
+# Sequences PNG d'animation : 67 Mo pour 4 cycles, regenerables en une commande
+# (bash pipeline/blender_py.sh research/tests/anim_wyvern.py all). Seuls les MP4/GIF
+# encodes sont committes — c'est eux le livrable.
+renders/anim/*/

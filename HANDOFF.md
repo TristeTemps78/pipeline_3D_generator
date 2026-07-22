@@ -7,6 +7,64 @@ part ~4 s, silh ~15 s) — wheel bpy pip impossible (ARM64/Py3.14) ; conteneur
 Linux = `bootstrap.sh` puis `python3 pipeline/run.py` comme avant. Python local (hors
 bpy) : numpy+PIL dispo, ImageMagick dispo.
 
+## BOUCLE 28 (2026-07-23) — TYPE GLACE + ANIMATIONS
+
+Demande utilisateur : « des animations de vol », « des caractéristiques naturelles ou
+surnaturelles », « type glace ». Pokédex demandé PUIS écarté par l'utilisateur : « je
+veux juste les rendus que je mettrai dans un autre projet » — donc AUCUNE structure de
+dex ici, seulement des livrables image/vidéo.
+
+LIVRABLES : `renders/anim/wyvern_{flap,flight,turntable,takeoff}.{mp4,gif}`.
+Les séquences PNG (67 Mo) sont GITIGNORÉES — régénérables en une commande.
+
+### Animation SANS armature (le choix structurant)
+Le modèle fait ~90 objets séparés (chaque cristal, croc, griffe, panneau de membrane) :
+les peser sur un squelette serait long et fragile. Mais tout sort de PARAMÈTRES — une
+aile, c'est six points de contrôle. `research/tests/anim_wyvern.py` fait donc du mouvement
+une fonction du temps et **reconstruit la scène image par image** (`core.reset()` +
+`organic.build()`), ~4 s/image en EEVEE. Le mouvement tient en deux blocs :
+- `warp(p, t, motion)` : champ de déplacement appliqué à TOUT point — cristaux, crocs et
+  œil suivent gratuitement puisqu'ils sont dans le champ ;
+- une rotation d'aile à part, autour de l'axe d'épaule, avec un **retard croissant vers
+  la pointe** : c'est lui qui fait le fouetté d'une aile souple.
+
+Réglages qui font la différence (mesurés à l'œil sur les cycles) :
+- le corps monte pendant la **descente** des ailes (déphasage d'un quart de cycle) ;
+- descente motrice plus ample que la remontée (sinus biaisé) ;
+- cou et queue en retard de ~1.2 et ~1.5 rad sur le corps — en phase, la bête est d'un bloc ;
+- boucle parfaite : `t = i/N` et non `i/(N-1)`, sinon la dernière image répète la première.
+
+PIÈGES PAYÉS :
+- **Les pieds décollaient** : le champ de déplacement soulevait aussi les pattes → la bête
+  flottait 8 cm au-dessus de son ombre. Correctif : atténuer le déplacement vertical vers
+  le bas du modèle tant que `grounded(t) > 0`.
+- Battement **sur place = pattes plantées** (menace/échauffement) ; ne replier qu'en vol
+  réel. Le round 1 repliait aussi en `flap` → pattes détachées.
+- Ce build de Blender est compilé **sans sortie FFMPEG** (l'enum `file_format` ne propose
+  que des images) → encodage par le binaire `ffmpeg` externe (présent en local).
+- Au décollage, la caméra doit **panoramiquer** : +3.4 u de montée sortent du cadre fixe.
+
+### Nouveaux mécanismes génériques
+- `core.render(settings={'engine': 'EEVEE'})` : ~4 s/image contre ~25 s en Cycles. On perd
+  les caustiques et la transmission fine, on garde la lecture du mouvement.
+- `pipeline/blender_py.sh <script.py>` : lance un script arbitraire dans Blender (pendant
+  de `blender_run.sh`, câblé sur run.py) — pour les outils qui pilotent leur propre boucle.
+- `materials.ice()` : glace NATURELLE, pas du verre. Trois traits, dont aucun n'est la
+  transparence : laiteuse (SSS domine la transmission — au-delà de ~0.5 sur des pointes
+  fines on rejoue le piège des taches blanches), rugosité TACHETÉE (plages polies/givrées
+  mélangées par bruit), bleue en PROFONDEUR seulement.
+- `crystal()` (gen_wyvern_parts) : prisme facetté `subsurf: 0` — le Catmull-Clark
+  arrondirait justement les arêtes qui font la lecture.
+
+### Identité d'espèce
+Voir `references/wyvern_ref.md` (réécrit) : traits naturels tous justifiables
+(contre-jour double camouflage, réseau vasculaire alaire anti-gel, griffes-crampons,
+narines hautes) et **un seul** trait surnaturel assumé — la crête dorsale n'est pas de la
+kératine mais de vrais cristaux de glace exsudés, qui repoussent et se brisent.
+
+RESTE : tête encore lisse au close-up ; pattes non soudées ; le turntable recadre un peu
+juste sur l'envergure ; le `flap` gagnerait un pliage du coude en haut de course.
+
 ## BOUCLE 27 (2026-07-22) — WYVERNE ORIGINALE (essai demandé par l'utilisateur)
 
 Demande : « fais TON dragon, pas de modèle, réaliste, un truc impressionnant qui fait

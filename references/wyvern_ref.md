@@ -1,45 +1,79 @@
-# Wyverne — cible visuelle (conception MAISON, 2026-07-22)
+# Wyverne des glaces — cible visuelle et fiche d'espèce (conception MAISON)
 
-Pas de modèle externe : cette créature est une commande de l'utilisateur (« fais TON
-dragon, réaliste, quelque chose d'impressionnant qui fait peur »). Choix arrêtés avec lui :
-**wyverne** (2 pattes + ailes = bras), registre **prédateur sec et nerveux**, pose **à
-l'affût, tête basse**.
+Créature originale, commande de l'utilisateur (2026-07-22) : « fais TON dragon, réaliste,
+quelque chose d'impressionnant qui fait peur », puis (2026-07-23) « type GLACE, avec des
+caractéristiques naturelles ou surnaturelles ». Choix arrêtés avec lui : **wyverne**
+(2 pattes + ailes = bras), registre **prédateur sec et nerveux**, pose **à l'affût**.
 
 ## La référence est à nous
 
 `references/wyvern_ortho_side.png` — généré par `research/tests/gen_wyvern_trace.py`, qui
-**est** le document de design (tableau `BODY` : stations `x, y_haut, y_bas, demi-largeur`,
-+ chaîne `LEG`). Conséquences :
-- committable (aucun ©) → contrairement à Krokmou, le score de silhouette tourne aussi en
-  conteneur et en CI ;
-- `gen_wyvern_cage.py` importe ce même tableau. **L'IoU ne valide donc pas le dessin** (il
-  vient d'ici) : il mesure la DÉRIVE 3D→2D — rétrécissement du subsurf, forme des
-  sections, coudes de tube, soudure des membres. C'est exactement le défaut que la
-  métrique a rattrapé en b26 (−0.011 à la soudure des pattes) ;
-- `wyvern_ortho_side_nolegs.png` = tronc seul, aide de lecture, non scorée.
+**est** le document de design (stations `BODY` + chaîne `LEG`). Committable (aucun ©),
+donc `run.py silh` tourne aussi en conteneur et en CI, ce que les réfs © de Krokmou
+interdisaient. Contrepartie assumée : décalque et cage sortant du même tableau, l'IoU ne
+valide pas le DESSIN — il mesure la dérive 3D→2D (rétrécissement subsurf, coudes de tube,
+soudures). C'est exactement le défaut qu'il a rattrapé en b26.
 
-Le décalque est CORPS SEUL : ailes, cornes, dents, épines dorsales en sont exclues et
-masquées au scoring par `scene.silh.exclude_like`.
+Décalque = CORPS SEUL : ailes, cristaux, cornes et dents en sont exclus et masqués au
+scoring par `scene.silh.exclude_like`.
 
-## Ce qui doit faire peur (et pourquoi), levier par levier
+## Fiche d'espèce
+
+**Type : GLACE.** Prédateur d'altitude des plateaux gelés. ~7,5 m du museau au bout de la
+queue, 9,2 m d'envergure, bipède digitigrade.
+
+### Traits naturels (tout est justifiable)
+
+- **Contre-jour et non contre-ombrage** : le dos est presque noir, seules les **arêtes**
+  des écailles remontent en bleu givré. Sur un plateau de neige aveuglant, une bête
+  sombre vue d'en bas se découpe sur le ciel ; vue d'en haut, ses arêtes claires la
+  fondent dans la glace craquelée. Les deux camouflages en un.
+- **Tête petite, cou long, queue de contrepoids** (14→17 % / 19 % / 35 % de la longueur) :
+  proportions de théropode, pas de dragon d'illustration.
+- **Membranes alaires à réseau vasculaire dense** (visible dans le shader) : échangeur à
+  contre-courant qui empêche le gel des extrémités — le vrai problème d'un animal ailé
+  par −40 °C.
+- **Pattes digitigrades à griffes-crampons**, orteils écartés : portance sur la neige et
+  ancrage sur la glace vive.
+- **Museau étroit à narines hautes** : l'air inspiré est réchauffé par un long trajet
+  nasal avant d'atteindre les poumons.
+- **Œil petit, enfoncé sous une arcade osseuse**, iris bleu pâle laiteux : protection
+  contre le vent de glace et l'éblouissement ; un petit œil fait aussi lire un GROS animal.
+- **Usure** : corne droite cassée net, un croc brisé. Une bête intacte et symétrique lit
+  « figurine neuve ».
+
+### Trait surnaturel (un seul, assumé)
+
+- **La crête cristalline.** Les épines dorsales ne sont pas de la kératine : ce sont de
+  vrais **cristaux de glace**, poussés hors de la peau par une sécrétion sursaturée que
+  l'animal exsude le long de sa ligne dorsale. Ils repoussent après chaque combat, se
+  brisent, se ramifient — d'où les éclats latéraux désalignés une station sur deux. C'est
+  le trait d'espèce le plus lisible en silhouette, et il justifie que la géométrie soit
+  **facettée** (`subsurf: 0`) au milieu d'un corps entièrement lissé.
+
+## Ce qui doit faire peur (les leviers, pas le hasard)
 
 | Levier | Krokmou (contre-exemple) | Wyverne |
 |---|---|---|
-| Crâne | galet rond et haut | **coin bas et lourd**, 184 × 116 px (1.6:1) |
-| Museau | s'effile en museau de chat | **carré et massif** au bout (44 px) — un museau qui s'effile lit « herbivore » |
-| Chanfrein | convexe | **creux** entre les narines et l'orbite : le profil concave fait le reptile |
-| Œil | énorme (r 0.21) | **petit** (r ≈ 0.09) et enfoncé sous une arcade — un petit œil fait lire un GROS animal |
-| Nuque | continue | **encoche occipitale** : c'est elle qui DÉTACHE la tête du cou |
-| Cou | épais et court | 44 px seulement, **sec et tendu**, en arc de frappe |
-| Tronc | ovale régulier | **quille sternale 142 px** puis **taille pincée 96 px** — le contraste fait la faim |
-| Membres | trapus | **digitigrades** en Z : genou avant, talon haut en arrière, métatarse long |
-| Ligne générale | ramassée | **822 × 317 px (2.7:1)** : ça rampe vers toi |
-
-Pose : les 2 pattes sont plantées **symétriquement**, donc superposées exactement de
-profil — le rendu ortho vaut le décalque, sans la pénalité d'IoU qu'imposait la pose de
-marche de Krokmou.
+| Crâne | galet rond et haut | **coin bas et lourd**, museau carré (un museau qui s'effile = herbivore) |
+| Chanfrein | convexe | **creux** : le profil concave fait le reptile |
+| Œil | énorme (r 0.21) | **petit** (r 0.072) sous une arcade, avec paupière |
+| Nuque | continue | **encoche occipitale** : c'est elle qui DÉTACHE la tête |
+| Tronc | ovale régulier | quille sternale puis **taille pincée** — le contraste fait la faim |
+| Sections | ellipses | **squircle** : dos et flancs plats, arêtes marquées. Un animal a des PLANS |
+| Membres | trapus | **digitigrades** en Z, hauts sur pattes |
 
 ## Repères chiffrés
 
 Échelle `S = 0.009` u/px, `X0 = 420` (x_img 420 → Y=0), `Y0 = 545` (sol → Z=0).
-La créature regarde vers **−Y**. Longueur ≈ 7.5 u, hauteur au garrot ≈ 2.9 u.
+La créature regarde vers **−Y**. Longueur ≈ 7.5 u, hauteur au garrot ≈ 2.9 u,
+envergure ≈ 9.2 u. Axe d'épaule (plan de battement) : Y −0.15, Z 2.28.
+
+## Chaîne de génération (ordre obligatoire)
+
+```
+gen_wyvern_trace.py   -> references/wyvern_ortho_side.png   (le document de design)
+gen_wyvern_cage.py    -> ÉCRASE specs/wyvern.json           (corps, pattes, sol, scène)
+gen_wyvern_parts.py   -> fusionne les appendices            (idempotent)
+anim_wyvern.py        -> renders/anim/<motion>/ + mp4 + gif
+```

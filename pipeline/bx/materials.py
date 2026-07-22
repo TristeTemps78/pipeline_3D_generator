@@ -1076,3 +1076,62 @@ def rock(name='rock', color=(0.07, 0.055, 0.042), scale=3.0, bump=1.2,
     lk.new(mix2.outputs['Result'], bsdf.inputs['Base Color'])
     _set(bsdf, 'Roughness', 0.85)
     return mat
+
+
+def ice(name='ice', color=(0.72, 0.85, 0.98), deep=(0.16, 0.34, 0.52),
+        transmission=0.35, sss=0.55, sss_radius=(0.06, 0.12, 0.18),
+        rough_clear=0.06, rough_frost=0.52, frost_scale=6.0, frost_bias=0.42,
+        fracture_scale=14.0, fracture_bump=0.35, ior=1.31, spec_level=0.72):
+    """pattern.ice v1 (b28, type GLACE) : glace NATURELLE, pas du verre.
+
+    Trois choses distinguent la glace vraie d'un cristal de synthese, et aucune n'est
+    la transparence :
+    1. elle est LAITEUSE — la diffusion sous la surface (bulles d'air, micro-fractures)
+       domine la transmission. D'ou `sss` fort et `transmission` modere : pousser la
+       transmission au-dela de ~0.5 sur des pointes fines rejoue le piege CLAUDE.md
+       (taches blanches transmises sous des rim fortes) et donne du plastique ;
+    2. sa rugosite est TACHETEE : plages polies (rough_clear) et plages givrees
+       (rough_frost) melangees par un bruit — c'est ce contraste qui la fait lire ;
+    3. elle est BLEUE EN PROFONDEUR seulement : la teinte vient de l'epaisseur
+       traversee, donc `deep` n'apparait que la ou le trajet est long (approxime ici
+       par le rayon de diffusion, plus long dans le bleu).
+    Marche sur n'importe quelle geometrie facettee (cf. `crystal()` cote generateurs)."""
+    mat, nt, bsdf = _new(name)
+    n, lk = nt.nodes, nt.links
+    tc = n.new('ShaderNodeTexCoord')
+
+    # --- givre tachete : melange de rugosite pilote par un bruit large
+    frost = n.new('ShaderNodeTexNoise')
+    frost.inputs['Scale'].default_value = frost_scale
+    frost.inputs['Detail'].default_value = 4.0
+    lk.new(tc.outputs['Object'], frost.inputs['Vector'])
+    fmap = n.new('ShaderNodeMapRange')
+    fmap.inputs['From Min'].default_value = frost_bias
+    fmap.inputs['From Max'].default_value = frost_bias + 0.22
+    fmap.inputs['To Min'].default_value = rough_clear
+    fmap.inputs['To Max'].default_value = rough_frost
+    fmap.clamp = True
+    lk.new(frost.outputs['Fac'], fmap.inputs['Value'])
+    lk.new(fmap.outputs['Result'], bsdf.inputs['Roughness'])
+
+    # --- micro-fractures internes : voronoi en bump, tres fin
+    frac = n.new('ShaderNodeTexVoronoi')
+    frac.feature = 'DISTANCE_TO_EDGE'
+    frac.inputs['Scale'].default_value = fracture_scale
+    lk.new(tc.outputs['Object'], frac.inputs['Vector'])
+    bmp = n.new('ShaderNodeBump')
+    bmp.inputs['Strength'].default_value = fracture_bump
+    bmp.inputs['Distance'].default_value = 0.02
+    lk.new(frac.outputs['Distance'], bmp.inputs['Height'])
+    lk.new(bmp.outputs['Normal'], bsdf.inputs['Normal'])
+
+    _set(bsdf, 'Base Color', (*color, 1))
+    _set(bsdf, 'Transmission Weight', transmission)
+    _set(bsdf, 'IOR', ior)
+    _set(bsdf, 'Subsurface Weight', sss)
+    _set(bsdf, 'Subsurface Radius', sss_radius)
+    _set(bsdf, 'Subsurface Scale', 0.12)
+    _set(bsdf, 'Specular IOR Level', spec_level)
+    for key in ('Subsurface Color', 'Subsurface Tint'):
+        _set(bsdf, key, (*deep, 1))
+    return mat

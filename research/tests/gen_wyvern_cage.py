@@ -137,16 +137,27 @@ def main():
             # « plastique chocolat ». A 14 (plaques de 7 cm sur une bete de 7.5 m) elles
             # se lisent. Et le bump doit etre FRANC : mesure, 0.55 ne donne RIEN,
             # il faut ~1.35. C'est le relief qui fait la peau, pas la couleur.
+            # TYPE GLACE. Deux ecueils evites : (1) un dragon « blanc » pur perd toute
+            # lecture de volume sur fond clair et crame sous les rim ; (2) un bleu
+            # sature lit « jouet ». D'ou un gris-bleu DESATURE et sombre en base, dont
+            # seules les aretes d'ecailles remontent en bleu clair (`tint` via le masque
+            # de cavite) : la bete reste sombre, et c'est le GIVRE sur les aretes qui
+            # porte la couleur. `sss` releve : sous une lumiere rasante la peau froide
+            # doit garder un rendu charnu, sinon c'est de la pierre.
             "hide": {"builder": "reptile_scales", "p": {
                 "scale": 14, "scale2": 40, "bump": 1.35,
-                "base": [0.011, 0.0095, 0.009], "tint": [0.038, 0.024, 0.016],
-                "rough": 0.66, "rough_edge": 0.28, "sss": 0.04, "micro": 0.45,
-                "edge_copper": 0.12, "edge_width": 0.012, "instance_variation": 0.22,
-                "patina_amount": 0.0, "spec_level": 0.14, "sheen": 0.03,
-                "aniso": 0.05, "specular_tint": [0.86, 0.84, 0.8]}},
+                "base": [0.0065, 0.0098, 0.0155], "tint": [0.19, 0.28, 0.40],
+                "rough": 0.62, "rough_edge": 0.24, "sss": 0.10,
+                "sss_radius": [0.10, 0.16, 0.24], "micro": 0.45,
+                "edge_copper": 0.26, "edge_width": 0.014, "instance_variation": 0.22,
+                "patina_amount": 0.0, "spec_level": 0.26, "sheen": 0.10,
+                "aniso": 0.05, "specular_tint": [0.82, 0.90, 1.0]}},
+            # NEIGE : un sol clair renvoie une enorme lumiere rebondie vers le
+            # dessous de la bete — c'est ce rebond qui signe « paysage de glace », bien
+            # plus que la couleur du sol elle-meme.
             "rock": {"builder": "rock", "p": {
-                "color": [0.0042, 0.0038, 0.0036], "scale": 2.2, "bump": 1.8,
-                "burnt": [0.006, 0.005, 0.005], "ember": [0.05, 0.02, 0.008]}},
+                "color": [0.46, 0.53, 0.64], "scale": 1.4, "bump": 0.9,
+                "burnt": [0.32, 0.38, 0.49], "ember": [0.58, 0.67, 0.80]}},
         },
         "parts": parts,
         "scene": {
@@ -166,17 +177,20 @@ def main():
             # Low-key : le fond reste presque noir, la bete est DECOUPEE par deux
             # contre-jours. Sur une peau quasi noire, c'est le seul schema qui donne
             # une lecture — un eclairage studio a plat la transforme en tache grise.
-            "world": {"color": [0.007, 0.008, 0.012], "color_top": [0.021, 0.024, 0.034],
-                      "strength": 0.40, "visible_strength": 0.95},
-            "sun": {"direction": [-0.30, 0.55, -0.80], "energy": 1.0,
-                    "color": [0.72, 0.80, 1.0]},
+            "world": {"color": [0.014, 0.021, 0.032], "color_top": [0.040, 0.058, 0.082],
+                      "strength": 0.20, "visible_strength": 0.80},
+            # SOLEIL BAS et RASANT : c'est lui qui fait l'ombre longue et le modele.
+            # Un ciel diffus fort (v1) donnait un eclairage d'ecran de studio :
+            # aucune direction, donc aucun volume, donc « figurine de porcelaine ».
+            "sun": {"direction": [-0.42, 0.70, -0.34], "energy": 4.2,
+                    "color": [1.0, 0.97, 0.92], "angle_deg": 1.2},
             "area_lights": [
-                {"loc": [4.2, -6.6, 2.6], "target": [-0.6, -1.6, 1.5], "energy": 340,
-                 "size": 2.0, "color": [1.0, 0.84, 0.62]},          # key chaude, DISCRETE
-                {"loc": [-4.0, 5.8, 3.2], "target": [0.0, 0.2, 1.9], "energy": 3400,
+                {"loc": [4.2, -6.6, 2.6], "target": [-0.6, -1.6, 1.5], "energy": 240,
+                 "size": 2.0, "color": [0.86, 0.92, 1.0]},          # key FROIDE, appoint, DISCRETE
+                {"loc": [-4.0, 5.8, 3.2], "target": [0.0, 0.2, 1.9], "energy": 1500,
                  "size": 1.4, "color": [0.52, 0.68, 1.0]},          # rim froid DUR
                 {"loc": [5.2, 4.2, 2.4], "target": [1.4, 0.8, 1.9], "energy": 2600,
-                 "size": 1.8, "color": [0.95, 0.58, 0.34]},         # rim chaud, membranes
+                 "size": 1.8, "color": [0.72, 0.84, 1.0]},          # rim froid, membranes
                 {"loc": [-4.5, -6.0, 2.0], "target": [0.0, -1.0, 1.4], "energy": 110,
                  "size": 6.0, "color": [0.60, 0.72, 1.0]},          # fill : pas de noir mort
             ],
