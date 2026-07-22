@@ -259,7 +259,11 @@ def do_silh(spec_path):
     sep[..., :3] = 0.5
     out = os.path.join(ROOT, 'renders', 'silh.png')
     feedback._save_png(out, np.hstack([tiles[0], sep, tiles[1], sep, tiles[2]]))
-    sp = os.path.join(ROOT, 'pipeline', 'state', 'silh.json')
+    # État PAR SPEC : deux créatures en parallèle (Krokmou + une seconde) écrasaient
+    # mutuellement leur historique de score, rendant le `delta` — le vrai signal de la
+    # boucle — faux à chaque alternance.
+    stem = os.path.splitext(os.path.basename(spec_path))[0]
+    sp = os.path.join(ROOT, 'pipeline', 'state', f'silh_{stem}.json')
     prev = json.load(open(sp)).get('score') if os.path.exists(sp) else None
     delta = None if prev is None else round(score - prev, 4)
     with open(sp, 'w') as f:

@@ -46,20 +46,33 @@ def plate(pid, outline, thickness=0.06, subsurf=1, mat='scales_body', mirror_x=F
 
 
 def tube_along(pid, pts, radii, up=(0, 0, 1), subsurf=2, mat='scales_body',
-               mirror_x=False):
+               mirror_x=False, miter=False):
     """Sections carrees perpendiculaires a la polyligne (repere de Frenet simplifie :
-    tangente + `up` de reference) -> tube ferme. 4 pts/section : le subsurf arrondit."""
+    tangente + `up` de reference) -> tube ferme. 4 pts/section : le subsurf arrondit.
+
+    `miter` (defaut False = comportement b26 inchange) : a un coude, une section
+    perpendiculaire a la bissectrice est TROP ETROITE d'un facteur cos(angle/2) — le
+    dehors du virage se creuse (mesure : un genou de patte y perdait 1.4 % de la
+    silhouette). L'onglet corrige en elargissant la section dans le plan du coude.
+    Suppose, comme tout le reste de ce helper, que `up` sort du plan du coude."""
     rings = []
     for i, p in enumerate(pts):
         a = pts[max(i - 1, 0)]
         b = pts[min(i + 1, len(pts) - 1)]
         t = _norm([b[k] - a[k] for k in range(3)])
+        bend = 1.0
+        if miter and 0 < i < len(pts) - 1:
+            din = _norm([p[k] - a[k] for k in range(3)])
+            dout = _norm([b[k] - p[k] for k in range(3)])
+            cos_turn = max(-0.99, min(1.0, sum(din[k] * dout[k] for k in range(3))))
+            bend = min(1.0 / max(math.cos(math.acos(cos_turn) / 2.0), 0.35), 2.2)
         s = _norm([t[1] * up[2] - t[2] * up[1], t[2] * up[0] - t[0] * up[2],
                    t[0] * up[1] - t[1] * up[0]])
         u = _norm([s[1] * t[2] - s[2] * t[1], s[2] * t[0] - s[0] * t[2],
                    s[0] * t[1] - s[1] * t[0]])
         r = radii[i]
         rx, ry = (r, r) if isinstance(r, (int, float)) else r
+        ry *= bend
         rings.append([[round(p[k] + s[k] * rx * sx + u[k] * ry * sy, 4) for k in range(3)]
                       for sx, sy in ((1, 1), (1, -1), (-1, -1), (-1, 1))])
     verts = [v for r in rings for v in r]
