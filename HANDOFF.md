@@ -7,6 +7,56 @@ part ~4 s, silh ~15 s) — wheel bpy pip impossible (ARM64/Py3.14) ; conteneur
 Linux = `bootstrap.sh` puis `python3 pipeline/run.py` comme avant. Python local (hors
 bpy) : numpy+PIL dispo, ImageMagick dispo.
 
+## BOUCLE 27 (2026-07-22) — WYVERNE ORIGINALE (essai demandé par l'utilisateur)
+
+Demande : « fais TON dragon, pas de modèle, réaliste, un truc impressionnant qui fait
+peur ». Choix arrêtés avec lui : **wyverne** (2 pattes, ailes = bras → crédible),
+registre **prédateur sec et nerveux**, pose **à l'affût tête basse**.
+**Krokmou n'est pas touché** (spec, réfs et score séparés).
+
+Fichiers : `references/wyvern_ref.md` (cible visuelle + les leviers de peur, levier par
+levier), `research/tests/gen_wyvern_trace.py` (**LE document de design** : stations BODY
++ chaîne LEG → `references/wyvern_ortho_side.png`), `gen_wyvern_cage.py` (→ **ÉCRASE**
+`specs/wyvern.json`), `gen_wyvern_parts.py` (fusionne les 45 appendices, idempotent).
+Ordre obligatoire : trace → cage → parts. **IoU silhouette 0.9424.**
+
+Acquis GÉNÉRIQUES (réutilisables ailleurs, c'est le vrai gain de la boucle) :
+- La référence est NOTRE dessin → committable → le score de silhouette tourne enfin en
+  conteneur/CI, impossible avec Krokmou (réfs © locales).
+- `run.py` : état du score **par spec** (`silh_<spec>.json`) — deux créatures en
+  parallèle s'écrasaient le `delta`, qui est le signal de la boucle.
+- `research/tests/xor_report.py` **committé** (il était refait à la main chaque session).
+- `tube_along(miter=True)` dans `gen_appendages.py` : une section perpendiculaire à la
+  bissectrice est trop étroite de cos(angle/2) → le dehors d'un coude se creuse (+0.0081).
+- Compensation du subsurf en **LOI** `A + B/taille` au lieu de constantes : le
+  Catmull-Clark ronge d'autant plus que la section est petite (+0.0100 ; c'est ce qui
+  rattrape tête et cou, systématiquement trop maigres à 1.06).
+- `web()` (dans gen_wyvern_parts) : membrane en **grille** paramétrique (feston radial +
+  affaissement) — candidat nº1 à l'extraction vers `bx/`.
+
+PIÈGES PAYÉS (ne pas redécouvrir) :
+- `reptile_scales.scale` = **cellules par unité MONDE**, pas un nombre d'écailles. À 28
+  puis 62 les plaques faisaient 3.5 puis 1.6 cm : invisibles → « plastique chocolat »
+  pendant 3 rounds. À 14 elles se lisent, et `bump` 0.55 ne donne RIEN — il faut ~1.35.
+- Membrane en polygones plats = origami, quel que soit le contour : il faut de la
+  courbure DANS le panneau, et une normale d'affaissement COMMUNE (sinon accordéon).
+- Le gradient de bord du builder `membrane` éclaircit vers le contour : sur de petits
+  panneaux TOUT est bord → membrane rose pâle, élément le plus clair de l'image.
+- Lèvre posée à fraction constante de la hauteur du crâne = **un sourire** (le crâne se
+  creuse vers l'arrière) : définir la bouche par une altitude explicite qui descend.
+- Crocs posés à la ligne de lèvre, pointés vers le bas = entièrement noyés (le crâne est
+  une peau fermée, pas de bouche ouverte) : gueule close → les sortir latéralement.
+- Arcade sourcilière en `spike` aplati = plaque hexagonale collée ; un tube à demi
+  enfoui le long de l'orbite fait une vraie crête osseuse.
+- Sans SOL, la bête flotte : plus d'échelle, plus d'ombre portée → ça lit « figurine ».
+- Grossir un tube uniformément quand l'IoU manque à une extrémité est FAUX (−0.0087) :
+  ce sont les **capuchons** qui rentrent sous subsurf → prolonger la chaîne et les enfouir
+  (+0.0283).
+
+RESTE : ailes encore un peu anguleuses (grille plus dense ou bord de fuite courbe) ;
+pattes NON soudées au corps (la machinerie `gen_body_weld.py` est là, non appliquée) ;
+tête lisse au close-up (écailles de crâne, plis) ; pas de selle/décor.
+
 ## Où on en est — BOUCLE 24 « SCULPTEUR v1 » : JALON ATTEINT (2026-07-19)
 
 Le test « le plafond a-t-il sauté » est POSITIF : **IoU silhouette 0.9031** (cage v8)

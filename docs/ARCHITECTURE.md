@@ -95,6 +95,25 @@ Nouvelle méthode, celle des artistes : **cage basse résolution + Subdivision S
   ailes/ailerons pendant le rendu ortho — la référence est un décalque CORPS SEUL, la
   métrique ne doit pas punir ce qu'on ajoute ; `scene.silh.target` figé pour qu'un
   recadrage de caméra ne bouge plus le score.
+- FAIT (b27) : **2e créature au pivot** — une wyverne de conception maison
+  (`specs/wyvern.json`), qui a servi de test de généricité de tout l'outillage b24-b26.
+  Verdict : `bx/` n'a eu besoin d'AUCUNE modification, seul `run.py` a changé (état du
+  score par spec). Chaîne de génération, dans cet ordre :
+  `gen_wyvern_trace.py` (LE document de design : stations `BODY` + chaîne `LEG` →
+  rasterise `references/wyvern_ortho_side.png`) → `gen_wyvern_cage.py` (**écrase** la
+  spec) → `gen_wyvern_parts.py` (fusionne les appendices, idempotent).
+- FAIT (b27) : la référence de silhouette peut être **la nôtre**. Un décalque dessiné
+  par nous est committable, donc `run.py silh` tourne enfin en conteneur/CI — ce que les
+  réfs © de Krokmou interdisaient. Contrepartie honnête : quand le décalque et la cage
+  sortent du même tableau, l'IoU ne valide plus le DESSIN, il mesure la dérive 3D→2D
+  (rétrécissement subsurf, coudes de tube, soudures). C'est justement ce que la métrique
+  a rattrapé en b26.
+- FAIT (b27) : compensation du subsurf en **loi** `grow = A + B/taille` au lieu des deux
+  constantes de Krokmou (1.06 / 1.2) — le Catmull-Clark rogne d'autant plus que la
+  section est petite. `tube_along(miter=True)` (gen_appendages) : l'onglet aux coudes.
+  `web()` (gen_wyvern_parts) : membrane en grille paramétrique (feston + affaissement) —
+  candidat nº1 à l'extraction vers `bx/`, une membrane en polygones plats se lira
+  toujours « origami ».
 Les types `skin_body`/`head_galet` ci-dessous (boucle 23) restent documentés comme état
 de REPLI (checkpoint `48963ba`) — ne plus itérer dessus.
 
