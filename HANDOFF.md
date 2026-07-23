@@ -7,6 +7,38 @@ part ~4 s, silh ~15 s) — wheel bpy pip impossible (ARM64/Py3.14) ; conteneur
 Linux = `bootstrap.sh` puis `python3 pipeline/run.py` comme avant. Python local (hors
 bpy) : numpy+PIL dispo, ImageMagick dispo.
 
+## BOUCLE 30 (2026-07-24) — HARNAIS DE RENDU (contrat du jeu aval) — LIVRE
+
+Les 5 retours du jeu aval, traites. Outil : `research/tests/anim_dragon.py`
+(`bash pipeline/blender_py.sh research/tests/anim_dragon.py [state|all|probe] [variant]`).
+Livrables : `renders/anim/dragon/dragon_<state>.webm` (VP9 alpha) + `render.json`.
+Les sequences PNG sont GITIGNOREES (`renders/anim/dragon/*/`), clips + json committes.
+
+1. **Film TRANSPARENT** : `settings['transparent']` (alpha RGBA natif), `ground` retire de la
+   scene, encodage **VP9 `yuva420p`** (l'alpha survit). Cycles honore desormais
+   `film_transparent` aussi (`core.py`, 1 ligne — EEVEE l'avait deja).
+2. **Boucles SUR PLACE** : camera FIXE ORTHO (aucun fly-by), sujet centre a echelle
+   CONSTANTE, `t = i/N` pour les loops (1re image = derniere). Le **hover** (`fly`) sert
+   FLY_AWAY + FLY_ACROSS + RECEDE (le JS du jeu deplace le wrapper).
+3. **Par ETAT**, carre **576²**, + `render.json` : `{fps, frames, loop, facing, size, scale,
+   anchor}` par etat + `engine_map` des 8 etats moteur -> clips. Etats rendus : idle, alert,
+   roar, fly, spawn (les 4 de base + ROAR + hover). PERCH->idle, FLY_*/RECEDE->fly.
+4. **Param COULEUR** : `VARIANTS` re-teinte hide.base + patina_color (poison/plague/venom/
+   blight) -> famille de venins ; passer la variante en arg.
+5. **Polish** : cadrage carre a marge constante (ortho fixe), fps declare (24), orientation
+   `facing:"left"` (la bete regarde l'ecran-gauche), eclairage NEUTRE homogene (world doux +
+   key large + fill ; pas de rim dur qui blanchit les ailes).
+
+Choix structurants (comme anim_wyvern) : SANS armature — mouvement = fonction du temps sur la
+spec, scene reconstruite par image (`core.reset()`+`organic.build()`), ~2-4 s/image EEVEE.
+Vue **3/4 avant** (cote +X, un peu haut) et non profil pur : le profil rendait les ailes en
+TRANCHE ; le 3/4 montre les ailes en lambeaux deployees + le crane dur. `probe [state]` rend
+UNE image pour caler la camera vite.
+
+RESTE b30 (pour affiner) : marge basse un peu large (ancrage) ; repli des pattes en vol
+perfectible ; roar approxime (gueule close -> cabrage+detente, pas d'ouverture de machoire) ;
+n'a rendu que la variante `poison` (les 3 autres = 1 commande). Rig reel = jamais (doctrine).
+
 ## BOUCLE 29 (2026-07-23) — NOUVEAU DRAGON « LE COLOSSE » (quadrupede, muscle) + CONTRAT JEU
 
 Demande utilisateur : retours du projet AVAL (le jeu qui consomme les rendus) = 5 points sur

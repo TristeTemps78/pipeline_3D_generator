@@ -404,6 +404,9 @@ def render(path, res=(1152, 864), samples=48, throttle=True, settings=None):
     sc.render.resolution_x = int(res[0] * scale)
     sc.render.resolution_y = int(res[1] * scale)
     sc.render.filepath = path
+    # ALPHA NATIF (b30, contrat du jeu aval) : Film > Transparent -> sortie RGBA sans decor,
+    # zero detourage. EEVEE le posait deja (plus haut) ; Cycles en avait besoin aussi.
+    sc.render.film_transparent = bool(rs.get('transparent', False))
     bpy.ops.render.render(write_still=True)
     return path
 

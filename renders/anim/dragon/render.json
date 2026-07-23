@@ -1,0 +1,106 @@
+{
+ "unit": "square RGBA VP9 (yuva420p), centered, constant scale",
+ "facing": "left",
+ "fps": 24,
+ "size": [
+  576,
+  576
+ ],
+ "ortho_units": 13.5,
+ "foot_anchor": [
+  0.5,
+  0.2741
+ ],
+ "states": {
+  "idle": {
+   "clip": "dragon_idle.webm",
+   "fps": 24,
+   "frames": 48,
+   "loop": true,
+   "facing": "left",
+   "size": [
+    576,
+    576
+   ],
+   "scale": 13.5,
+   "anchor": [
+    0.5,
+    0.2741
+   ]
+  },
+  "alert": {
+   "clip": "dragon_alert.webm",
+   "fps": 24,
+   "frames": 48,
+   "loop": true,
+   "facing": "left",
+   "size": [
+    576,
+    576
+   ],
+   "scale": 13.5,
+   "anchor": [
+    0.5,
+    0.2741
+   ]
+  },
+  "roar": {
+   "clip": "dragon_roar.webm",
+   "fps": 24,
+   "frames": 44,
+   "loop": false,
+   "facing": "left",
+   "size": [
+    576,
+    576
+   ],
+   "scale": 13.5,
+   "anchor": [
+    0.5,
+    0.2741
+   ]
+  },
+  "fly": {
+   "clip": "dragon_fly.webm",
+   "fps": 24,
+   "frames": 36,
+   "loop": true,
+   "facing": "left",
+   "size": [
+    576,
+    576
+   ],
+   "scale": 13.5,
+   "anchor": [
+    0.5,
+    0.2741
+   ]
+  },
+  "spawn": {
+   "clip": "dragon_spawn.webm",
+   "fps": 24,
+   "frames": 40,
+   "loop": false,
+   "facing": "left",
+   "size": [
+    576,
+    576
+   ],
+   "scale": 13.5,
+   "anchor": [
+    0.5,
+    0.2741
+   ]
+  }
+ },
+ "engine_map": {
+  "SPAWN": "spawn",
+  "IDLE": "idle",
+  "ALERT": "alert",
+  "ROAR": "roar",
+  "FLY_AWAY": "fly",
+  "FLY_ACROSS": "fly",
+  "RECEDE": "fly",
+  "PERCH": "idle"
+ }
+}
