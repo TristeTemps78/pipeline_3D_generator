@@ -54,6 +54,29 @@ SECTION = [
     (0.00, -1.00),   # ligne ventrale
 ]
 
+# SECTION DE CRANE, CARREE (anti-cartoon, feedback « museau encore lisse »). Le corps est
+# lofte avec un « squircle » rond -> une tete faite du meme profil rend en MUSEAU-BALLON. Un
+# crane de brute est un BLOC : dessus PLAT, flancs quasi VERTICAUX, coins DURS, dessous plat.
+# Meme nombre de points que SECTION (7) pour que le loft raccorde ; on la BLEND vers SECTION
+# le long du cou. Le subsurf 2 arrondira un peu les coins, mais nettement moins qu'un ovale.
+HEAD_SECTION = [
+    (0.00,  1.00),   # dessus, centre
+    (0.72,  0.99),   # dessus PLAT et large (table cranienne)
+    (1.00,  0.82),   # COIN dorso-lateral DUR
+    (1.00, -0.05),   # flanc quasi VERTICAL (joue plate)
+    (1.00, -0.82),   # COIN ventro-lateral DUR (ligne de mandibule)
+    (0.70, -0.99),   # dessous plat (menton carre)
+    (0.00, -1.00),   # dessous, centre
+]
+
+
+def _blend_section(i):
+    """Section de la station i : CRANE carre sur la tete (i<=9), transition sur le cou
+    (10..13), squircle du corps ensuite. Coins durs du crane -> museau blocky, pas ballon."""
+    t = max(0.0, min(1.0, (i - 9) / 5.0))
+    return [(hx + (bx - hx) * t, hz + (bz - hz) * t)
+            for (hx, hz), (bx, bz) in zip(HEAD_SECTION, SECTION)]
+
 
 # MUSCULATURE (le vrai sujet du Colosse, cf. dragon_ref.md). Le decalque de PROFIL n'a
 # qu'UN degre de largeur ; le muscle est un renflement LOCALISE et non radial. Plutot que des
@@ -75,16 +98,17 @@ MUSCLE = {
 }
 
 
-def half_ring(x_img, yt, yb, w_px, bulge=None):
+def half_ring(x_img, yt, yb, w_px, bulge=None, section=SECTION):
     """Demi-section (moitie +X). Le subsurf + mirror_x en font une peau continue.
-    `bulge` (optionnel) : renflements musculaires par secteur (voir MUSCLE)."""
+    `bulge` (optionnel) : renflements musculaires par secteur (voir MUSCLE).
+    `section` : profil de section (SECTION corps, ou crane carre blende, cf. _blend_section)."""
     y = Y(x_img)
     zt, zb = Z(yt), Z(yb)
     zm = (zt + zb) / 2.0
     hz = (zt - zb) / 2.0 * _grow(yb - yt)
     w = w_px * S * _grow(2 * w_px)
     ring = []
-    for si, (fx, fz) in enumerate(SECTION):
+    for si, (fx, fz) in enumerate(section):
         mw, dz = bulge.get(si, (1.0, 0.0)) if bulge else (1.0, 0.0)
         ring.append((fx * w * mw, y, zm + (fz + dz) * hz))
     return ring
@@ -106,7 +130,8 @@ def loft(rings, close=False):
 
 
 def body_part():
-    verts, faces = loft([half_ring(*st, bulge=MUSCLE.get(i)) for i, st in enumerate(BODY)])
+    verts, faces = loft([half_ring(*st, bulge=MUSCLE.get(i), section=_blend_section(i))
+                         for i, st in enumerate(BODY)])
     return {"type": "cage", "id": "body_cage", "mirror_x": True, "subsurf": 2,
             "mat": "hide", "verts": verts, "faces": faces}
 

@@ -131,7 +131,7 @@ def horn_parts():
 
 # =========================================================== TETE : arcade, oeil, machoire
 def head_parts():
-    xe, ye, ze = on_skin(164, 0.30, out=0.90)      # oeil, sur l'orbite, un peu enfonce
+    xe, ye, ze = on_skin(164, 0.33, out=0.84)      # oeil ENFONCE dans l'orbite (out bas)
     # arcade sourciliere = crete osseuse (tube a demi enfoui le long du haut de l'orbite),
     # lourde -> son ombre tombe dans l'oeil (le levier « regard qui pese »).
     # arcade LOURDE et qui FRONCE : elle avance sur l'avant de l'orbite (frac plus bas a
@@ -152,6 +152,14 @@ def head_parts():
                    up=(0, 0, 1), subsurf=2, mat="bone", mirror_x=False, miter=True),
         tube_along("brow", brow_pts, brow_r, up=(0, 0, 1), subsurf=2, mat="hide",
                    mirror_x=True, miter=True),
+        # ARETE ZYGOMATIQUE (pommette osseuse) : de sous l'orbite vers l'angle de la
+        # machoire. Elle plaque un PLAN DUR sur la joue desormais plate -> un crane
+        # anatomique, pas une boite lisse.
+        tube_along("cheek_ridge",
+                   [list(on_skin(150, 0.46, out=0.99)), list(on_skin(178, 0.54, out=1.03)),
+                    list(on_skin(206, 0.61, out=0.97))],
+                   [0.026, 0.044, 0.030], up=(0, 0, 1), subsurf=2, mat="bone",
+                   mirror_x=True, miter=True),
         # narines : 2 fentes aplaties sur le dessus du museau carre
         {"type": "globe", "id": "nostril", "mirror_x": True,
          "pos": [round(on_skin(94, 0.24, out=0.72)[0], 3), Y(94), Z(422)],
@@ -163,8 +171,8 @@ def head_parts():
         # MASSE DE MACHOIRE (adducteurs) : cree le decrochement museau/crane et donne au
         # crane sa forme en coin vue de dessus. Sans elle : un seul fuseau lisse (« chausson »).
         {"type": "globe", "id": "jaw_mass", "mirror_x": True,
-         "pos": [round(on_skin(196, 0.46, out=0.86)[0], 3), Y(196), Z(452)],
-         "r": [0.11, 0.22, 0.17], "rot": [0, 0, 5], "mat": "hide"},
+         "pos": [round(on_skin(198, 0.48, out=0.80)[0], 3), Y(198), Z(454)],
+         "r": [0.085, 0.185, 0.125], "rot": [0, 0, 5], "mat": "hide"},
         # paupiere : un globe nu lit « bille collee » ; une plaque de peau qui mord dessus
         # l'inscrit dans le crane et durcit le regard.
         {"type": "globe", "id": "lid_up", "mirror_x": True,

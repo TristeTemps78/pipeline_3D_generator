@@ -75,10 +75,20 @@ l'aile en tan). Cadrage hero = 3/4 avant BAS (contre-plongee -> domine).
   sur l'axe (casse le dome en 2 plans) + arcade plus lourde qui fronce. (3) USURE/asymetrie :
   corne droite + 2 crocs CASSES.
 
-RESTE (ordre de visibilite, pour b30+) : tete encore un peu lisse au close-up (museau
-arrondi) ; corps peu de relief musculaire sur les FLANCS ; SOUDURE des 4 pattes non faite
-(adapter gen_body_weld a 7 pts) ; recuperer l'IoU des pattes (grow par section fine) ;
-param couleur non expose (b30).
+### v3 (2026-07-23) — PASSE TETE (feedback « museau encore lisse ») + demande « passe tete puis b30 »
+Jalon v3 : `renders/step_573_{hero,head,wide}.png`. IoU 0.9114 (tenu, +0.0016).
+- **SECTION DE CRANE CARREE** : le corps est lofte avec un « squircle » rond -> une tete du
+  meme profil rend en MUSEAU-BALLON. Ajout de `HEAD_SECTION` (dessus plat, flancs verticaux,
+  COINS DURS) blendee vers SECTION le long du cou (`_blend_section`, gen_dragon_cage). Museau
+  BLOCKY. Le score tient : la section ne change pas l'extreme dorsal/ventral (l'outline de profil).
+- **PLANS OSSEUX** (gen_dragon_parts, head_parts) : arete zygomatique (`cheek_ridge`) qui
+  plaque un plan dur sur la joue desormais plate ; oeil ENFONCE dans l'orbite (out 0.90->0.84)
+  sous l'arcade ; jaw_mass reduit (ne re-gonfle plus la joue). Le crane lit « dur/anatomique »,
+  plus « boite lisse ».
+
+RESTE (pour b30+) : corps peu de relief musculaire sur les FLANCS ; trous d'ailes un peu
+geometriques ; SOUDURE des 4 pattes non faite (adapter gen_body_weld a 7 pts) ; recuperer
+l'IoU des pattes (grow par section fine) ; param couleur non expose (b30).
 
 ### >>> BOUCLE b30 (le CONTRAT DU JEU — deja cadre, a executer) <<<
 Le jeu aval veut, PAR ETAT MOTEUR (SPAWN/IDLE/ALERT/FLY_AWAY/FLY_ACROSS/RECEDE/ROAR/PERCH ;
