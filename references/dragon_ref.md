@@ -50,20 +50,39 @@ dans `gen_dragon_trace.py` (stations `BODY`, profil `SECTION`, renflements muscu
 - **Queue épaisse à la base**, tenue basse et lourde, s'amincissant peu — un contrepoids de
   massue, pas un fouet.
 
-### Trait d'identité (un seul, assumé) — la CUIRASSE
+### SPÉCIALITÉ (arrêtée avec l'utilisateur, 2026-07-23) — le POISON / la CORROSION
 
-Le dos et la nuque portent des **plaques osseuses fusionnées** (ostéodermes épais, façon
-crocodile/ankylosaure) : une véritable armure vivante, pas une crête décorative. C'est ce qui
-dit « cuirassé/imposant » en silhouette et justifie une géométrie **facettée** (`subsurf: 0`
-sur les plaques) au milieu d'un corps entièrement lissé. Deux grandes cornes frontales
-balayées vers l'arrière complètent le bloc-tête en bélier.
+Le Colosse est un **charognard cuirassé venimeux**. Sa spécialité, lisible d'un coup d'œil :
+- **Bave acide** qui pend de la gueule (`drool_*`, matériau émissif `acid` vert) — la
+  signature ; positions/longueurs irrégulières (asymétrie voulue, pas décoratif).
+- **Cuirasse rongée** : la hide et les plaques osseuses sont **corrodées** — le système
+  `patina` (verdigris) du builder `reptile_scales` poussé à fond dépose du vert acide dans les
+  creux, comme si la bête était attaquée par son propre poison ; `bump` relevé = surface
+  **piquée** (corrosion), pas lisse.
+- **Œil vert-poison luminescent** (glow relevé), **crocs jaune-vert tachés** (macèrent dans
+  l'acide, pas de l'ivoire).
+- Registre : lent, blindé, il empoisonne et digère — il n'a pas besoin d'être rapide.
+
+### Trait d'identité — la CUIRASSE (osseuse, corrodée)
+
+Le dos et la nuque portent des **plaques osseuses fusionnées** (ostéodermes, `scute()`,
+`subsurf: 0` facetté) + une **crête nasale** osseuse sur l'axe du museau (casse le dôme lisse
+en deux plans — anti-cartoon). Deux grandes cornes frontales balayées (bélier) dont **la
+droite est cassée** ; deux **crocs cassés** : une bête qui se bat, pas une figurine neuve.
+
+### Ailes EN LAMBEAUX (refonte 2026-07-23, feedback « les ailes j'aime pas »)
+
+Plus de membrane chauve-souris lisse : **ailes déchirées de charognard**. Mécanismes dans
+`web()` (gen_dragon_parts) : `tatter` ronge irrégulièrement le bord de fuite, `holes` perce
+des trous francs (faces supprimées, `subsurf: 0` → bords bruts) ; les **doigts osseux
+ressortent** au-delà de la membrane rongée et se prolongent en petites griffes. Bord d'attaque
+peu déchiré (c'est la structure), inter-doigts et grand pan arrière en lambeaux.
 
 ### Couleur — paramétrable (retour du jeu)
 
-Base = hide de pierre sombre (basalte/obsidienne), relief d'écailles épaisses. La couleur de
-base sera **exposée en paramètre** (boucle b30, `materials`) pour décliner une famille de
-Colosses à moindre coût (le jeu génère 12 dragons par variantes de couleur). On garde donc
-une base neutre-sombre qui accepte un re-teintage franc, plutôt qu'une couleur d'espèce figée.
+Base neutre-sombre re-teintable exprès (boucle b30, `materials`) : le vert vient surtout de la
+**patina** de corrosion, donc décliner une famille (autre venin : violet, jaune…) = changer la
+`patina_color` + `base`, pas repeindre. Le jeu génère 12 variantes de couleur.
 
 ## Contraste avec la wyverne (pour ne pas refaire deux fois le même animal)
 

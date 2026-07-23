@@ -151,14 +151,20 @@ def main():
             # BASE volontairement NEUTRE-SOMBRE (pas une couleur d'espece figee) : le jeu
             # aval veut re-teinter pour decliner une famille -> b30 exposera `base` en
             # parametre. Ici on garde un gris-pierre chaud qui accepte n'importe quel teint.
+            # SPECIALITE = POISON / CORROSION. La hide est une cuirasse RONGEE : peau
+            # gris-vert malade + `patina` (le systeme de verdigris du builder, pense « oxyde
+            # de cuivre ») pousse a fond en vert acide dans les creux/aretes -> l'armure
+            # semble attaquee par sa propre bave. bump releve = surface PIQUEE (corrosion),
+            # pas lisse. Base neutre-sombre encore re-teintable pour la famille (b30).
             "hide": {"builder": "reptile_scales", "p": {
-                "scale": 12, "scale2": 34, "bump": 1.2,
-                "base": [0.028, 0.026, 0.024], "tint": [0.085, 0.075, 0.062],
-                "rough": 0.70, "rough_edge": 0.30, "sss": 0.06,
-                "sss_radius": [0.14, 0.10, 0.07], "micro": 0.40,
-                "edge_copper": 0.10, "edge_width": 0.016, "instance_variation": 0.24,
-                "patina_amount": 0.0, "spec_level": 0.22, "sheen": 0.05,
-                "aniso": 0.04, "specular_tint": [0.92, 0.90, 0.86]}},
+                "scale": 12, "scale2": 34, "bump": 1.45,
+                "base": [0.026, 0.030, 0.022], "tint": [0.070, 0.082, 0.050],
+                "rough": 0.74, "rough_edge": 0.34, "sss": 0.05,
+                "sss_radius": [0.10, 0.13, 0.07], "micro": 0.55,
+                "edge_copper": 0.06, "edge_width": 0.016, "instance_variation": 0.28,
+                "patina_amount": 0.55, "patina_color": [0.11, 0.22, 0.09],
+                "patina_gold": [0.26, 0.30, 0.09], "spec_level": 0.18, "sheen": 0.04,
+                "aniso": 0.03, "specular_tint": [0.86, 0.92, 0.80]}},
             "rock": {"builder": "rock", "p": {
                 "color": [0.10, 0.095, 0.088], "scale": 1.2, "bump": 0.9,
                 "burnt": [0.055, 0.05, 0.045], "ember": [0.16, 0.145, 0.13]}},

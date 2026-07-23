@@ -58,10 +58,27 @@ ecailles (`scale` 12, bump 1.2). `bone` os patine sombre, `membrane` cuir sombre
 soleil rasant (modele la masse) + 2 rims froids + fill ; key DISCRETE (une key forte cramait
 l'aile en tan). Cadrage hero = 3/4 avant BAS (contre-plongee -> domine).
 
-RESTE (ordre de visibilite, pour b30+) : membrane far un peu pale/tan ; plaques dorsales un
-peu « gravier » (les elargir en vraies plaques fusionnees) ; pattes lisses (colonnes) — peu de
-muscle sur les membres ; jaw_mass un peu « boule collee » ; SOUDURE des 4 pattes non faite
-(adapter gen_body_weld a 7 pts) ; param couleur non expose.
+### v2 (2026-07-23) — feedback utilisateur : « ailes j'aime pas / trop cartoon / c'est quoi
+### sa specialite ». 3 forks tranches avec lui : SPECIALITE = poison, AILES = en lambeaux,
+### anti-cartoon = TOUT. Jalon v2 : `renders/step_569_{hero,head,wide}.png`. IoU 0.9098.
+- **SPECIALITE = POISON / CORROSION** : hide corrodee (patina verdigris pousse a 0.55, bump
+  1.45 = piquee), oeil vert luminescent, crocs jaune-vert taches, membrane rongee veines
+  vertes, et la SIGNATURE = **bave acide** `drool_*` (materiau emissif `acid`, builder `eye`,
+  glow) qui pend de la gueule. Base encore re-teintable (le vert vient de patina_color).
+- **AILES EN LAMBEAUX** : `web()` gagne `tatter` (bord de fuite ronge irregulier) + `holes`
+  (faces supprimees = trous francs) ; les doigts osseux ressortent + petite griffe au bout.
+  Grille montee a nu=12 pour des trous ronds. Bord d'attaque peu dechire (structure).
+- **ANTI-CARTOON** : (1) PATTES articulees — coude/genou/jarret PINCES, cuisse/triceps en
+  masse, zigzag avant-arriere (digitigrade), fini le poteau-ballon. Cout : IoU 0.958 -> 0.910
+  (les joints fins retrecissent plus sous subsurf ; ref+cage bougent ENSEMBLE donc c'est de la
+  derive 3D, pas une erreur de dessin — assume). (2) CRANE plus dur : **crete nasale osseuse**
+  sur l'axe (casse le dome en 2 plans) + arcade plus lourde qui fronce. (3) USURE/asymetrie :
+  corne droite + 2 crocs CASSES.
+
+RESTE (ordre de visibilite, pour b30+) : tete encore un peu lisse au close-up (museau
+arrondi) ; corps peu de relief musculaire sur les FLANCS ; SOUDURE des 4 pattes non faite
+(adapter gen_body_weld a 7 pts) ; recuperer l'IoU des pattes (grow par section fine) ;
+param couleur non expose (b30).
 
 ### >>> BOUCLE b30 (le CONTRAT DU JEU — deja cadre, a executer) <<<
 Le jeu aval veut, PAR ETAT MOTEUR (SPAWN/IDLE/ALERT/FLY_AWAY/FLY_ACROSS/RECEDE/ROAR/PERCH ;

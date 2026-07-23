@@ -95,23 +95,28 @@ BODY = [
 #     mirror_x -> les 4 pattes. Plantees symetriquement -> de profil la proche et la
 #     lointaine se superposent EXACTEMENT (rendu ortho = decalque, pas la penalite d'IoU
 #     qu'imposait la pose de marche de Krokmou). (x, y, rayon px)
+# v2 (anti-cartoon) : un poteau-ballon a section quasi constante lit « jouet ». Une vraie
+# patte a des ARTICULATIONS (le rayon se PINCE au coude/genou/jarret) et des MASSES (triceps,
+# cuisse) entre elles ; et elle ZIGZAGUE en x (avant-arriere) au lieu de tomber droit. Le
+# decalque et la cage sortant de la meme chaine, le zigzag apparait dans les DEUX -> le score
+# de silhouette suit, il ne PUNIT pas la forme articulee.
 LEG_FORE = [
-    (400, 336, 44),   # epaule (enfouie dans le garrot)
-    (399, 392, 43),   # bras (masse du triceps)
-    (402, 448, 38),   # coude
-    (404, 508, 33),   # avant-bras
-    (406, 566, 31),   # carpe (poignet)
-    (408, 612, 31),   # metacarpe COURT (colonne graviportante)
-    (410, 650, 31),   # pied large (au sol)
+    (400, 336, 46),   # epaule (enfouie dans le garrot) — grosse masse
+    (404, 388, 45),   # bras / triceps (renfle)
+    (396, 440, 34),   # COUDE : pointe vers l'ARRIERE (x recule) et se PINCE
+    (407, 498, 27),   # avant-bras, fin et tendineux
+    (411, 552, 25),   # carpe (poignet) — le plus fin
+    (411, 602, 28),   # metacarpe
+    (411, 648, 31),   # pied large (au sol)
 ]
 LEG_HIND = [
-    (690, 322, 50),   # hanche (enfouie dans le sacrum) — grosse masse
-    (686, 380, 52),   # cuisse (quadriceps) : la section la plus epaisse de la bete
-    (677, 440, 44),   # genou (legerement en avant)
-    (690, 502, 35),   # jambe
-    (700, 560, 32),   # cheville / talon
-    (704, 610, 32),   # metatarse
-    (706, 650, 32),   # pied large (au sol)
+    (690, 322, 52),   # hanche (enfouie dans le sacrum)
+    (683, 376, 58),   # CUISSE (biceps femoral) : la masse la plus grosse de la bete
+    (669, 434, 43),   # GENOU : pointe vers l'AVANT (x recule), se pince
+    (688, 492, 31),   # tibia, fin et tendineux
+    (705, 546, 28),   # JARRET / talon : pointe vers l'ARRIERE et HAUT (digitigrade)
+    (700, 598, 30),   # metatarse long
+    (701, 648, 32),   # pied (au sol)
 ]
 
 
