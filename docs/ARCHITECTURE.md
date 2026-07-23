@@ -114,6 +114,15 @@ Nouvelle méthode, celle des artistes : **cage basse résolution + Subdivision S
   `web()` (gen_wyvern_parts) : membrane en grille paramétrique (feston + affaissement) —
   candidat nº1 à l'extraction vers `bx/`, une membrane en polygones plats se lira
   toujours « origami ».
+- FAIT (b29) : **3e créature au pivot** — un dragon occidental quadrupède « Le Colosse »
+  (`specs/dragon.json`), registre lourd/cuirassé, opposé de la wyverne. Encore une preuve de
+  généricité : `bx/` inchangé. Chaîne identique b27 : `gen_dragon_trace.py` (design doc :
+  `BODY` + `LEG_FORE`/`LEG_HIND` → `references/dragon_ortho_side.png`) → `gen_dragon_cage.py`
+  (**écrase** la spec) → `gen_dragon_parts.py` (idempotent). IoU silhouette 0.9581 au 1er jet.
+  Nouveau : la **MUSCULATURE** comme renflements de SECTEURS de section à certaines stations
+  (dict `MUSCLE`, gen_dragon_cage) — le muscle dans la peau (une surface subsurf), invisible
+  de profil donc neutre au score ; et `scute()` (osteoderme keelé facetté, subsurf 0) pour
+  l'armure dorsale. Restes : pattes non soudées (weld à porter en 7 pts), plaques à élargir.
 Les types `skin_body`/`head_galet` ci-dessous (boucle 23) restent documentés comme état
 de REPLI (checkpoint `48963ba`) — ne plus itérer dessus.
 

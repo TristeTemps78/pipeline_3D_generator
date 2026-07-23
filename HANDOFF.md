@@ -7,6 +7,84 @@ part ~4 s, silh ~15 s) — wheel bpy pip impossible (ARM64/Py3.14) ; conteneur
 Linux = `bootstrap.sh` puis `python3 pipeline/run.py` comme avant. Python local (hors
 bpy) : numpy+PIL dispo, ImageMagick dispo.
 
+## BOUCLE 29 (2026-07-23) — NOUVEAU DRAGON « LE COLOSSE » (quadrupede, muscle) + CONTRAT JEU
+
+Demande utilisateur : retours du projet AVAL (le jeu qui consomme les rendus) = 5 points sur
+la LIVRAISON (film alpha transparent sans decor ; anims bouclees SUR PLACE, pas fly-by ;
+rendu PAR ETAT MOTEUR carre 576² + sidecar `render.json` ; rig + param couleur ; polish
+cadrage/fps/facing/lumiere neutre). ET « cree un nouveau dragon entierement… different,
+beaucoup plus imposant, grosse musculature ». Cadre arrete avec lui : **dragon occidental
+4 pattes**, **sans armature** (on generalisera la doctrine b28), **GEOMETRIE d'abord** cette
+boucle — le harnais de rendu = boucle SUIVANTE (b30, cf. plus bas).
+
+Krokmou et la wyverne INTACTS (spec/refs/score separes ; etat par spec `silh_<spec>.json`).
+
+LIVRABLES b29 (jalon) : `renders/step_562_{hero,head,wide}.png`, `renders/scene.blend`.
+**IoU silhouette 0.9581** (au-dessus de la wyverne, atteint au 1er jet de cage).
+
+### La chaine b27 rejouee pour le slug `dragon` (aucune modif de `bx/`)
+Ordre obligatoire **trace -> cage -> parts** (cage ECRASE la spec, parts idempotent) :
+- `references/dragon_ref.md` : fiche d'espece « colosse lourd/cuirasse », leviers de MASSE
+  levier par levier (tonneau sans taille pincee, cou de taureau, garrot en bosse, membres
+  colonnes, crane de broyeur, queue-massue) + contraste explicite avec la wyverne.
+- `research/tests/gen_dragon_trace.py` = LE document de design : `BODY` (stations lourdes) +
+  2 chaines `LEG_FORE`/`LEG_HIND` -> rasterise `references/dragon_ortho_side.png` (la ref
+  scoree, committable). Convention : la bete regarde -Y (= `facing:"left"` du jeu). S=0.010,
+  X0=560, Y0=660. Bete ~10 u de long, ~3.7 u au garrot.
+- `research/tests/gen_dragon_cage.py` -> **ECRIT specs/dragon.json** (corps + 4 pattes +
+  sol + scene). Reutilise `tube_along`, la loi de compensation subsurf `A+B/taille`, le
+  profil « squircle » (ici PLEIN, pas maigre).
+- `research/tests/gen_dragon_parts.py` : 92 appendices fusionnes -> plaques osseuses dorsales
+  (`scute`, subsurf 0 : L'IDENTITE cuirassee), cornes balayees, arcade/oeil/machoire, crocs,
+  ligne de levre, AILES deployees (envergure ~11.6 u), orteils+griffes des 4 pieds.
+
+### Acquis / mecanismes de cette boucle
+- **MUSCULATURE** (le vrai sujet) : `MUSCLE` dans gen_dragon_cage — pousse des SECTEURS de la
+  section a certaines stations (deltoide/pectoral/fessier-cuisse). Le muscle vit DANS la peau
+  (une seule surface subsurf), pas en blobs boulonnes (qui rendent en oeufs, cf. CLAUDE.md).
+  INVISIBLE de profil (largeur = X) -> ne bouge PAS le score de silhouette. Candidat nº1 a
+  l'extraction vers `bx/` si on refait un animal muscle.
+- **PATTES NON SOUDEES** (comme la wyverne) : 4 tubes `tube_along` mirror_x (leg_fore/hind),
+  enfouis dans le tronc. Pas de weld cette boucle (le weld Krokmou `gen_body_weld.py` suppose
+  des demi-anneaux 5 pts ; la cage dragon est en 7 pts -> a adapter). `validate` signale les
+  pattes en « clipping » (attendu, elles penetrent le tronc/sol).
+- `scute()` (gen_dragon_parts) : osteoderme keele facette (hexagone allonge + arete mediane),
+  subsurf 0 — l'armure « cuirasse », a ne PAS confondre avec les cristaux/epines.
+
+### Look
+Hide de PIERRE sombre NEUTRE (re-teintable en b30 pour la famille de dragons du jeu), grosses
+ecailles (`scale` 12, bump 1.2). `bone` os patine sombre, `membrane` cuir sombre (transmission
+0.10, le contre-jour l'allume sans cramer — piege « taches blanches » > 0.3). Low-key neutre :
+soleil rasant (modele la masse) + 2 rims froids + fill ; key DISCRETE (une key forte cramait
+l'aile en tan). Cadrage hero = 3/4 avant BAS (contre-plongee -> domine).
+
+RESTE (ordre de visibilite, pour b30+) : membrane far un peu pale/tan ; plaques dorsales un
+peu « gravier » (les elargir en vraies plaques fusionnees) ; pattes lisses (colonnes) — peu de
+muscle sur les membres ; jaw_mass un peu « boule collee » ; SOUDURE des 4 pattes non faite
+(adapter gen_body_weld a 7 pts) ; param couleur non expose.
+
+### >>> BOUCLE b30 (le CONTRAT DU JEU — deja cadre, a executer) <<<
+Le jeu aval veut, PAR ETAT MOTEUR (SPAWN/IDLE/ALERT/FLY_AWAY/FLY_ACROSS/RECEDE/ROAR/PERCH ;
+au min. les 4 de base + ROAR) :
+1. **Film TRANSPARENT** (alpha natif), SANS decor -> `core.render` Cycles doit poser
+   `sc.render.film_transparent` (EEVEE le fait deja, `core.py:367` ; Cycles NON — 1 ligne).
+   Retirer le `ground`/sol des clips. Encoder **VP9 `yuva420p`** (l'alpha survit), pas le
+   `libx264 yuv420p` actuel (`anim_wyvern.py`).
+2. **Boucles SUR PLACE** (centre, distance/echelle CONSTANTES, ailes qui cyclent, 1re image =
+   derniere) — PAS de fly-by camera. Un vrai vol stationnaire (hover, pattes repliees) sert
+   IDLE-en-vol + FLY_ACROSS + RECEDE d'un coup (c'est le clip qui manque le plus au jeu).
+3. Rendu **carre 576²** + emettre `render.json` a cote : `{fps, frames/etat, facing:"left",
+   loop, scale, anchor}` -> consommable tel quel par le `forge.py` du jeu (plus de mapping a
+   deviner, plus de duree = frames/24 devinee). fps DECLARE.
+4. **Param couleur de materiau** expose (`materials`, base-color) -> decliner une famille de
+   dragons a moindre cout (le jeu genere 12 variantes couleur).
+5. Polish : cadrage carre a marge CONSTANTE des Blender (supprime l'union-bbox cote jeu),
+   orientation documentee (`facing:"left"`), eclairage cle NEUTRE et homogene (evite les
+   ailes quasi-blanches qui collent au fond).
+Generaliser `research/tests/anim_wyvern.py` en un harnais d'etats nommes (le rig-free
+reconstruit deja la scene par image et boucle en `t=i/N`). Plan detaille :
+`C:\Users\trist\.claude\plans\valiant-bouncing-blossom.md`.
+
 ## BOUCLE 28 (2026-07-23) — TYPE GLACE + ANIMATIONS
 
 Demande utilisateur : « des animations de vol », « des caractéristiques naturelles ou
