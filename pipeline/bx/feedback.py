@@ -25,9 +25,9 @@ from . import core
 
 
 def _render_pixels(path, res, samples, transparent=False):
-    sc = bpy.context.scene
-    sc.render.film_transparent = transparent
-    core.render(path, res=res, samples=samples)
+    # via settings : depuis b30 core.render pose lui-même film_transparent (défaut False),
+    # le poser ici en amont serait écrasé.
+    core.render(path, res=res, samples=samples, settings={'transparent': transparent})
     img = bpy.data.images.load(path)
     px = np.array(img.pixels[:], dtype=np.float32).reshape(res[1], res[0], 4)
     bpy.data.images.remove(img)

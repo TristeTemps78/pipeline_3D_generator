@@ -1,7 +1,7 @@
 {
- "step": 552,
- "spec": "specs\\wyvern.json",
- "last_render": "renders\\step_552_hero.png",
+ "step": 575,
+ "spec": "specs\\dragon.json",
+ "last_render": "renders\\silh.png",
  "feedback": [
   {
    "step": 6,
