@@ -7,6 +7,50 @@ part ~4 s, silh ~15 s) — wheel bpy pip impossible (ARM64/Py3.14) ; conteneur
 Linux = `bootstrap.sh` puis `python3 pipeline/run.py` comme avant. Python local (hors
 bpy) : numpy+PIL dispo, ImageMagick dispo.
 
+## BOUCLE 31 (2026-07-24) — FINITION MODELE (soudure + flancs + ailes) — LIVREE
+
+Demande « finition », perimetre arrete avec l'utilisateur : MODELE d'abord (clips = b32).
+Jalon : `renders/step_586_{hero}.png`, `step_587_head`, `step_588_wide`,
+`renders/scene.blend`. **IoU 0.9104** (-0.0010 seulement pour la soudure).
+
+- **FIX REGRESSION b30** (etape 0) : le score silhouette etait casse pour TOUTES les
+  specs (IoU 0.20, masque plein cadre) — depuis b30 `core.render` ecrase
+  `film_transparent` (settings, defaut False) que `feedback._render_pixels` posait en
+  amont ; il passe desormais par `settings={'transparent':...}`. Ref
+  `dragon_ortho_side.png` recommitee (sortie deterministe du trace ; la version en git
+  etait perimee).
+- **FLANCS** : MUSCLE en ALTERNANCE bosse/creux — sillon post-scapulaire (st.16-17 en
+  creux .94-.97), creux du flanc devant la cuisse (st.21-22), aretes hautes par dz
+  asymetrique aux pics (15/18/23/24). Secteurs 0/6 jamais touches -> IoU invariant.
+- **AILES** : trous rongés organiques — seuil d'ellipse bruite `0.75+0.5*_rnd` par face
+  (moyenne 1.0, surface percee stable) + jitter ±0.22 pas de grille des verts adjacents
+  aux trous (tangentes u/v de la nappe). Fini le « papier decoupe ».
+- **SOUDURE des 4 pattes** (le gros) : `research/tests/gen_dragon_weld.py`, etape
+  TERMINALE de la chaine (trace -> cage -> parts -> WELD ; NON idempotent, il consomme
+  leg_fore/leg_hind — le rejouer apres tout rejeu de cage/parts). Anneaux 12 pts
+  (7 + miroir), CC exact x1 du corps ET des tubes de patte (import
+  `gen_body_weld.catmull_clark` ; anneau de patte -> 8 pts), percage d'un patch 2x2
+  autour d'un sommet valence 4 sous le ventre (bord = 8 sommets), pontage force brute
+  8 offsets x 2 sens. `body_cage` soude : 2090 verts, mirror_x false, subsurf 1.
+  validate : watertight, 0 non-manifold, clipping pattes disparu ; 507 tris
+  auto-intersectes (cuisses/torse, invisibles — meme classe que Krokmou b26).
+- **HARNAIS anim** : repli de vol POSITIONNEL (`_leg_gate`, colonnes y fore -1.55 /
+  hind +1.30, plateau ±0.5) — les pattes n'ont plus d'id de part. Probe fly OK,
+  griffes solidaires des pieds.
+
+RESTE b31 : creux du flanc partiellement occulte par l'aile dans les shots ; dz muscle
+modestes (pousser a 0.06-0.08 si trop subtil) ; bord `wing_lead` encore regulier ;
+les CLIPS b30 committes montrent l'ancien corps non soude -> a RE-RENDRE en b32.
+
+### >>> b32 (cadre avec l'utilisateur, a executer) : CLIPS <<<
+1. ROAR avec VRAIE ouverture de machoire : rotation des points sous la ligne de levre
+   autour d'une charniere y≈-3.45 dans `apply_pose` (meme style que warp/tuck ; la ligne
+   de levre court y [-4.96,-3.50], cf. LIP dans gen_dragon_parts).
+2. ECHELLE PAR ETAT actee par l'utilisateur (2026-07-24) : cadrage serre idle/alert,
+   large fly/roar — `render.json` porte deja scale/anchor par etat, le forge.py du jeu
+   compense. Regle la « marge basse trop large ».
+3. RE-RENDRE les 5 etats (corps soude) x les 4 VARIANTES (poison/plague/venom/blight).
+
 ## BOUCLE 30 (2026-07-24) — HARNAIS DE RENDU (contrat du jeu aval) — LIVRE
 
 Les 5 retours du jeu aval, traites. Outil : `research/tests/anim_dragon.py`

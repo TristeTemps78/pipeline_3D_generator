@@ -1,7 +1,7 @@
 {
- "step": 585,
+ "step": 588,
  "spec": "specs\\dragon.json",
- "last_render": "renders\\step_585_part_body_cage.png",
+ "last_render": "renders\\step_588_wide.png",
  "feedback": [
   {
    "step": 6,
