@@ -311,12 +311,48 @@ def web(pid, apex, edge_a, edge_b, notch=0.13, sag=0.30, nu=9, nv=8, mat="membra
             verts.append([round(apex[k] + (far[k] - apex[k]) * u * scal
                                 + g[k] * amp + n[k] * (rip * (u ** 1.4) - drop), 4)
                           for k in range(3)])
-    faces = []
+    # grille de suppression (seuil BRUITE : le bord du trou ronge, plus une ellipse nette)
+    removed = [[False] * nu for _ in range(nv)]
     for j in range(nv):
         for i in range(nu):
             uc, vc = (i + 0.5) / nu, (j + 0.5) / nv
-            if any(((uc - hu) / hru) ** 2 + ((vc - hv) / hrv) ** 2 < 1.0
-                   for hu, hv, hru, hrv in holes):
+            for hu, hv, hru, hrv in holes:
+                d = ((uc - hu) / hru) ** 2 + ((vc - hv) / hrv) ** 2
+                thresh = 0.75 + 0.5 * _rnd(i * 3.1 + j * 7.7 + hu * 13.0 + hv * 5.7)
+                if d < thresh:
+                    removed[j][i] = True
+                    break
+
+    # jitter (u,v) des verts au bord des trous : casse l'alignement sur les lignes de grille
+    if holes:
+        verts0 = [list(v) for v in verts]
+        for j in range(nv + 1):
+            for i in range(nu + 1):
+                touching = []
+                for jj in (j - 1, j):
+                    if 0 <= jj < nv:
+                        for ii in (i - 1, i):
+                            if 0 <= ii < nu:
+                                touching.append(removed[jj][ii])
+                if touching and 0 < sum(touching) < len(touching):
+                    idx = j * (nu + 1) + i
+                    ru = (_rnd(i * 4.3 + j * 9.1) - 0.5) * 2 * 0.22
+                    rv = (_rnd(i * 8.7 + j * 2.3 + 3.0) - 0.5) * 2 * 0.22
+                    iu2, iu1 = min(i + 1, nu), max(i - 1, 0)
+                    jv2, jv1 = min(j + 1, nv), max(j - 1, 0)
+                    p_u2 = verts0[j * (nu + 1) + iu2]
+                    p_u1 = verts0[j * (nu + 1) + iu1]
+                    p_v2 = verts0[jv2 * (nu + 1) + i]
+                    p_v1 = verts0[jv1 * (nu + 1) + i]
+                    tu = [p_u2[k] - p_u1[k] for k in range(3)]
+                    tv = [p_v2[k] - p_v1[k] for k in range(3)]
+                    verts[idx] = [round(verts0[idx][k] + tu[k] * ru + tv[k] * rv, 4)
+                                  for k in range(3)]
+
+    faces = []
+    for j in range(nv):
+        for i in range(nu):
+            if removed[j][i]:
                 continue                                     # face supprimee = trou
             a = j * (nu + 1) + i
             faces.append([a, a + 1, a + nu + 2, a + nu + 1])
