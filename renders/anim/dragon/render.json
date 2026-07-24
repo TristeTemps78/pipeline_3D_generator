@@ -1,15 +1,10 @@
 {
- "unit": "square RGBA VP9 (yuva420p), centered, constant scale",
+ "unit": "square RGBA VP9 (yuva420p), centered, per-state scale (see states)",
  "facing": "left",
  "fps": 24,
  "size": [
   576,
   576
- ],
- "ortho_units": 13.5,
- "foot_anchor": [
-  0.5,
-  0.2741
  ],
  "states": {
   "idle": {
@@ -22,10 +17,10 @@
     576,
     576
    ],
-   "scale": 13.5,
+   "scale": 12.0,
    "anchor": [
     0.5,
-    0.2741
+    0.075
    ]
   },
   "alert": {
@@ -38,10 +33,10 @@
     576,
     576
    ],
-   "scale": 13.5,
+   "scale": 12.0,
    "anchor": [
     0.5,
-    0.2741
+    0.075
    ]
   },
   "roar": {
@@ -54,10 +49,10 @@
     576,
     576
    ],
-   "scale": 13.5,
+   "scale": 12.5,
    "anchor": [
     0.5,
-    0.2741
+    0.076
    ]
   },
   "fly": {
@@ -73,7 +68,7 @@
    "scale": 13.5,
    "anchor": [
     0.5,
-    0.2741
+    0.1815
    ]
   },
   "spawn": {
@@ -86,10 +81,10 @@
     576,
     576
    ],
-   "scale": 13.5,
+   "scale": 12.5,
    "anchor": [
     0.5,
-    0.2741
+    0.108
    ]
   }
  },
@@ -102,5 +97,35 @@
   "FLY_ACROSS": "fly",
   "RECEDE": "fly",
   "PERCH": "idle"
+ },
+ "variants": {
+  "poison": {
+   "idle": "dragon_idle.webm",
+   "alert": "dragon_alert.webm",
+   "roar": "dragon_roar.webm",
+   "fly": "dragon_fly.webm",
+   "spawn": "dragon_spawn.webm"
+  },
+  "plague": {
+   "idle": "dragon_idle_plague.webm",
+   "alert": "dragon_alert_plague.webm",
+   "roar": "dragon_roar_plague.webm",
+   "fly": "dragon_fly_plague.webm",
+   "spawn": "dragon_spawn_plague.webm"
+  },
+  "venom": {
+   "idle": "dragon_idle_venom.webm",
+   "alert": "dragon_alert_venom.webm",
+   "roar": "dragon_roar_venom.webm",
+   "fly": "dragon_fly_venom.webm",
+   "spawn": "dragon_spawn_venom.webm"
+  },
+  "blight": {
+   "idle": "dragon_idle_blight.webm",
+   "alert": "dragon_alert_blight.webm",
+   "roar": "dragon_roar_blight.webm",
+   "fly": "dragon_fly_blight.webm",
+   "spawn": "dragon_spawn_blight.webm"
+  }
  }
 }

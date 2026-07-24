@@ -39,17 +39,31 @@ Jalon : `renders/step_586_{hero}.png`, `step_587_head`, `step_588_wide`,
   griffes solidaires des pieds.
 
 RESTE b31 : creux du flanc partiellement occulte par l'aile dans les shots ; dz muscle
-modestes (pousser a 0.06-0.08 si trop subtil) ; bord `wing_lead` encore regulier ;
-les CLIPS b30 committes montrent l'ancien corps non soude -> a RE-RENDRE en b32.
+modestes (pousser a 0.06-0.08 si trop subtil) ; bord `wing_lead` encore regulier.
 
-### >>> b32 (cadre avec l'utilisateur, a executer) : CLIPS <<<
-1. ROAR avec VRAIE ouverture de machoire : rotation des points sous la ligne de levre
-   autour d'une charniere y≈-3.45 dans `apply_pose` (meme style que warp/tuck ; la ligne
-   de levre court y [-4.96,-3.50], cf. LIP dans gen_dragon_parts).
-2. ECHELLE PAR ETAT actee par l'utilisateur (2026-07-24) : cadrage serre idle/alert,
-   large fly/roar — `render.json` porte deja scale/anchor par etat, le forge.py du jeu
-   compense. Regle la « marge basse trop large ».
-3. RE-RENDRE les 5 etats (corps soude) x les 4 VARIANTES (poison/plague/venom/blight).
+## BOUCLE 32 (2026-07-24) — CLIPS v2 (roar machoire, echelle par etat, 4 variantes) — LIVREE
+
+Les 20 clips re-rendus sur le CORPS SOUDE b31 :
+`renders/anim/dragon/dragon_<state>[_<variante>].webm` (poison = defaut, noms b30
+conserves -> ne casse pas le jeu) + `render.json` fusionne (cle `variants`).
+
+- **ROAR a machoire OUVERTE** : `jaw_angle`/`_jaw` dans anim_dragon.py — rotation des
+  points SOUS la ligne de levre (charniere y=-3.42, z=1.92, ouverture 34 deg) ; poids
+  plein sous la levre, nul au crane, fondu vers la gorge (la peau s'etire). Tete relevee
+  (head_up 0.35). Ouverture sur la detente du lift (t 0.28-0.45-0.75). Les crocs bas et
+  la bave acide suivent gratuitement (positionnel). Juge sur planche fermee/ouverte.
+- **ECHELLE PAR ETAT** (actee utilisateur) : `ortho`/`zc`/`ty` par etat — idle/alert
+  12.0 (serre), roar/spawn 12.5, fly 13.5 (large). Marges MESUREES numeriquement
+  (bbox alpha des probes) : bas 3-9 % au sol, aucune coupe. `render.json` declare
+  scale + anchor PAR ETAT ; la « marge basse trop large » b30 est reglee.
+- `probe [state] [t]` : t optionnel (0.55 = gueule ouverte, 0.75 = descente d'aile).
+- VERIF livrables : alpha OK (decodage libvpx-vp9 -> RGBA ; ffprobe dit yuv420p mais
+  l'alpha est en side-channel VP9, decoder avec `-c:v libvpx-vp9`), teintes distinctes.
+
+RESTE b32 : les MEMBRANES d'ailes restent vertes sur toutes les variantes (VARIANTS ne
+re-teinte que hide.base/patina_color — ajouter membrane/veines si le jeu le demande) ;
+l'interieur de gueule est de la peau etiree (pas de materiau « gueule sombre ») ;
+transition d'etat : head_up statique du roar saute depuis idle (le jeu croisera-fondu ?).
 
 ## BOUCLE 30 (2026-07-24) — HARNAIS DE RENDU (contrat du jeu aval) — LIVRE
 
