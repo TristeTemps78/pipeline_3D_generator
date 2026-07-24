@@ -86,15 +86,20 @@ def _blend_section(i):
 # Secteurs SECTION : 0 dorsale, 1 dos, 2 dorso-laterale, 3 FLANC, 4 ventro-laterale,
 # 5 ventre, 6 ventrale. Invisible de PROFIL (largeur = X) -> ne bouge pas le score de silhouette.
 S17, S18 = 17, 18   # thorax (pectoraux)
+# b31 etape 1 : le RELIEF etait lisible en largeur (X) mais invisible de 3/4 -> pas de
+# CONTRASTE bosse/creux ni d'ARETE qui accroche la lumiere. On alterne desormais PIC (masse
+# musculaire, mult >1 + dz asymetrique haut>bas = meplat/arete) et CREUX (sillon, mult <1)
+# entre les groupes, au lieu d'un gonflement monotone.
 MUSCLE = {
-    14: {2: (1.10, 0.02), 3: (1.16, 0.0)},          # deltoide (cap d'epaule), garrot
-    15: {2: (1.14, 0.03), 3: (1.22, 0.0), 4: (1.10, 0.0)},
-    16: {2: (1.12, 0.02), 3: (1.20, 0.0), 4: (1.12, 0.0)},
-    S17: {3: (1.10, 0.0), 4: (1.20, -0.02), 5: (1.14, 0.0)},   # grand pectoral (poitrail)
-    S18: {3: (1.08, 0.0), 4: (1.18, -0.02), 5: (1.12, 0.0)},
-    22: {2: (1.10, 0.02), 3: (1.18, 0.0)},          # fessier / hanche
-    23: {2: (1.14, 0.03), 3: (1.24, 0.0), 4: (1.10, 0.0)},     # biceps femoral (cuisse)
-    24: {2: (1.10, 0.02), 3: (1.16, 0.0)},
+    14: {2: (1.10, 0.02), 3: (1.16, 0.0)},          # deltoide (cap d'epaule), amorce
+    15: {2: (1.17, 0.05), 3: (1.24, 0.02), 4: (1.08, -0.01)},   # deltoide PIC + arete haute
+    16: {2: (0.95, 0.0), 3: (0.94, 0.0), 4: (0.96, 0.0)},       # SILLON post-scapulaire (creux)
+    S17: {2: (0.97, 0.0), 3: (0.95, 0.0), 4: (1.05, -0.01)},    # le creux se referme vers le pectoral
+    S18: {2: (1.11, 0.04), 3: (1.19, 0.01), 4: (1.19, -0.02), 5: (1.12, 0.0)},  # pectoral PIC + arete
+    21: {3: (0.94, 0.0), 4: (0.93, 0.0)},           # CREUX du flanc, avant la masse de cuisse
+    22: {2: (0.97, 0.0), 3: (0.95, 0.0), 4: (0.96, 0.0)},       # creux se prolonge, amorce hanche
+    23: {2: (1.17, 0.05), 3: (1.27, 0.02), 4: (1.10, -0.01)},   # biceps femoral PIC + arete haute
+    24: {2: (1.12, 0.03), 3: (1.18, 0.01), 4: (1.10, -0.01)},   # cuisse, taper + arete
 }
 
 
