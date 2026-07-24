@@ -163,24 +163,36 @@ def wing_angle(t, reach, cfg):
     return base + math.radians(cfg['beat']) * s * (0.25 + 0.75 * reach)
 
 
+LEG_COLS_Y = (-1.55, 1.30)   # centres des colonnes fore/hind (trace : x_img ~404/690)
+
+
+def _leg_gate(y):
+    """Poids 1 sur une colonne de patte, 0 au-dela de 0.75 u — depuis la soudure b31 les
+    pattes vivent DANS body_cage, le repli ne peut plus cibler un id de part."""
+    d = min(abs(y - LEG_COLS_Y[0]), abs(y - LEG_COLS_Y[1]))
+    return max(0.0, min(1.0, (1.1 - d) / 0.6))   # plateau ±0.5 (tout le pied a poids 1)
+
+
 def apply_pose(spec, t, cfg):
     """Deforme une COPIE de la spec pour l'instant t (aucun bpy : listes de nombres)."""
     tuck = cfg['tuck']
     for part in spec['parts']:
         pid = part.get('id', '')
         is_wing = pid.startswith('wing')
-        is_leg = pid.startswith(('leg_', 'toe_', 'claw_'))
+        is_foot = pid.startswith(('leg_', 'toe_', 'claw_'))
 
         def move(p):
             q = list(p)
             if is_wing:
                 reach = min(1.0, abs(q[0]) / SPAN)
                 q = _rot_beat(q, wing_angle(t, reach, cfg))
-            if is_leg and tuck > 0.0:
-                # repli des pattes SOUS le ventre en vol (poids 1 au pied, 0 a la hanche)
-                w = 1.0 - _span(q[2], FOOT_Z, 2.0)
-                q[2] += 1.35 * tuck * w
-                q[1] += 0.55 * tuck * w
+            if tuck > 0.0:
+                # repli des pattes SOUS le ventre en vol (poids 1 au pied, 0 vers la hanche)
+                g = 1.0 if is_foot else (_leg_gate(q[1]) if pid == 'body_cage' else 0.0)
+                if g > 0.0:
+                    w = (1.0 - _span(q[2], FOOT_Z, 2.0)) * g
+                    q[2] += 1.35 * tuck * w
+                    q[1] += 0.55 * tuck * w
             return warp(q, t, cfg)
 
         if 'verts' in part:
