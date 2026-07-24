@@ -40,8 +40,6 @@ SPEC = os.path.join(ROOT, 'specs', 'dragon.json')
 OUT = os.path.join(ROOT, 'renders', 'anim', 'dragon')
 
 RES = 576                    # carre, contrat du jeu
-ORTHO = 13.5                 # unites cadrees (cadre pour le cas VOL ailes hautes + marge)
-ZC = 3.15                    # centre vertical du cadre (= target z ; pieds z~0.1 -> ancre bas)
 FACING = 'left'              # la bete regarde l'ecran-GAUCHE (vue 3/4 avant, cote +X)
 
 # Reperes anatomiques (unites monde, cf. gen_dragon_trace.py : S=0.01, X0=560, Y0=660).
@@ -56,25 +54,32 @@ FOOT_Z = 0.10
 # bob = montee/descente du corps ; head_up/tail_up = offsets statiques (posture) ;
 # neck_wave/tail_wave = ondes ; tuck = repli des pattes (vol) ; grounded = pieds au sol ;
 # lift = fonction(t) d'altitude (spawn/roar, non cyclique).
+# ortho/zc (b32, « echelle par etat » actee par l'utilisateur) : CADRAGE PAR ETAT — serre
+# au sol (idle/alert : plus grand a l'ecran, marge basse reduite), large quand les ailes
+# balaient (fly/roar). render.json declare scale+anchor PAR ETAT, le forge.py du jeu
+# compense la difference d'echelle entre clips.
 STATES = {
     # 4 de base + ROAR (minimum demande), + fly (hover) + spawn.
     'idle':  {'frames': 48, 'fps': 24, 'loop': True,  'beat': 7.0,  'wing_base': -0.05,
               'bob': 0.05, 'head_up': 0.0,  'tail_up': 0.0,  'neck_wave': 0.05,
-              'tail_wave': 0.10, 'tail_swing': 0.06, 'tuck': 0.0, 'grounded': True},
+              'tail_wave': 0.10, 'tail_swing': 0.06, 'tuck': 0.0, 'grounded': True,
+              'ortho': 12.0, 'zc': 5.2, 'ty': 0.45},
     'alert': {'frames': 48, 'fps': 24, 'loop': True,  'beat': 10.0, 'wing_base': 0.55,
               'bob': 0.03, 'head_up': 0.55, 'tail_up': 0.30, 'neck_wave': 0.03,
-              'tail_wave': 0.05, 'tail_swing': 0.10, 'tuck': 0.0, 'grounded': True},
+              'tail_wave': 0.05, 'tail_swing': 0.10, 'tuck': 0.0, 'grounded': True,
+              'ortho': 12.0, 'zc': 5.2, 'ty': 0.45},
     'roar':  {'frames': 44, 'fps': 24, 'loop': False, 'beat': 16.0, 'wing_base': 0.85,
-              'bob': 0.0,  'head_up': 0.0,  'tail_up': 0.35, 'neck_wave': 0.0,
+              'bob': 0.0,  'head_up': 0.35, 'tail_up': 0.35, 'neck_wave': 0.0,
               'tail_wave': 0.04, 'tail_swing': 0.05, 'tuck': 0.0, 'grounded': True,
-              'roar': True},
+              'roar': True, 'ortho': 12.5, 'zc': 5.4, 'ty': 0.1},
     'fly':   {'frames': 36, 'fps': 24, 'loop': True,  'beat': 34.0, 'wing_base': 0.12,
               'bob': 0.24, 'head_up': 0.10, 'tail_up': -0.10, 'neck_wave': 0.14,
-              'tail_wave': 0.30, 'tail_swing': 0.10, 'tuck': 1.0, 'grounded': False},
+              'tail_wave': 0.30, 'tail_swing': 0.10, 'tuck': 1.0, 'grounded': False,
+              'ortho': 13.5, 'zc': 4.4, 'ty': 0.35},
     'spawn': {'frames': 40, 'fps': 24, 'loop': False, 'beat': 28.0, 'wing_base': 0.10,
               'bob': 0.0,  'head_up': 0.0,  'tail_up': 0.0,  'neck_wave': 0.05,
               'tail_wave': 0.10, 'tail_swing': 0.05, 'tuck': 0.4, 'grounded': True,
-              'spawn': True},
+              'spawn': True, 'ortho': 12.5, 'zc': 5.0, 'ty': 0.1},
 }
 
 # Mapping des 8 etats du MOTEUR de jeu -> clip rendu (plusieurs etats partagent un clip :
@@ -110,6 +115,46 @@ def _rot_beat(p, ang):
     x, z = p[0], p[2] - SHOULDER_Z
     c, s = math.cos(ang), math.sin(ang)
     return [x * c - z * s, p[1], x * s + z * c + SHOULDER_Z]
+
+
+# MACHOIRE (b32) : la gueule est une peau FERMEE (pas de rig) — l'ouverture est une
+# rotation des points SOUS la ligne de levre autour d'une charniere parallele a X.
+# Ligne de levre (LIP de gen_dragon_parts, monde) : z 1.84-1.92 sur y [-5.00, -3.46].
+JAW_HINGE_Y, JAW_HINGE_Z = -3.42, 1.92
+JAW_LIP_Z = 1.90             # frontiere haut/bas de gueule (leg. au-dessus de la levre)
+
+
+def jaw_angle(t, cfg):
+    """Ouverture (rad) pendant le roar : fermee -> ouverture FRANCHE sur la detente ->
+    tenue -> retombee. Synchronisee avec lift() (detente a t 0.30-0.55)."""
+    if not cfg.get('roar'):
+        return 0.0
+    amax = math.radians(34.0)
+    if t < 0.28:
+        return 0.0
+    if t < 0.45:
+        return amax * _ease((t - 0.28) / 0.17)
+    if t < 0.75:
+        return amax
+    return amax * (1.0 - _ease((t - 0.75) / 0.25))
+
+
+def _jaw(p, ang):
+    """Rotation autour de la charniere, ponderee : pleine sous la levre, nulle au-dessus
+    (le crane ne bouge pas), fondue vers la gorge (la peau s'etire, elle ne dechire pas)."""
+    if ang <= 0.0:
+        return p
+    x, y, z = p
+    wz = 1.0 - _ease(_span(z, JAW_LIP_Z - 0.10, JAW_LIP_Z + 0.03))   # 1 sous la levre
+    wy = _ease(_span(y, JAW_HINGE_Y, JAW_HINGE_Y - 0.35))            # 0 a la gorge
+    w = wz * wy
+    if w <= 0.0:
+        return p
+    a = ang * w
+    dy, dz = y - JAW_HINGE_Y, z - JAW_HINGE_Z
+    c, s = math.cos(a), math.sin(a)
+    # rotation qui ABAISSE l'avant (dy<0) : z' = z_h + dy*sin + dz*cos decroit avec a
+    return [x, JAW_HINGE_Y + dy * c - dz * s, JAW_HINGE_Z + dy * s + dz * c]
 
 
 def lift(t, cfg):
@@ -176,6 +221,7 @@ def _leg_gate(y):
 def apply_pose(spec, t, cfg):
     """Deforme une COPIE de la spec pour l'instant t (aucun bpy : listes de nombres)."""
     tuck = cfg['tuck']
+    jaw = jaw_angle(t, cfg)
     for part in spec['parts']:
         pid = part.get('id', '')
         is_wing = pid.startswith('wing')
@@ -186,6 +232,8 @@ def apply_pose(spec, t, cfg):
             if is_wing:
                 reach = min(1.0, abs(q[0]) / SPAN)
                 q = _rot_beat(q, wing_angle(t, reach, cfg))
+            elif jaw > 0.0:
+                q = _jaw(q, jaw)
             if tuck > 0.0:
                 # repli des pattes SOUS le ventre en vol (poids 1 au pied, 0 vers la hanche)
                 g = 1.0 if is_foot else (_leg_gate(q[1]) if pid == 'body_cage' else 0.0)
@@ -203,7 +251,7 @@ def apply_pose(spec, t, cfg):
 
 
 # ------------------------------------------------------------------- scene neutre + camera
-def neutralize_scene(spec):
+def neutralize_scene(spec, cfg):
     """Eclairage NEUTRE et homogene (contrat nº5) + retrait du sol + camera fixe ORTHO de
     profil (facing left). On ecrase le low-key dramatique du hero : un sprite de jeu doit
     etre lisible, a plat, sans rim dur qui blanchit les ailes translucides."""
@@ -222,7 +270,8 @@ def neutralize_scene(spec):
     # Vue 3/4 AVANT depuis le cote +X (-> la tete, en -Y, tombe a l'ecran-GAUCHE) et un peu
     # en hauteur : montre les ailes DEPLOYEES (que le pur profil rendait en tranche) et le
     # crane dur. Camera FIXE (aucun fly-by), ORTHO (echelle constante).
-    sc['camera'] = {'loc': [12.0, -12.0, 5.0], 'target': [0.0, -0.2, ZC], 'lens': 50}
+    sc['camera'] = {'loc': [12.0, -12.0, 5.0],
+                    'target': [0.0, cfg.get('ty', -0.2), cfg['zc']], 'lens': 50}
     sc.pop('shots', None)
     return spec
 
@@ -237,10 +286,10 @@ def tint(spec, variant):
     return spec
 
 
-def set_ortho():
+def set_ortho(cfg):
     cam = bpy.context.scene.camera
     cam.data.type = 'ORTHO'
-    cam.data.ortho_scale = ORTHO
+    cam.data.ortho_scale = cfg['ortho']
 
 
 # ------------------------------------------------------------------------ encodage
@@ -262,6 +311,11 @@ def encode_webm(frames_dir, out_webm, fps):
 
 
 # ---------------------------------------------------------------------------- rendu
+def clip_name(state, variant):
+    """poison = la variante par defaut, garde le nom b30 (ne casse pas le jeu)."""
+    return f'dragon_{state}.webm' if variant == 'poison' else f'dragon_{state}_{variant}.webm'
+
+
 def render_state(base, state, hq, variant):
     cfg = STATES[state]
     n = cfg['frames']
@@ -275,38 +329,49 @@ def render_state(base, state, hq, variant):
         # boucle PARFAITE : pour un cycle, t = i/N (la derniere image ne repete pas la 1re)
         t = (i / n) if cfg['loop'] else (i / (n - 1))
         spec = copy.deepcopy(base)
-        neutralize_scene(spec)
+        neutralize_scene(spec, cfg)
         tint(spec, variant)
         apply_pose(spec, t, cfg)
         organic.build(spec)
-        set_ortho()
+        set_ortho(cfg)
         core.render(os.path.join(fdir, f'f{i:04d}.png'), res=res, settings=settings)
         print(f'  {state} {i + 1}/{n}', flush=True)
-    webm = encode_webm(fdir, os.path.join(OUT, f'dragon_{state}.webm'), cfg['fps'])
-    print(f'OK {state} -> {webm}')
+    webm = encode_webm(fdir, os.path.join(OUT, clip_name(state, variant)), cfg['fps'])
+    print(f'OK {state} [{variant}] -> {webm}')
     return cfg
 
 
-def write_sidecar(done):
+def write_sidecar(done, variant):
     """render.json : metadonnees par etat + mapping des 8 etats moteur. Consommable tel quel
     par le forge.py du jeu. `anchor` = position verticale des PIEDS dans le cadre (fraction
-    du bas), pour caler le sprite au sol cote jeu ; `scale` = unites monde par cadre."""
-    # pieds a z~FOOT_Z ; le cadre couvre [ZC - ORTHO/2, ZC + ORTHO/2] verticalement.
-    foot_anchor = round((FOOT_Z - (ZC - ORTHO / 2.0)) / ORTHO, 4)
-    states_meta = {}
+    du bas) ; `scale` = unites monde par cadre — PAR ETAT depuis b32 (cadrage par etat,
+    acte avec l'utilisateur : le jeu compense via scale/anchor). Les runs par variante
+    FUSIONNENT dans le meme fichier (cle `variants`)."""
+    path = os.path.join(OUT, 'render.json')
+    doc = {}
+    if os.path.exists(path):
+        with open(path) as f:
+            doc = json.load(f)
+    states_meta = doc.get('states', {})
     for state, cfg in done.items():
-        states_meta[state] = {'clip': f'dragon_{state}.webm', 'fps': cfg['fps'],
+        # pieds a z~FOOT_Z ; le cadre couvre [zc - ortho/2, zc + ortho/2] verticalement.
+        anchor = round((FOOT_Z - (cfg['zc'] - cfg['ortho'] / 2.0)) / cfg['ortho'], 4)
+        states_meta[state] = {'clip': clip_name(state, 'poison'), 'fps': cfg['fps'],
                               'frames': cfg['frames'], 'loop': cfg['loop'],
                               'facing': FACING, 'size': [RES, RES],
-                              'scale': round(ORTHO, 3), 'anchor': [0.5, foot_anchor]}
-    doc = {'unit': 'square RGBA VP9 (yuva420p), centered, constant scale',
-           'facing': FACING, 'fps': 24, 'size': [RES, RES], 'ortho_units': round(ORTHO, 3),
-           'foot_anchor': [0.5, foot_anchor],
-           'states': states_meta,
-           'engine_map': {k: v for k, v in ENGINE_MAP.items() if v in done}}
-    with open(os.path.join(OUT, 'render.json'), 'w') as f:
+                              'scale': round(cfg['ortho'], 3), 'anchor': [0.5, anchor]}
+    variants = doc.get('variants', {})
+    variants[variant] = {st: clip_name(st, variant) for st in done}
+    doc.update({
+        'unit': 'square RGBA VP9 (yuva420p), centered, per-state scale (see states)',
+        'facing': FACING, 'fps': 24, 'size': [RES, RES],
+        'states': states_meta, 'variants': variants,
+        'engine_map': {k: v for k, v in ENGINE_MAP.items() if v in states_meta}})
+    doc.pop('ortho_units', None)
+    doc.pop('foot_anchor', None)
+    with open(path, 'w') as f:
         json.dump(doc, f, indent=1)
-    print('render.json ->', os.path.join(OUT, 'render.json'))
+    print('render.json ->', path)
 
 
 if __name__ == '__main__':
@@ -315,15 +380,18 @@ if __name__ == '__main__':
     variant = next((a for a in ARGV if a in VARIANTS), 'poison')
     base = json.load(open(SPEC))
     os.makedirs(OUT, exist_ok=True)
-    # PROBE : une seule image (pour caler camera/cadrage/facing vite). `probe [state]`.
+    # PROBE : une seule image (pour caler camera/cadrage/facing vite).
+    # `probe [state] [t]` — t optionnel (defaut 0.25 ; 0.55 = gueule ouverte du roar).
     if which == 'probe':
         st = ARGV[1] if len(ARGV) > 1 and ARGV[1] in STATES else 'fly'
+        tp = next((float(a) for a in ARGV[2:] if a.replace('.', '', 1).isdigit()), 0.25)
+        cfg = STATES[st]
         spec = copy.deepcopy(base)
-        neutralize_scene(spec)
+        neutralize_scene(spec, cfg)
         tint(spec, variant)
-        apply_pose(spec, 0.25, STATES[st])
+        apply_pose(spec, tp, cfg)
         organic.build(spec)
-        set_ortho()
+        set_ortho(cfg)
         core.render(os.path.join(OUT, '_probe.png'), res=(RES, RES),
                     settings={'engine': 'EEVEE', 'samples': 32, 'transparent': True})
         print('probe ->', os.path.join(OUT, '_probe.png'))
@@ -332,4 +400,4 @@ if __name__ == '__main__':
     done = {}
     for st in todo:
         done[st] = render_state(base, st, hq, variant)
-    write_sidecar(done)
+    write_sidecar(done, variant)
